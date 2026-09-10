@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BLACKOUT</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+
+  <!-- Renderer target -->
+  <canvas id="app"></canvas>
+
+  <!-- Loading screen (also required for Polish marks, and hides asset streaming) -->
+  <div id="loading-screen">
+    <div class="loading-inner">
+      <h1>BLACKOUT</h1>
+      <div class="loading-bar-track"><div id="loading-bar-fill"></div></div>
+      <p id="loading-label">Initializing facility systems...</p>
+    </div>
+  </div>
+
+  <!-- Main menu -->
+  <div id="main-menu" class="overlay hidden">
+    <div class="menu-panel">
+      <h1>BLACKOUT</h1>
+      <p class="tagline">"The AI wasn't designed to destroy the city. It was designed to protect it. At all costs."</p>
+      <button id="btn-play">ENTER FACILITY</button>
+      <button id="btn-credits">CREDITS</button>
+      <div class="menu-hint">WASD to move &middot; Mouse to look &middot; E to interact &middot; Esc to pause</div>
+    </div>
+  </div>
+
+  <!-- Credits screen (required per brief section 3 / checklist) -->
+  <div id="credits-screen" class="overlay hidden">
+    <div class="menu-panel">
+      <h2>Credits &amp; Third-Party Resources</h2>
+      <ul id="credits-list" class="credits-list">
+        <!-- Populated from src/systems/credits.js — add every asset/library here as you use it -->
+      </ul>
+      <button id="btn-credits-close">BACK</button>
+    </div>
+  </div>
+
+  <!-- Pause menu -->
+  <div id="pause-menu" class="overlay hidden">
+    <div class="menu-panel">
+      <h2>PAUSED</h2>
+      <button id="btn-resume">RESUME</button>
+      <button id="btn-restart">RESTART GAME</button>
+      <button id="btn-quit-menu">MAIN MENU</button>
+    </div>
+  </div>
+
+  <!-- In-game HUD -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"></div>
+    <div id="interact-prompt" class="hidden">[E] Interact</div>
+
+    <div id="ai-status-panel">
+      <div class="ai-status-label">AI SECURITY STATE</div>
+      <div id="ai-status-value">CALM</div>
+    </div>
+
+    <div id="level-banner" class="hidden">
+      <div id="level-title"></div>
+      <div id="level-subtitle"></div>
+    </div>
+
+    <div id="objective-panel">
+      <div class="objective-label">OBJECTIVE</div>
+      <div id="objective-text">Explore the maintenance area.</div>
+    </div>
+  </div>
+
+  <!-- Terminal UI (Level 2 signature mechanic) -->
+  <div id="terminal" class="overlay hidden">
+    <div class="terminal-panel">
+      <div id="terminal-output"></div>
+      <div class="terminal-input-row">
+        <span class="terminal-prompt">&gt;</span>
+        <input id="terminal-input" type="text" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="terminal-hint">ESC to close</div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
