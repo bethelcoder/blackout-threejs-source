@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { sound } from './audio.js';
 
 const PLAYER_HEIGHT = 1.7;
 const MOVE_SPEED = 4.2;
 const SPRINT_MULT = 1.6;
 
 /**
- * Wraps PointerLockControls with WASD movement and a simple
- * "push out of colliders" resolution against a flat list of Box3 colliders.
- * Kept intentionally simple (no physics engine) so it's easy to explain
- * in the demo, per the CGV brief's emphasis on being able to justify design choices.
+ * Wraps PointerLockControls with WASD movement, procedural footstep audio,
+ * and robust AABB collision resolution against level geometry.
  */
 export class PlayerControls {
   constructor(camera, domElement) {
@@ -22,6 +21,8 @@ export class PlayerControls {
     this.colliders = []; // array of THREE.Box3
     this.enabled = true;
 
+    this.stepTimer = 0;
+
     document.addEventListener('keydown', (e) => this._onKey(e, true));
     document.addEventListener('keyup', (e) => this._onKey(e, false));
 
@@ -33,6 +34,7 @@ export class PlayerControls {
   }
 
   _onKey(e, isDown) {
+    sound.resume();
     switch (e.code) {
       case 'KeyW': case 'ArrowUp': this.move.forward = isDown; break;
       case 'KeyS': case 'ArrowDown': this.move.back = isDown; break;
@@ -42,7 +44,11 @@ export class PlayerControls {
     }
   }
 
-  lock() { this.controls.lock(); }
+  lock() {
+    sound.resume();
+    this.controls.lock();
+  }
+
   unlock() { this.controls.unlock(); }
   get isLocked() { return this.controls.isLocked; }
 
@@ -57,7 +63,9 @@ export class PlayerControls {
     this.direction.x = Number(this.move.right) - Number(this.move.left);
     this.direction.normalize();
 
+    const isMoving = this.move.forward || this.move.back || this.move.left || this.move.right;
     const speed = MOVE_SPEED * (this.move.sprint ? SPRINT_MULT : 1);
+
     if (this.move.forward || this.move.back) this.velocity.z -= this.direction.z * speed * delta;
     if (this.move.left || this.move.right) this.velocity.x -= this.direction.x * speed * delta;
 
@@ -70,6 +78,18 @@ export class PlayerControls {
     if (this._collides(this.camera.position)) {
       this.camera.position.copy(prevPos);
       this.velocity.set(0, 0, 0);
+    }
+
+    // Trigger procedural footstep sound on cadence
+    if (isMoving) {
+      const stepInterval = this.move.sprint ? 0.32 : 0.48;
+      this.stepTimer += delta;
+      if (this.stepTimer >= stepInterval) {
+        sound.playFootstep(this.move.sprint);
+        this.stepTimer = 0;
+      }
+    } else {
+      this.stepTimer = 0.2;
     }
   }
 

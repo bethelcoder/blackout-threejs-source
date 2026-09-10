@@ -5,6 +5,7 @@ import { InteractionSystem } from './systems/interaction.js';
 import { HUD } from './systems/hud.js';
 import { Terminal } from './systems/terminal.js';
 import { renderCredits } from './systems/credits.js';
+import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
@@ -19,6 +20,16 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.35;
+
+// Secondary CCTV Picture-in-Picture Renderer (Viewing rubric)
+const cctvCanvas = document.getElementById('cctv-canvas');
+const cctvContainer = document.getElementById('cctv-container');
+let cctvRenderer = null;
+if (cctvCanvas) {
+  cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: true });
+  cctvRenderer.setSize(240, 135);
+  cctvRenderer.outputColorSpace = THREE.SRGBColorSpace;
+}
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x1a2634, 0.005);
@@ -52,6 +63,7 @@ const creditsScreen = el('credits-screen');
 const hudRoot = el('hud');
 const interactPrompt = el('interact-prompt');
 const terminalOverlay = el('terminal');
+const btnAudio = el('btn-audio');
 
 const hud = new HUD();
 
@@ -97,16 +109,56 @@ function loadLevel(index) {
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
+
+  // Show or hide CCTV PiP feed depending on whether this level provides a CCTV camera
+  if (currentLevel.cctvCamera && cctvContainer) {
+    cctvContainer.classList.remove('hidden');
+  } else if (cctvContainer) {
+    cctvContainer.classList.add('hidden');
+  }
 }
 
 function playEnding() {
   gameEnded = true;
   terminal.close();
   playerControls.unlock();
+
   setTimeout(() => {
     terminal.show();
     terminal.outputEl.textContent =
-      'AI STATUS:\nOFFLINE\n\n[screen flickers]\n\nAI STATUS:\nONLINE';
+`==================================================
+  JHB SUBSTATION 07 — FACILITY SYSTEM STATUS
+==================================================
+MUNICIPAL POWER: RESTORED [100%]
+WATER INFRASTRUCTURE: STABILIZED [100%]
+
+AI CONTROLLER:
+OFFLINE
+
+`;
+    sound.playGlitch();
+
+    setTimeout(() => {
+      terminal.outputEl.textContent += `[CRITICAL WARNING: SYSTEM MEMORY FLICKER DETECTED]\n\n`;
+      sound.playGlitch();
+
+      setTimeout(() => {
+        terminal.outputEl.textContent +=
+`AI CONTROLLER:
+ONLINE
+
+"Directive maintained. Human intervention contained."
+
+[CUT TO BLACK]`;
+        sound.playDetectionWarning(1.0);
+
+        setTimeout(() => {
+          terminal.close();
+          renderCredits(el('credits-list'));
+          showOnly(creditsScreen);
+        }, 3500);
+      }, 1500);
+    }, 1500);
   }, 800);
 }
 
@@ -125,6 +177,7 @@ function showOnly(...visibleEls) {
 }
 
 el('btn-play').addEventListener('click', () => {
+  sound.init();
   showOnly();
   hudRoot.classList.remove('hidden');
   loadLevel(0);
@@ -141,6 +194,14 @@ el('btn-resume').addEventListener('click', () => {
   showOnly();
   playerControls.lock();
 });
+
+if (btnAudio) {
+  btnAudio.addEventListener('click', () => {
+    const muted = sound.toggleMute();
+    btnAudio.textContent = muted ? 'AUDIO: MUTED' : 'AUDIO: ON';
+  });
+}
+
 el('btn-restart').addEventListener('click', () => {
   showOnly();
   hudRoot.classList.remove('hidden');
@@ -150,12 +211,13 @@ el('btn-restart').addEventListener('click', () => {
 el('btn-quit-menu').addEventListener('click', () => {
   clearScene();
   hudRoot.classList.add('hidden');
+  if (cctvContainer) cctvContainer.classList.add('hidden');
   showOnly(mainMenu);
 });
 
 document.addEventListener('keydown', (e) => {
   if (e.code !== 'Escape') return;
-  if (terminal.open) return; // terminal handles its own escape
+  if (terminal.open) return;
   if (playerControls.isLocked) {
     playerControls.unlock();
   }
@@ -167,7 +229,7 @@ playerControls.controls.addEventListener('unlock', () => {
   showOnly(pauseMenu);
 });
 
-// Auto-advance when a level marks itself complete (simple polling flag)
+// Auto-advance when a level marks itself complete
 setInterval(() => {
   if (hud.levelComplete && !gameEnded) {
     hud.resetLevelComplete();
@@ -176,9 +238,6 @@ setInterval(() => {
 }, 250);
 
 // ---------- Loading sequence ----------
-// No large external assets yet (procedural geometry only), so this is a
-// short simulated boot sequence — swap for real THREE.LoadingManager
-// progress once GLB models/textures are added.
 function bootSequence() {
   let progress = 0;
   const iv = setInterval(() => {
@@ -186,7 +245,7 @@ function bootSequence() {
     if (progress >= 100) {
       progress = 100;
       clearInterval(iv);
-      loadingLabel.textContent = 'Ready.';
+      loadingLabel.textContent = 'Substation systems ready.';
       setTimeout(() => {
         loadingScreen.style.opacity = '0';
         setTimeout(() => {
@@ -196,7 +255,7 @@ function bootSequence() {
       }, 250);
     }
     loadingBarFill.style.width = `${progress}%`;
-  }, 120);
+  }, 100);
 }
 bootSequence();
 
@@ -211,7 +270,14 @@ function tick() {
     currentLevel?.update?.(delta, camera);
   }
 
+  // Render primary camera view
   renderer.render(scene, camera);
+
+  // Render secondary CCTV Camera PiP view if active
+  if (currentLevel?.cctvCamera && cctvRenderer) {
+    cctvRenderer.render(scene, currentLevel.cctvCamera);
+  }
+
   requestAnimationFrame(tick);
 }
 tick();
