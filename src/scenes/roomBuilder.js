@@ -61,7 +61,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     color: wallColor, map: wTex.map, bumpMap: wTex.bumpMap, bumpScale: 0.04, roughness: 0.5, metalness: 0.2,
   });
   const ceilMat = new THREE.MeshStandardMaterial({ color: 0x1a2128, roughness: 0.6, metalness: 0.4 });
-  
+
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), ceilMat);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = height;
@@ -176,7 +176,15 @@ export function buildHazardStrip({ width = 4.0, depth = 0.8, position = [0, 0.01
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), mat);
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(...position);
-  return mesh;
+
+  // NOTE: previously this returned the raw `mesh` while every other builder
+  // in this file returns `{ mesh, ... }`. That inconsistency is a footgun
+  // for any call site written against the "normal" pattern (scene.add(x.mesh)).
+  // Standardized here — update call sites to `scene.add(hazardStrip.mesh)`.
+  return {
+    mesh,
+    dispose: () => tex.dispose(),
+  };
 }
 
 export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
@@ -188,10 +196,10 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
   canvas.width = 512;
   canvas.height = 1024;
   const ctx = canvas.getContext('2d');
-  
+
   ctx.fillStyle = '#eeeeee';
   ctx.fillRect(0, 0, 512, 1024);
-  
+
   ctx.fillStyle = '#222222';
   ctx.font = 'bold 42px monospace';
   ctx.textAlign = 'center';
@@ -213,30 +221,30 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
 
   const shifts = [
     { name: "DOE, J.",   sec: "SEC-8", time: "08:30" },
-    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" }, 
+    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" },
     { name: "JONES, B.", sec: "SEC-4", time: "11:00" },
-    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" }, 
+    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" },
     { name: "CHEN, M.",  sec: "SEC-5", time: "23:15" },
     { name: "CROSS, E.", sec: "SEC-9", time: "13:20" },
-    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" }, 
+    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" },
     { name: "GOMEZ, L.", sec: "SEC-6", time: "09:45" },
     { name: "WITT, S.",  sec: "SEC-7", time: "16:30" },
   ];
 
   ctx.fillStyle = '#111111';
   ctx.font = '26px monospace';
-  
+
   let yPos = 300;
   shifts.forEach(shift => {
     ctx.fillText(shift.name, 40, yPos);
     ctx.fillText(shift.sec, 260, yPos);
     ctx.font = 'bold 26px monospace';
     ctx.fillText(shift.time, 380, yPos);
-    ctx.font = '26px monospace'; 
-    
+    ctx.font = '26px monospace';
+
     ctx.beginPath(); ctx.moveTo(30, yPos + 20); ctx.lineTo(482, yPos + 20);
     ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.stroke();
-    yPos += 75; 
+    yPos += 75;
   });
 
   ctx.fillStyle = '#aa0000';
@@ -246,7 +254,7 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
 
   const tex = new THREE.CanvasTexture(canvas);
   const paper = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.8, 1.6), 
+    new THREE.PlaneGeometry(0.8, 1.6),
     new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 })
   );
   paper.position.z = 0.01;
@@ -291,7 +299,16 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
     document.addEventListener('keydown', closeOverlay);
   };
 
-  return { mesh: group, dispose: () => tex.dispose() };
+  return {
+    mesh: group,
+    dispose: () => {
+      tex.dispose();
+      // Make sure a still-open overlay doesn't survive a level transition
+      // and block input / pointer-lock on the next level.
+      const overlay = document.getElementById('schedule-overlay');
+      if (overlay) overlay.remove();
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +334,10 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
 
   // 3. UI Interaction Logic
   let currentStage = 0; // Tracks which code we are on
+
+  // Tracks any in-flight setTimeout so it can be cancelled if the level
+  // (and this keypad's owning scene) is torn down before it fires.
+  let pendingTimeout = null;
 
   group.userData.interactable = true;
   group.userData.label = 'Use Keypad';
@@ -346,7 +367,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
     // LEDs for stages
     const ledContainer = document.createElement('div');
     Object.assign(ledContainer.style, { display: 'flex', justifyContent: 'center', gap: '15px' });
-    
+
     const leds = [];
     for (let i = 0; i < targetCodes.length; i++) {
       const led = document.createElement('div');
@@ -369,14 +390,14 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
       height: '45px', lineHeight: '45px', letterSpacing: '4px',
       boxShadow: 'inset 0px 0px 10px rgba(0,0,0,0.5)'
     });
-    
+
     if (currentStage >= targetCodes.length) {
       display.innerText = "UNLOCKED";
       display.style.color = '#00ff00';
     } else {
       display.innerText = "";
     }
-    
+
     keypadBox.appendChild(display);
 
     // Number Grid
@@ -392,7 +413,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
       btnEl.innerText = btn;
       Object.assign(btnEl.style, {
         padding: '20px', fontSize: '28px', cursor: 'pointer', fontWeight: 'bold',
-        backgroundColor: btn === 'E' ? '#226622' : (btn === 'C' ? '#662222' : '#555'), 
+        backgroundColor: btn === 'E' ? '#226622' : (btn === 'C' ? '#662222' : '#555'),
         color: 'white', border: 'none', borderRadius: '5px',
         transition: 'background 0.1s, transform 0.1s'
       });
@@ -405,7 +426,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
       btnEl.onclick = (e) => {
         e.stopPropagation();
         if (isProcessing || currentStage >= targetCodes.length) return;
-        
+
         if (btn === 'C') {
           currentInput = "";
           display.innerText = currentInput;
@@ -416,19 +437,21 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
             leds[currentStage].style.backgroundColor = '#00ff00';
             leds[currentStage].style.boxShadow = '0px 0px 10px #00ff00';
             currentStage++;
-            
+
             display.style.color = '#ffffff';
             display.style.backgroundColor = '#00aa00';
-            
+
             if (currentStage >= targetCodes.length) {
               display.innerText = "UNLOCKED";
-              setTimeout(() => {
+              pendingTimeout = setTimeout(() => {
+                pendingTimeout = null;
                 closeKeypad();
-                if (onSuccess) onSuccess(); 
+                if (onSuccess) onSuccess();
               }, 1500);
             } else {
               display.innerText = "ACCEPTED";
-              setTimeout(() => {
+              pendingTimeout = setTimeout(() => {
+                pendingTimeout = null;
                 currentInput = "";
                 display.innerText = currentInput;
                 display.style.color = '#55ff55';
@@ -441,7 +464,8 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
             display.style.color = '#ffffff';
             display.style.backgroundColor = '#aa0000';
             display.innerText = "ERROR";
-            setTimeout(() => {
+            pendingTimeout = setTimeout(() => {
+              pendingTimeout = null;
               currentInput = "";
               display.innerText = currentInput;
               display.style.color = '#55ff55';
@@ -451,7 +475,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
           }
         } else {
           // Standard number entry
-          if (currentInput.length < targetCodes[currentStage].length) { 
+          if (currentInput.length < targetCodes[currentStage].length) {
             currentInput += btn;
             display.innerText = currentInput;
           }
@@ -461,7 +485,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
     });
 
     keypadBox.appendChild(grid);
-    
+
     const hint = document.createElement('div');
     hint.innerText = "Click outside or press Escape to close";
     Object.assign(hint.style, { color: '#888', textAlign: 'center', marginTop: '5px', fontSize: '14px' });
@@ -486,17 +510,58 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
     document.addEventListener('keydown', handleKeydown);
   };
 
-  return { mesh: group };
+  return {
+    mesh: group,
+    dispose: () => {
+      // Cancel any in-flight "ACCEPTED"/"ERROR"/"UNLOCKED" timeout so it
+      // can't fire onSuccess (or touch now-disposed objects) after the
+      // level has already been torn down.
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingTimeout = null;
+      }
+      const overlay = document.getElementById('keypad-overlay');
+      if (overlay) overlay.remove();
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
 // GENERIC PROP BUILDER
 // ---------------------------------------------------------------------------
-export function buildProp({ geometry, material, position = [0, 0, 0], rotation = [0, 0, 0], castShadow = true }) {
-  const mesh = new THREE.Mesh(geometry, material);
+export function buildProp({
+  width, height, depth, color,
+  geometry, material,
+  position = [0, 0, 0], rotation = [0, 0, 0],
+  castShadow = true
+}) {
+  // Build geometry from dimensions or fallback to custom geometry
+  const propGeo = geometry || new THREE.BoxGeometry(width || 1, height || 1, depth || 1);
+
+  // Build material from color or fallback to custom material
+  const propMat = material || new THREE.MeshStandardMaterial({
+    color: color ?? 0x888888,
+    roughness: 0.5
+  });
+
+  const mesh = new THREE.Mesh(propGeo, propMat);
   mesh.position.set(...position);
   mesh.rotation.set(...rotation);
   mesh.castShadow = castShadow;
   mesh.receiveShadow = true;
-  return mesh;
+
+  // IMPORTANT: force the mesh's world matrix to update before computing
+  // its bounding box. `setFromObject` reads `matrixWorld`, which is only
+  // refreshed automatically during a render pass (or when a parent's
+  // matrix updates). If a caller builds a collider from this box
+  // immediately — before the mesh has ever been rendered, or while it's
+  // parented under a group whose own transform hasn't propagated yet —
+  // `box` can silently come out wrong (or degenerate/empty) rather than
+  // throwing. Calling updateMatrixWorld(true) here guarantees the box is
+  // always computed from the mesh's *actual* final position.
+  mesh.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(mesh);
+
+  // Return both object structure and mesh reference
+  return { mesh, box, position: mesh.position };
 }
