@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PlayerControls } from './systems/playerControls.js';
 import { AIState } from './systems/aiState.js';
 import { InteractionSystem } from './systems/interaction.js';
@@ -24,6 +25,10 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x1a2634, 0.005);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+const PLAYER_HEIGHT = 1.7;
+//3rd person camera
+
+const thirdPersonCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
 
 // Player flashlight / headlamp
 const flashlight = new THREE.SpotLight(0xffffff, 8, 28, Math.PI / 4, 0.4, 1.0);
@@ -38,6 +43,10 @@ scene.add(camera);
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+
+  thirdPersonCamera.aspect = window.innerWidth / window.innerHeight;
+  thirdPersonCamera.updateProjectionMatrix();
+
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
@@ -55,6 +64,9 @@ const terminalOverlay = el('terminal');
 
 const hud = new HUD();
 
+const gltfLoader = new GLTFLoader();
+let playerModel = null;
+
 // ---------- Systems ----------
 const playerControls = new PlayerControls(camera, renderer.domElement);
 const interaction = new InteractionSystem(camera, scene, interactPrompt);
@@ -64,6 +76,44 @@ const terminal = new Terminal({
   outputEl: el('terminal-output'),
   inputEl: el('terminal-input'),
 });
+
+function loadPlayerModel() {
+
+  if (playerModel) {
+    scene.remove(playerModel);
+    playerModel = null;
+  }
+
+  gltfLoader.load(
+    '/models/player.glb',
+
+    (gltf) => {
+      playerModel = gltf.scene;
+
+      playerModel.scale.set(1.2, 1.2, 1.2);
+
+      // Start at the player's feet.
+      playerModel.position.copy(camera.position);
+      playerModel.position.y = 0;
+
+      // Face the same direction as the player.
+      playerModel.rotation.y = Math.PI;
+
+      // Hide it by default because we start in first person.
+      playerModel.visible = false;
+
+      scene.add(playerModel);
+
+      console.log("🎉 Player model loaded!");
+    },
+
+    undefined,
+
+    (error) => {
+      console.error("Failed to load player model:", error);
+    }
+  );
+}
 
 // ---------- Level manager ----------
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
@@ -92,8 +142,10 @@ function loadLevel(index) {
 
   playerControls.setColliders(currentLevel.colliders);
   camera.position.copy(currentLevel.spawn);
-  camera.rotation.set(0, 0, 0);
+  camera.rotation.set(0,0,0);
   aiState.reset();
+
+  loadPlayerModel();
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
@@ -207,11 +259,34 @@ function tick() {
 
   if (playerControls.isLocked) {
     playerControls.update(delta);
+
+    if (playerModel) {
+      playerModel.visible = playerControls.cameraMode === "third"; // show only in 3rd person
+    }
+
+    if (playerModel) {
+      playerModel.position.copy(camera.position);
+      playerModel.position.y = 0;
+    }
+    
     interaction.update();
     currentLevel?.update?.(delta, camera);
+
+    // Make the third-person camera follow behind the player
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+
+    direction.y = 0;
+    direction.normalize();
+
+    const thirdPersonPosition = camera.position.clone().addScaledVector(direction, -2.5).add(new THREE.Vector3(0, 1.2, 0));
+
+    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.15);
+    thirdPersonCamera.lookAt(camera.position);
   }
 
-  renderer.render(scene, camera);
+  const activeCamera = playerControls.cameraMode === "third" ? thirdPersonCamera : camera;
+  renderer.render(scene, activeCamera);
   requestAnimationFrame(tick);
 }
 tick();

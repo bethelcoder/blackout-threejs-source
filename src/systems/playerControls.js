@@ -19,6 +19,9 @@ export class PlayerControls {
     this.direction = new THREE.Vector3();
 
     this.move = { forward: false, back: false, left: false, right: false, sprint: false };
+
+    this.cameraMode = "first"; // "first" or "third"
+
     this.colliders = []; // array of THREE.Box3
     this.enabled = true;
 
@@ -32,6 +35,11 @@ export class PlayerControls {
     this.colliders = boxes;
   }
 
+  toggleCamera() {
+    this.cameraMode = this.cameraMode === "first" ? "third" : "first";
+    console.log(this.cameraMode === "first" ? "First-person mode" : "Third-person mode");
+  }
+
   _onKey(e, isDown) {
     switch (e.code) {
       case 'KeyW': case 'ArrowUp': this.move.forward = isDown; break;
@@ -39,6 +47,7 @@ export class PlayerControls {
       case 'KeyA': case 'ArrowLeft': this.move.left = isDown; break;
       case 'KeyD': case 'ArrowRight': this.move.right = isDown; break;
       case 'ShiftLeft': case 'ShiftRight': this.move.sprint = isDown; break;
+      case 'KeyV': if (isDown) this.toggleCamera(); break;
     }
   }
 
