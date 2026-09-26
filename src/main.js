@@ -67,6 +67,10 @@ const hud = new HUD();
 const gltfLoader = new GLTFLoader();
 let playerModel = null;
 
+let previousPlayerPosition = new THREE.Vector3();
+
+let previousCameraMode = "first";
+
 // ---------- Systems ----------
 const playerControls = new PlayerControls(camera, renderer.domElement);
 const interaction = new InteractionSystem(camera, scene, interactPrompt);
@@ -97,7 +101,7 @@ function loadPlayerModel() {
       playerModel.position.y = 0;
 
       // Face the same direction as the player.
-      playerModel.rotation.y = Math.PI;
+      playerModel.rotation.y = 0;
 
       // Hide it by default because we start in first person.
       playerModel.visible = false;
@@ -143,6 +147,7 @@ function loadLevel(index) {
   playerControls.setColliders(currentLevel.colliders);
   camera.position.copy(currentLevel.spawn);
   camera.rotation.set(0,0,0);
+  previousPlayerPosition.copy(camera.position);
   aiState.reset();
 
   loadPlayerModel();
@@ -265,12 +270,48 @@ function tick() {
     }
 
     if (playerModel) {
-      playerModel.position.copy(camera.position);
-      playerModel.position.y = 0;
-    }
+      // Show the character only in third person.
+      //playerModel.visible = playerControls.cameraMode === "third";
     
-    interaction.update();
-    currentLevel?.update?.(delta, camera);
+      // Keep the character on the ground and follow the player.
+      playerModel.position.x = camera.position.x;
+      playerModel.position.z = camera.position.z;
+      playerModel.position.y = 0;
+
+      // Detect switching from first person to third person.
+      if (
+        playerControls.cameraMode === "third" &&
+        previousCameraMode === "first"
+      ) {
+        const cameraDirection = new THREE.Vector3();
+
+        camera.getWorldDirection(cameraDirection);
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
+
+        const angle = Math.atan2(
+          cameraDirection.x,
+          cameraDirection.z
+        );
+
+        playerModel.rotation.y = angle;
+      }
+    
+      // Work out which direction the player moved.
+      const movement = camera.position.clone().sub(previousPlayerPosition);
+      movement.y = 0;
+    
+      if (movement.lengthSq() > 0.0001) {
+        // When moving, face the direction of movement.
+        const angle = Math.atan2(movement.x, movement.z);
+        playerModel.rotation.y = angle;
+      } 
+    
+      previousPlayerPosition.copy(camera.position);
+    }
+
+    //interaction.update();
+    //currentLevel?.update?.(delta, camera);
 
     // Make the third-person camera follow behind the player
     const direction = new THREE.Vector3();
@@ -279,11 +320,17 @@ function tick() {
     direction.y = 0;
     direction.normalize();
 
-    const thirdPersonPosition = camera.position.clone().addScaledVector(direction, -2.5).add(new THREE.Vector3(0, 1.2, 0));
+    const thirdPersonPosition = camera.position.clone().addScaledVector(direction, -2.8).add(new THREE.Vector3(0.8, 1.6, 0));
 
-    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.15);
-    thirdPersonCamera.lookAt(camera.position);
+    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+
+    const lookTarget = camera.position.clone();
+    lookTarget.y -= 0.4;
+
+    thirdPersonCamera.lookAt(lookTarget);
   }
+
+  previousCameraMode = playerControls.cameraMode;
 
   const activeCamera = playerControls.cameraMode === "third" ? thirdPersonCamera : camera;
   renderer.render(scene, activeCamera);
