@@ -69,7 +69,8 @@ const hud = new HUD();
 
 // ---------- Systems ----------
 const playerControls = new PlayerControls(camera, renderer.domElement);
-const interaction = new InteractionSystem(camera, scene, interactPrompt);
+const interaction = new InteractionSystem(camera, scene, interactPrompt,
+  () => playerControls.isLocked && playerControls.enabled);
 const aiState = new AIState((state) => hud.setAIStatus(state));
 const terminal = new Terminal({
   overlayEl: terminalOverlay,
@@ -82,8 +83,12 @@ const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
 let currentLevel = null;
 let currentLevelIndex = 0;
 let gameEnded = false;
+let advanceTimeout = null;
 
 function clearScene() {
+  clearTimeout(advanceTimeout);
+  interaction.reset();
+  playerControls.enabled = true;
   currentLevel?.dispose?.();
   // Remove everything except camera and its attached components
   for (let i = scene.children.length - 1; i >= 0; i--) {
@@ -92,19 +97,26 @@ function clearScene() {
   }
 }
 
-function loadLevel(index) {
+function loadLevel(index, entry = 'door') {
   clearScene();
   gameEnded = false;
   hud.resetLevelComplete();
 
   const builder = LEVEL_BUILDERS[index];
-  const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding };
+  const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding,
+    onShock: (position) => playerControls.teleport(position),
+    onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
+    onVentExit: () => loadLevel(1, 'vent') };
   currentLevel = builder(args);
   currentLevelIndex = index;
 
-  playerControls.setColliders(currentLevel.colliders);
+  playerControls.setColliders(currentLevel.colliders, currentLevel.walkableSurfaces);
   camera.position.copy(currentLevel.spawn);
   camera.rotation.set(0, 0, 0);
+  if (entry === 'vent' && currentLevel.serviceSpawn) {
+    camera.position.copy(currentLevel.serviceSpawn);
+    camera.rotation.y = Math.PI / 2;
+  }
   aiState.reset();
 
   hud.setObjective(currentLevel.objective);
@@ -233,7 +245,7 @@ playerControls.controls.addEventListener('unlock', () => {
 setInterval(() => {
   if (hud.levelComplete && !gameEnded) {
     hud.resetLevelComplete();
-    setTimeout(advanceLevel, 1500);
+    advanceTimeout = setTimeout(advanceLevel, 1500);
   }
 }, 250);
 
@@ -266,7 +278,7 @@ function tick() {
 
   if (playerControls.isLocked) {
     playerControls.update(delta);
-    interaction.update();
+    interaction.update(delta);
     currentLevel?.update?.(delta, camera);
   }
 

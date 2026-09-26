@@ -1,20 +1,34 @@
 import * as THREE from 'three';
-import { buildRoom, buildProp, buildHazardStrip, buildBreakerCabinet } from './roomBuilder.js';
+import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
 import { createSparkParticles } from '../systems/particles.js';
 import { sound } from '../systems/audio.js';
+import { buildMaintenanceWalkway } from './maintenanceWalkway.js';
+import { buildElectricalHazard } from './electricalHazard.js';
+import { buildMaintenanceVent } from './maintenanceVent.js';
 
 /**
- * LEVEL 1 — INFILTRATION
+ * LEVEL 1 â€” INFILTRATION
  * Environment: Maintenance / Electrical Section
  * Objective: Explore maintenance area, avoid security camera, find code, unlock blast door.
  */
-export function buildLevel1({ scene, aiState, hud }) {
+export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit }) {
   const colliders = [];
   const cleanup = [];
 
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 4 });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8 });
   scene.add(room);
   colliders.push(...wallColliders);
+  const walkway = buildMaintenanceWalkway();
+  scene.add(walkway.group);
+  colliders.push(...walkway.colliders);
+  cleanup.push(() => walkway.dispose());
+  const electricalHazard = buildElectricalHazard({ aiState, onShock });
+  scene.add(electricalHazard.group);
+  cleanup.push(() => electricalHazard.dispose());
+  const ventRoute = buildMaintenanceVent({ aiState, onEnter: onVentEnter, onExit: onVentExit });
+  scene.add(ventRoute.group);
+  colliders.push(...ventRoute.colliders);
+  cleanup.push(() => ventRoute.dispose());
 
   // Bright facility lighting
   const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x6a7b8c, 1.6);
@@ -32,9 +46,9 @@ export function buildLevel1({ scene, aiState, hud }) {
 
   // Overhead fluorescent tube fixtures along the corridor
   const lightPositions = [
-    [0, 3.8, 6],   // Spawn area
-    [0, 3.8, 0],   // Mid room
-    [0, 3.8, -7],  // Security / door area
+    [0, 6.6, 6],   // Spawn area
+    [0, 6.6, 0],   // Mid room
+    [0, 6.6, -7],  // Security / door area
   ];
 
   const lightPanelGeo = new THREE.BoxGeometry(2.0, 0.08, 0.5);
@@ -52,15 +66,9 @@ export function buildLevel1({ scene, aiState, hud }) {
     cleanup.push(() => scene.remove(pLight));
   }
 
-  // Electrical breaker cabinets against the wall
-  const cabinet = buildBreakerCabinet({ position: [-5.8, 0, -2] });
-  scene.add(cabinet.group);
-  colliders.push(cabinet.box);
-  cleanup.push(() => scene.remove(cabinet.group));
-
   // Clutter props / crates
   const crate1 = buildProp({ width: 1.2, height: 1.2, depth: 1.2, color: 0x4a5868, position: [-3.5, 0, -3] });
-  const crate2 = buildProp({ width: 1.6, height: 0.9, depth: 1.2, color: 0x5a6a7c, position: [3.5, 0, 2] });
+  const crate2 = buildProp({ width: 1.6, height: 0.9, depth: 1.2, color: 0x5a6a7c, position: [3.5, 0, 3.6] });
   const crate3 = buildProp({ width: 1.0, height: 0.8, depth: 1.0, color: 0x4a5868, position: [4.0, 0, -5] });
   scene.add(crate1.mesh, crate2.mesh, crate3.mesh);
   colliders.push(crate1.box, crate2.box, crate3.box);
@@ -168,7 +176,10 @@ export function buildLevel1({ scene, aiState, hud }) {
   let warnTimer = 0;
 
   function update(delta, camera) {
+    if (ventRoute.travelling) { ventRoute.update(delta, camera); return; }
+    ventRoute.update(delta, camera);
     t += delta;
+    electricalHazard.update(delta, camera);
     camHead.rotation.y = Math.sin(t * 0.7) * Math.PI * 0.42;
     const dir = new THREE.Vector3(Math.sin(camHead.rotation.y), -0.2, -Math.cos(camHead.rotation.y)).normalize();
     camTarget.position.copy(camHead.position).add(dir.clone().multiplyScalar(6));
@@ -200,11 +211,12 @@ export function buildLevel1({ scene, aiState, hud }) {
 
   return {
     colliders,
+    walkableSurfaces: walkway.walkableSurfaces,
     cctvCamera,
     update,
     dispose: () => cleanup.forEach(fn => fn()),
     spawn: new THREE.Vector3(0, 1.7, 7.5),
-    title: 'LEVEL 1 — INFILTRATION',
+    title: 'LEVEL 1 â€” INFILTRATION',
     subtitle: 'Find a way past the perimeter security.',
     objective: 'Explore the maintenance area for access credentials.',
   };
