@@ -35,7 +35,7 @@ function getSharedTextures() {
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68 }) {
+export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true }) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
@@ -121,6 +121,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
 
   for (let z = -depth / 2 + 1.8; z <= depth / 2 - 1.8; z += 1.3) {
     [-width / 2 + 0.8, width / 2 - 0.8].forEach((xPos, sideIdx) => {
+      if (sideIdx === 1 && !includeRightCabinets) return;
       if (sideIdx === 0 && z > -1.2 && z < 2.5) return;
       if (sideIdx === 1 && z > 6.0 && z < 8.5) return;
 
@@ -177,6 +178,129 @@ export function buildHazardStrip({ width = 4.0, depth = 0.8, position = [0, 0.01
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(...position);
   return mesh;
+}
+
+function createScheduleCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = '#eeeeee';
+  ctx.fillRect(0, 0, 512, 1024);
+  
+  ctx.fillStyle = '#222222';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FACILITY MAINTENANCE', 256, 70);
+  ctx.fillText('SHIFT SCHEDULE', 256, 120);
+
+  ctx.beginPath(); ctx.moveTo(30, 150); ctx.lineTo(482, 150);
+  ctx.strokeStyle = '#aa0000'; ctx.lineWidth = 8; ctx.stroke();
+
+  ctx.fillStyle = '#444444';
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('OPERATOR', 40, 220);
+  ctx.fillText('SECTOR', 260, 220);
+  ctx.fillText('TIME', 380, 220);
+
+  ctx.beginPath(); ctx.moveTo(30, 240); ctx.lineTo(482, 240);
+  ctx.strokeStyle = '#999999'; ctx.lineWidth = 2; ctx.stroke();
+
+  const shifts = [
+    { name: "DOE, J.",   sec: "SEC-8", time: "08:30" },
+    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" }, 
+    { name: "JONES, B.", sec: "SEC-4", time: "11:00" },
+    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" }, 
+    { name: "CHEN, M.",  sec: "SEC-5", time: "23:15" },
+    { name: "CROSS, E.", sec: "SEC-9", time: "13:20" },
+    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" }, 
+    { name: "GOMEZ, L.", sec: "SEC-6", time: "09:45" },
+    { name: "WITT, S.",  sec: "SEC-7", time: "16:30" },
+  ];
+
+  ctx.fillStyle = '#111111';
+  ctx.font = '26px monospace';
+  
+  let yPos = 300;
+  shifts.forEach(shift => {
+    ctx.fillText(shift.name, 40, yPos);
+    ctx.fillText(shift.sec, 260, yPos);
+    ctx.font = 'bold 26px monospace';
+    ctx.fillText(shift.time, 380, yPos);
+    ctx.font = '26px monospace'; 
+    
+    ctx.beginPath(); ctx.moveTo(30, yPos + 20); ctx.lineTo(482, yPos + 20);
+    ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.stroke();
+    yPos += 75; 
+  });
+
+  ctx.fillStyle = '#aa0000';
+  ctx.font = 'bold 24px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('** CONFIDENTIAL **', 256, 980);
+  return canvas;
+}
+
+function addScheduleInteraction(group, canvas) {
+  group.userData.interactable = true;
+  group.userData.label = 'Read Shift Schedule';
+  group.userData.onInteract = () => {
+    if (document.getElementById('schedule-overlay')) return;
+
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'schedule-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.85)', display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center', zIndex: '9999'
+    });
+
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL();
+    Object.assign(img.style, { maxHeight: '90vh', border: '4px solid #444', borderRadius: '5px' });
+
+    const hint = document.createElement('div');
+    hint.innerText = "Click or press 'E' / 'Escape' to close";
+    Object.assign(hint.style, { color: '#ffffff', fontFamily: 'monospace', fontSize: '20px', marginTop: '20px' });
+
+    overlay.appendChild(img);
+    overlay.appendChild(hint);
+    document.body.appendChild(overlay);
+
+    const closeOverlay = (e) => {
+      if (e.type === 'click' || (e.type === 'keydown' && ['e', 'E', 'Escape'].includes(e.key))) {
+        overlay.remove();
+        document.removeEventListener('keydown', closeOverlay);
+      }
+    };
+    overlay.addEventListener('click', closeOverlay);
+    document.addEventListener('keydown', closeOverlay);
+  };
+}
+
+export function buildRolledUpSchedule({ position = [0, 0, 0], rotation = [0, 0, 0] }) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  group.rotation.set(...rotation);
+
+  const canvas = createScheduleCanvas();
+  const tex = new THREE.CanvasTexture(canvas);
+  
+  const paper = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.4, 12),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, color: 0xddddcc })
+  );
+  group.add(paper);
+
+  addScheduleInteraction(group, canvas);
+
+  return { mesh: group, dispose: () => tex.dispose() };
 }
 
 export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {

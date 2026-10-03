@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { acquireMaintenanceMaps } from '../systems/maintenanceMaterials.js';
 import { sound } from '../systems/audio.js';
-
-export function buildMaintenanceVent({ aiState, onEnter, onExit }) {
+import { buildRolledUpSchedule} from './roomBuilder.js';
+export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   const group = new THREE.Group();
   group.name = 'Maintenance vent route';
   const textures = acquireMaintenanceMaps();
@@ -105,33 +105,70 @@ export function buildMaintenanceVent({ aiState, onEnter, onExit }) {
   vent.position.set(1.95, 4.3, 9.8);
   vent.rotation.y = Math.PI;
   group.add(vent);
-  box(vent, 'Dark duct opening', 0, 0, 0, 1.3, 1.1, 0.04, black);
-  for (const x of [-0.7, 0.7]) box(vent, 'Vertical frame', x, 0, 0.12, 0.1, 1.3, 0.15);
-  for (const y of [-0.6, 0.6]) box(vent, 'Horizontal frame', 0, y, 0.12, 1.5, 0.1, 0.15);
-  box(vent, 'Faint light inside duct', 0, 0, 0.04, 1.2, 0.05, 0.02, lightMaterial);
+  // Local +Z faces the room. Keep the compartment in front of the room wall,
+  // with its back behind the grille so opening it reveals a square recess.
+  const cavityDepth = 0.5;
+  const cavityZ = 0.27;
+  box(vent, 'Compartment back', 0, 0, 0.02, 1.3, 1.3, 0.04, black, true);
+  for (const x of [-0.63, 0.63]) {
+    box(vent, 'Compartment side', x, 0, cavityZ, 0.06, 1.3, cavityDepth, metal, true);
+  }
+  for (const y of [-0.63, 0.63]) {
+    box(vent, 'Compartment shelf', 0, y, cavityZ, 1.2, 0.06, cavityDepth, metal, true);
+  }
+  for (const x of [-0.7, 0.7]) box(vent, 'Vertical frame', x, 0, 0.54, 0.1, 1.5, 0.1);
+  for (const y of [-0.7, 0.7]) box(vent, 'Horizontal frame', 0, y, 0.54, 1.5, 0.1, 0.1);
+
   const hinge = new THREE.Group();
   hinge.name = 'Grille hinge';
-  hinge.position.set(-0.65, 0, 0.22);
+  hinge.position.set(-0.65, 0, 0.61);
   vent.add(hinge);
   const grille = new THREE.Group();
   grille.name = 'Screw-fastened grille';
   hinge.add(grille);
-  for (let i = 0; i < 8; i++) box(grille, 'Grille slat', 0.65, -0.46 + i * 0.13, 0, 1.3, 0.055, 0.08);
+  // A solid dark backing hides the paper behind ordinary horizontal louvers.
+  box(grille, 'Grille backing', 0.65, 0, -0.025, 1.3, 1.3, 0.035, black);
+  for (const x of [0.035, 1.265]) box(grille, 'Grille side rim', x, 0, 0, 0.07, 1.3, 0.06);
+  for (const y of [-0.615, 0.615]) box(grille, 'Grille rim', 0.65, y, 0, 1.3, 0.07, 0.06);
+  for (let i = 0; i < 9; i++) {
+    const slat = box(grille, 'Grille slat', 0.65, -0.52 + i * 0.13, 0.025, 1.16, 0.075, 0.07);
+    slat.rotation.x = -0.3;
+  }
   const screws = [];
   for (const x of [0.07, 1.23]) for (const y of [-0.5, 0.5]) {
     screws.push(box(grille, 'Retaining screw', x, y, 0.06, 0.07, 0.07, 0.035, black));
   }
+
+    // Rolled technician schedule, tucked just inside the duct — only reachable
+  // once the grille has been fully unscrewed.
+  const schedule = buildRolledUpSchedule({
+    position: [0.15, -0.56, 0.3],
+    rotation: [0 , 0.15, Math.PI / 2],
+  });
+  schedule.mesh.userData.label = 'Read Schedule';
+  schedule.mesh.userData.interactable = false; // toggled on once grille opens
+  vent.add(schedule.mesh);
+
+  schedule.mesh.visible = false;
+  let scheduleTaken = false;
+  const showScheduleOverlay = schedule.mesh.userData.onInteract;
+  schedule.mesh.userData.onInteract = () => {
+    showScheduleOverlay();
+    if (!scheduleTaken) {
+      scheduleTaken = true;
+      sound.playInteract();
+      hud.setObjective('Technician shift schedule recovered. Cross-reference the times for the clock panel.');
+    }
+  };
   let progress = 0;
   let open = false;
-  let travelling = false;
-  let travelTime = 0;
   let lastScrew = 0;
   let scrapeTime = 0;
   vent.userData.interactable = true;
-  vent.userData.getLabel = () => travelling ? 'Crawling through service duct...' : open ? 'Enter service duct' :
+  vent.userData.getLabel = () => open ? (scheduleTaken ? 'Schedule recovered' : 'Read the rolled paper inside') :
     hasTool ? `Hold E to unscrew grille - ${Math.floor(progress / 4 * 100)}%` : 'Maintenance duct - screws require a screwdriver';
   vent.userData.onHold = delta => {
-    if (!hasTool || open || travelling) return;
+    if (!hasTool || open) return;
     progress = Math.min(4, progress + delta);
     aiState.raise(delta * 18);
     scrapeTime += delta;
@@ -144,36 +181,18 @@ export function buildMaintenanceVent({ aiState, onEnter, onExit }) {
     }
     if (progress === 4) { open = true; sound.playAccessGranted(); }
   };
-  vent.userData.onInteract = () => {
-    if (!open || travelling) return;
-    travelling = true;
-    onEnter();
-    inventory.textContent = 'SERVICE DUCT - Crawling to control room';
-  };
+
 
   // A separate, enclosed passage supports a short scripted crawl without cutting
   // holes into the existing room walls or changing normal player collision height.
-  const duct = new THREE.Group();
-  duct.name = 'Service duct interior';
-  duct.position.set(30, 0, 0);
-  group.add(duct);
-  box(duct, 'Duct floor', 0, 0, 0, 1.6, 0.1, 6);
-  box(duct, 'Duct ceiling', 0, 1.5, 0, 1.6, 0.1, 6);
-  for (const x of [-0.8, 0.8]) box(duct, 'Duct side', x, 0.75, 0, 0.1, 1.5, 6);
-  for (const z of [-2, -1, 0, 1, 2]) {
-    box(duct, 'Duct seam', 0, 0.07, z, 1.6, 0.035, 0.06, black);
-  }
-  box(duct, 'Exit light', 0, 0.75, -3, 1.5, 1.4, 0.05, lightMaterial);
-  const ductLight = new THREE.PointLight(0x91c9b6, 3, 8);
-  ductLight.position.set(0, 1.1, -2);
-  duct.add(ductLight);
+  
   group.updateMatrixWorld(true);
   const colliders = solidMeshes.map(mesh => new THREE.Box3().setFromObject(mesh));
   storageDoorBox.setFromObject(storageDoor);
   colliders.push(storageDoorBox);
   return {
     group, colliders,
-    get travelling() { return travelling; },
+    
     update(delta, camera) {
       // Do not close the door through someone standing in the doorway.
       if (!storageOpen && camera.position.z > 0.85 && camera.position.z < 2.75 &&
@@ -187,15 +206,13 @@ export function buildMaintenanceVent({ aiState, onEnter, onExit }) {
       if (cabinetOpen) cabinetHinge.rotation.y = THREE.MathUtils.damp(cabinetHinge.rotation.y, -1.85, 6, delta);
       screwdriver.visible = cabinetOpen && cabinetHinge.rotation.y < -0.7 && !hasTool;
       if (open) hinge.rotation.y = THREE.MathUtils.damp(hinge.rotation.y, -1.6, 7, delta);
-      if (travelling) {
-        travelTime += delta;
-        camera.position.set(30, 0.8 + Math.sin(travelTime * 8) * 0.015, 2 - Math.min(travelTime / 3, 1) * 4);
-        camera.rotation.set(0, 0, 0);
-        if (travelTime >= 3) { travelling = false; onExit(); }
-      }
+      const paperExposed = open && hinge.rotation.y < -1.2;
+      schedule.mesh.visible = paperExposed;
+      schedule.mesh.userData.interactable = paperExposed;
     },
     dispose() {
       group.removeFromParent();
+      schedule.dispose();
       unitBox.dispose();
       for (const material of [metal, black, stairBlack, handle, lightMaterial]) material.dispose();
       textures.release();

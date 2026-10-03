@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createClockPuzzle } from '../riddles/clockPuzzle.js';
-import { buildRoom, buildProp, buildHazardStrip, buildClockPoster } from './roomBuilder.js';
+import { buildRoom, buildHazardStrip, buildProp } from './roomBuilder.js';
 import { createSparkParticles } from '../systems/particles.js';
 import { sound } from '../systems/audio.js';
 import { buildMaintenanceWalkway } from './maintenanceWalkway.js';
@@ -9,25 +9,27 @@ import { buildMaintenanceVent } from './maintenanceVent.js';
 
 /**
  * LEVEL 1 — INFILTRATION
- * Environment: Maintenance / Electrical Section
- * Objective: Explore maintenance area, avoid security camera, find code, unlock blast door.
+ * Environment: High-Voltage Substation Corridor
  */
 export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit }) {
   const colliders = [];
   const cleanup = [];
 
   // Build the clean substation corridor with gaps
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8 });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false });
   scene.add(room);
   colliders.push(...wallColliders);
+
   const walkway = buildMaintenanceWalkway();
   scene.add(walkway.group);
   colliders.push(...walkway.colliders);
   cleanup.push(() => walkway.dispose());
+
   const electricalHazard = buildElectricalHazard({ aiState, onShock });
   scene.add(electricalHazard.group);
   cleanup.push(() => electricalHazard.dispose());
-  const ventRoute = buildMaintenanceVent({ aiState, onEnter: onVentEnter, onExit: onVentExit });
+
+  const ventRoute = buildMaintenanceVent({ aiState, hud, onEnter: onVentEnter, onExit: onVentExit });
   scene.add(ventRoute.group);
   colliders.push(...ventRoute.colliders);
   cleanup.push(() => ventRoute.dispose());
@@ -43,9 +45,10 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
 
   // Overhead square panel lights
   const lightPositions = [
-    [0, 6.6, 6],   // Spawn area
-    [0, 6.6, 0],   // Mid room
-    [0, 6.6, -7],  // Security / door area
+    [0, 4.0, 7.5],
+    [0, 4.0, 2.5],
+    [0, 4.0, -2.5],
+    [0, 4.0, -7.5],
   ];
 
   const lightPanelGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
@@ -64,24 +67,16 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     cleanup.push(() => scene.remove(pLight));
   }
 
-  // Clutter props / crates
-  const crate1 = buildProp({ width: 1.2, height: 1.2, depth: 1.2, color: 0x4a5868, position: [-3.5, 0, -3] });
-  const crate2 = buildProp({ width: 1.6, height: 0.9, depth: 1.2, color: 0x5a6a7c, position: [3.5, 0, 3.6] });
-  const crate3 = buildProp({ width: 1.0, height: 0.8, depth: 1.0, color: 0x4a5868, position: [4.0, 0, -5] });
-  scene.add(crate1.mesh, crate2.mesh, crate3.mesh);
-  colliders.push(crate1.box, crate2.box, crate3.box);
-  cleanup.push(() => scene.remove(crate1.mesh, crate2.mesh, crate3.mesh));
+  // Clutter props / crates using new buildProp format
+  const crate1 = buildProp({ geometry: new THREE.BoxGeometry(1.2, 1.2, 1.2), material: new THREE.MeshStandardMaterial({ color: 0x4a5868 }), position: [-3.5, 0.6, -3] });
+  const crate2 = buildProp({ geometry: new THREE.BoxGeometry(1.6, 0.9, 1.2), material: new THREE.MeshStandardMaterial({ color: 0x5a6a7c }), position: [3.5, 0.45, 3.6] });
+  const crate3 = buildProp({ geometry: new THREE.BoxGeometry(1.0, 0.8, 1.0), material: new THREE.MeshStandardMaterial({ color: 0x4a5868 }), position: [4.0, 0.4, -5] });
+  scene.add(crate1, crate2, crate3);
+  colliders.push(new THREE.Box3().setFromObject(crate1), new THREE.Box3().setFromObject(crate2), new THREE.Box3().setFromObject(crate3));
+  cleanup.push(() => scene.remove(crate1, crate2, crate3));
 
   // 1. Clock Hint Poster (Right wall gap)
-  const poster = buildClockPoster({ 
-    position: [6.94, 2.0, 7.0], 
-    rotationY: -Math.PI / 2 
-  });
-  scene.add(poster.mesh);
-  cleanup.push(() => {
-    scene.remove(poster.mesh);
-    poster.dispose();
-  });
+
 
   // 2. Clock Riddle System (Left wall gap)
   const clockPuzzle = createClockPuzzle({ 
@@ -176,14 +171,14 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   let warnTimer = 0;
 
   function update(delta, camera) {
-    if (ventRoute.travelling) { ventRoute.update(delta, camera); return; }
     ventRoute.update(delta, camera);
     t += delta;
+
     electricalHazard.update(delta, camera);
     clockPuzzle.update(delta);
 
-    camHead.rotation.y = Math.sin(t * 0.7) * Math.PI * 0.42;
-    const dir = new THREE.Vector3(Math.sin(camHead.rotation.y), -0.2, -Math.cos(camHead.rotation.y)).normalize();
+    camHead.rotation.y = Math.sin(t * 0.7) * Math.PI * 0.35;
+    const dir = new THREE.Vector3(Math.sin(camHead.rotation.y), -0.25, -Math.cos(camHead.rotation.y)).normalize();
     camTarget.position.copy(camHead.position).add(dir.clone().multiplyScalar(6));
     camCone.target.updateMatrixWorld();
 
@@ -217,7 +212,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     update,
     dispose: () => cleanup.forEach((fn) => fn()),
     spawn: new THREE.Vector3(0, 1.7, 7.5),
-    title: 'LEVEL 1 — INFILTRATION',
+    title: 'LEVEL 1 â€” INFILTRATION',
     subtitle: 'Find a way past the perimeter security.',
     objective: 'Explore the substation for access credentials.',
   };
