@@ -17,10 +17,36 @@ export function buildMaintenanceWalkway() {
   const textures = acquireMaintenanceMaps();
   const geometries = new Map();
   const steel = new THREE.MeshStandardMaterial({ ...textures.maps, color: 0xa2adb3, metalness: 0.35, roughness: 0.95, normalScale: new THREE.Vector2(0.7, 0.7) });
-  const railingMetal = new THREE.MeshStandardMaterial({ ...textures.maps, color: 0x77716b, metalness: 0.25, roughness: 1, normalScale: new THREE.Vector2(0.8, 0.8) });
+  const railingMetal = new THREE.MeshStandardMaterial({ color: 0x202a33, metalness: 0.75, roughness: 0.55 });
   const stepSides = new THREE.MeshStandardMaterial({ color: 0x080808, metalness: 0.15, roughness: 0.95 });
+  const treadCanvas = document.createElement('canvas');
+  treadCanvas.width = treadCanvas.height = 128;
+  const treadContext = treadCanvas.getContext('2d');
+  treadContext.fillStyle = '#7e8790';
+  treadContext.fillRect(0, 0, 128, 128);
+  treadContext.strokeStyle = '#a9b0b5';
+  treadContext.lineWidth = 2;
+  for (let y = 0; y < 128; y += 16) {
+    for (let x = 0; x < 128; x += 16) {
+      const offset = (y / 16) % 2 ? 8 : 0;
+      treadContext.beginPath();
+      treadContext.moveTo(x + offset + 2, y + 4);
+      treadContext.lineTo(x + offset + 8, y + 10);
+      treadContext.stroke();
+    }
+  }
+  const treadTexture = new THREE.CanvasTexture(treadCanvas);
+  treadTexture.colorSpace = THREE.SRGBColorSpace;
+  treadTexture.wrapS = treadTexture.wrapT = THREE.RepeatWrapping;
+  const treadSteel = new THREE.MeshStandardMaterial({
+    map: treadTexture, bumpMap: treadTexture, bumpScale: 0.008,
+    color: 0x9da7b2, metalness: 0.65, roughness: 0.65,
+  });
+  const blueStrip = new THREE.MeshStandardMaterial({
+    color: 0x87cedb, emissive: 0x438595, emissiveIntensity: 0.3, roughness: 0.5,
+  });
   // Box face order: right, left, top, bottom, front, back.
-  const stepMaterials = [stepSides, stepSides, steel, stepSides, stepSides, stepSides];
+  const stepMaterials = [railingMetal, railingMetal, treadSteel, railingMetal, railingMetal, railingMetal];
   const solids = [];
   const floors = [];
   function box(parent, name, x, y, z, w, h, d, material = steel, solid = true, walkable = false) {
@@ -44,19 +70,28 @@ export function buildMaintenanceWalkway() {
     const top = (i + 1) * 0.2;
     const z = 7.8 - i * 0.4;
     if (i < 11) {
-      box(stairs, `Step ${i + 1}`, 0, top / 2, z, 2, top, 0.4, stepMaterials, true, true);
+      box(stairs, `Step ${i + 1}`, 0, top - 0.05, z, 2, 0.1, 0.34, stepMaterials, true, true);
     } else {
       // Preserve the solid black outline, enclosing a cupboard beneath the treads.
-      box(stairs, `Step ${i + 1}`, 0, top - 0.08, z, 2, 0.16, 0.4, stepMaterials, true, true);
+      box(stairs, `Step ${i + 1}`, 0, top - 0.05, z, 2, 0.1, 0.34, stepMaterials, true, true);
       box(stairs, 'Black outer stair casing', 0.95, top / 2, z, 0.1, top, 0.4, stepSides);
       const doorSection = i >= 14 && i <= 16; // Opening spans Z = 1.2 to 2.4.
       const bottom = doorSection ? 2.2 : 0;
       box(stairs, 'Black inner stair casing', -0.95, (top + bottom) / 2, z,
         0.1, top - bottom, 0.4, stepSides);
     }
-    box(stairs, 'Worn tread edge', 0, top + 0.006, z + 0.16, 2, 0.012, 0.06, railingMetal, false);
+    box(stairs, 'Steel tread nosing', 0, top + 0.006, z + 0.14, 2, 0.012, 0.035, railingMetal, false);
   }
-  box(stairs, 'Black stair end casing', 0, 1.8, 0.85, 2, 3.6, 0.1, stepSides);
+  // Two continuous stringers carry the open treads.
+  for (const x of [-0.88, 0.88]) {
+    const stringer = box(stairs, 'Dark stair stringer', x, 1.72, 4.4,
+      0.12, 0.16, Math.hypot(7.2, 3.6), railingMetal, false);
+    stringer.rotation.x = Math.atan2(3.6, 7.2);
+    const strip = box(stairs, 'Blue stringer inset', x, 1.81, 4.4,
+      0.025, 0.012, Math.hypot(7.2, 3.6), blueStrip, false);
+    strip.rotation.x = stringer.rotation.x;
+  }
+  box(stairs, 'Black stair end casing' , 0, 1.8, 0.85, 2, 3.6, 0.1, stepSides);
   // Four sides share a continuous walking height. Leave the stairwell uncovered
   // so the front deck never forms a low ceiling over the ascending player.
   // Outer edges meet the room walls at world X = +/-7 and Z = +/-10.
@@ -150,7 +185,11 @@ export function buildMaintenanceWalkway() {
     for (let i = 0; i < 18; i++) {
       const top = (i + 1) * 0.2;
       const z = 7.8 - i * 0.4;
-      if (i % 3 === 0) box(railings, 'Stair post', x, top + 0.55, z, 0.07, 1.1, 0.07, railingMetal, false);
+      if (i % 3 === 0 || i === 17) {
+        box(railings, 'Stair post', x, top + 0.55, z, 0.07, 1.1, 0.07, railingMetal, false);
+        box(railings, 'Blue post inset', x - Math.sign(x) * 0.037, top + 0.42, z,
+          0.008, 0.6, 0.018, blueStrip, false);
+      }
       barriers.push(new THREE.Box3(new THREE.Vector3(x - 0.04, top, z - 0.2), new THREE.Vector3(x + 0.04, top + 1.2, z + 0.2)));
     }
     for (const offset of [0.5, 1.1]) {
@@ -171,6 +210,9 @@ export function buildMaintenanceWalkway() {
       steel.dispose();
       railingMetal.dispose();
       stepSides.dispose();
+      treadSteel.dispose();
+      treadTexture.dispose();
+      blueStrip.dispose();
       textures.release();
     },
   };

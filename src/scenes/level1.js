@@ -16,7 +16,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   const cleanup = [];
 
   // Build the clean substation corridor with gaps
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true });
   scene.add(room);
   colliders.push(...wallColliders);
 
@@ -35,37 +35,89 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   cleanup.push(() => ventRoute.dispose());
 
   // Lighting
-  const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x6a7b8c, 1.2);
+  const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x6a7b8c, 0.55);
   scene.add(hemiLight);
   cleanup.push(() => scene.remove(hemiLight));
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.25);
   scene.add(ambient);
   cleanup.push(() => scene.remove(ambient));
 
-  // Overhead square panel lights
-  const lightPositions = [
-    [0, 4.0, 7.5],
-    [0, 4.0, 2.5],
-    [0, 4.0, -2.5],
-    [0, 4.0, -7.5],
-  ];
-
-  const lightPanelGeo = new THREE.BoxGeometry(1.2, 0.05, 1.2);
-  const lightPanelMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-  for (const pos of lightPositions) {
-    const fixture = new THREE.Mesh(lightPanelGeo, lightPanelMat);
-    fixture.position.set(pos[0], pos[1], pos[2]);
-    scene.add(fixture);
-    cleanup.push(() => scene.remove(fixture));
-
-    const pLight = new THREE.PointLight(0xdcf2ff, 18, 20, 1.2);
-    pLight.position.set(pos[0], pos[1] - 0.2, pos[2]);
-    pLight.castShadow = true;
-    scene.add(pLight);
-    cleanup.push(() => scene.remove(pLight));
+  // Aged acoustic tiles with a visible suspension grid and inset fixtures.
+  const ceilingPanels = new THREE.Group();
+  ceilingPanels.name = 'Tiled ceiling with recessed lights';
+  const tileGeo = new THREE.BoxGeometry(0.97, 0.04, 1.97);
+  const tileCanvas = document.createElement('canvas');
+  tileCanvas.width = tileCanvas.height = 256;
+  const tileContext = tileCanvas.getContext('2d');
+  tileContext.fillStyle = '#c5c3b4';
+  tileContext.fillRect(0, 0, 256, 256);
+  let ceilingSeed = 97;
+  const ceilingRandom = () => {
+    ceilingSeed = (ceilingSeed * 1664525 + 1013904223) >>> 0;
+    return ceilingSeed / 4294967296;
+  };
+  for (let i = 0; i < 6500; i++) {
+    tileContext.fillStyle = i % 2 ? 'rgba(60,58,44,0.09)' : 'rgba(255,255,240,0.12)';
+    tileContext.fillRect(ceilingRandom() * 256, ceilingRandom() * 256, 1, 1);
   }
+  const stain = tileContext.createRadialGradient(75, 160, 4, 75, 160, 105);
+  stain.addColorStop(0, 'rgba(99,91,57,0.12)');
+  stain.addColorStop(1, 'rgba(99,91,57,0)');
+  tileContext.fillStyle = stain;
+  tileContext.fillRect(0, 0, 256, 256);
+  const tileTexture = new THREE.CanvasTexture(tileCanvas);
+  tileTexture.colorSpace = THREE.SRGBColorSpace;
+  const tileMaterials = [0xffffff, 0xf0efe8, 0xe5e4da].map(color =>
+    new THREE.MeshStandardMaterial({ map: tileTexture, color, roughness: 0.98 }));
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x53564f, roughness: 0.85 });
+  const ventMat = new THREE.MeshStandardMaterial({ color: 0x282e29, roughness: 0.9 });
+  const detailGeo = new THREE.BoxGeometry(1, 1, 1);
+  const ceilingDetail = (name, x, y, z, width, height, depth, material) => {
+    const mesh = new THREE.Mesh(detailGeo, material);
+    mesh.name = name;
+    mesh.position.set(x, y, z);
+    mesh.scale.set(width, height, depth);
+    ceilingPanels.add(mesh);
+  };
+  for (let column = 0; column <= 14; column++) {
+    ceilingDetail('Ceiling grid rail', -7 + column, 6.735, 0, 0.018, 0.025, 20, trimMat);
+  }
+  for (let row = 0; row <= 10; row++) {
+    ceilingDetail('Ceiling grid cross rail', 0, 6.735, -10 + row * 2, 14, 0.025, 0.018, trimMat);
+  }
+  for (const [x, z] of [[-1.5, -5], [4.5, 1], [-4.5, 7]]) {
+    ceilingDetail('Inset ventilation frame', x, 6.705, z, 0.78, 0.035, 0.95, trimMat);
+    ceilingDetail('Dark ventilation opening', x, 6.68, z, 0.69, 0.02, 0.86, ventMat);
+    for (let slat = 0; slat < 9; slat++) {
+      ceilingDetail('Ceiling vent louver', x, 6.66, z - 0.36 + slat * 0.09, 0.67, 0.025, 0.025, trimMat);
+    }
+  }
+  const diffuserMat = new THREE.MeshBasicMaterial({ color: 0x929796, toneMapped: false });
+  for (let column = 0; column < 14; column++) {
+    for (let row = 0; row < 10; row++) {
+      const isLight = [3, 10].includes(column) && [1, 3, 6, 8].includes(row);
+      const panel = new THREE.Mesh(tileGeo, isLight ? diffuserMat : tileMaterials[(column * 7 + row * 3 + Math.floor(row / 3)) % tileMaterials.length]);
+      panel.position.set(-6.5 + column, 6.76, -9 + row * 2);
+      ceilingPanels.add(panel);
+      if (isLight) {
+        const light = new THREE.PointLight(0xe7eceb, 4, 18, 1.2);
+        light.position.set(panel.position.x, 6.55, panel.position.z);
+        ceilingPanels.add(light);
+      }
+    }
+  }
+  scene.add(ceilingPanels);
+  cleanup.push(() => {
+    scene.remove(ceilingPanels);
+    tileGeo.dispose();
+    tileTexture.dispose();
+    tileMaterials.forEach(material => material.dispose());
+    trimMat.dispose();
+    ventMat.dispose();
+    detailGeo.dispose();
+    diffuserMat.dispose();
+  });
 
   // Clutter props / crates using new buildProp format
   const crate1 = buildProp({ geometry: new THREE.BoxGeometry(1.2, 1.2, 1.2), material: new THREE.MeshStandardMaterial({ color: 0x4a5868 }), position: [-3.5, 0.6, -3] });
