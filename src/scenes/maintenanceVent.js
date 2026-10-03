@@ -1,16 +1,14 @@
 import * as THREE from 'three';
-import { acquireMaintenanceMaps } from '../systems/maintenanceMaterials.js';
 import { sound } from '../systems/audio.js';
 import { buildRolledUpSchedule} from './roomBuilder.js';
 export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   const group = new THREE.Group();
   group.name = 'Maintenance vent route';
-  const textures = acquireMaintenanceMaps();
-  const metal = new THREE.MeshStandardMaterial({ ...textures.maps, color: 0x969b9e, roughness: 0.9, metalness: 0.3 });
-  const black = new THREE.MeshStandardMaterial({ color: 0x101719, roughness: 0.85 });
-  const stairBlack = new THREE.MeshStandardMaterial({ color: 0x080808, metalness: 0.15, roughness: 0.95 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x8d9aa5, roughness: 0.6, metalness: 0.7 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x202a33, roughness: 0.65, metalness: 0.65 });
+  const toolboxPaint = new THREE.MeshStandardMaterial({ color: 0x995c43, metalness: 0.35, roughness: 0.75 });
+  const blueGrip = new THREE.MeshStandardMaterial({ color: 0x22619a, roughness: 0.85 });
   const handle = new THREE.MeshStandardMaterial({ color: 0xa64627, roughness: 0.7 });
-  const lightMaterial = new THREE.MeshBasicMaterial({ color: 0x88b4a7 });
   const unitBox = new THREE.BoxGeometry(1, 1, 1);
   const solidMeshes = [];
   function box(parent, name, x, y, z, w, h, d, material = metal, solid = false) {
@@ -23,72 +21,92 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
     return mesh;
   }
 
-  // The stair casing supplies the walls and ceiling of this concealed cupboard.
-  const storage = new THREE.Group();
-  storage.name = 'Storage inside black staircase';
-  group.add(storage);
-  const doorFrame = new THREE.Group();
-  doorFrame.name = 'Flush staircase door frame';
-  doorFrame.position.set(4.56, 0, 1.2);
-  doorFrame.rotation.y = -Math.PI / 2;
-  storage.add(doorFrame);
-  const storageHinge = new THREE.Group();
-  storageHinge.name = 'Storage entrance hinge';
-  doorFrame.add(storageHinge);
-  const storageDoor = box(storageHinge, 'Flush black staircase door', 0.6, 1.1, 0, 1.19, 2.19, 0.06, stairBlack);
-  box(storageHinge, 'Recessed door latch', 1.02, 1.1, 0.035, 0.025, 0.1, 0.015, black);
-  let storageOpen = false;
-  const storageDoorBox = new THREE.Box3();
-  storageHinge.userData.interactable = true;
-  storageHinge.userData.reach = 1.4;
-  storageHinge.userData.getLabel = () => storageOpen ? 'Close storage door' : 'Open unmarked door';
-  storageHinge.userData.onInteract = () => { storageOpen = !storageOpen; sound.playSwitch(); };
-  const storageLight = new THREE.PointLight(0xa8b9a3, 1.8, 3.5);
-  storageLight.position.set(5.55, 2.6, 1.8);
-  storage.add(storageLight);
-  box(storage, 'Storage light fixture', 5.55, 2.85, 1.8, 0.35, 0.04, 0.12, lightMaterial);
+  // The open stair frame leaves the toolbox accessible from the room.
+  const toolbox = new THREE.Group();
+  toolbox.name = 'Under-stair toolbox';
+  toolbox.position.set(5.55, 0.35, 1.8);
+  toolbox.rotation.y = -Math.PI / 2;
+  group.add(toolbox);
+  box(toolbox, 'Tool chest base', 0, 0.05, 0, 1.5, 0.1, 0.8, toolboxPaint, true);
+  for (const x of [-0.72, 0.72]) box(toolbox, 'Tool chest side', x, 0.47, 0, 0.06, 0.84, 0.8, toolboxPaint, true);
+  for (const z of [-0.37, 0.37]) box(toolbox, 'Tool chest wall', 0, 0.47, z, 1.4, 0.84, 0.06, toolboxPaint, true);
+  for (const y of [0.2, 0.42, 0.64]) {
+    box(toolbox, 'Dark drawer front', 0, y, 0.405, 1.32, 0.19, 0.035, black);
+    box(toolbox, 'Silver drawer pull', 0, y + 0.045, 0.435, 1.18, 0.035, 0.035);
+  }
+  box(toolbox, 'Tool tray', 0, 0.83, 0, 1.38, 0.04, 0.68, black);
+  const lidHinge = new THREE.Group();
+  lidHinge.name = 'Toolbox lid hinge';
+  lidHinge.position.set(0, 0.94, -0.4);
+  toolbox.add(lidHinge);
+  box(lidHinge, 'Brown toolbox lid', 0, 0.055, 0.4, 1.52, 0.11, 0.82, toolboxPaint);
+  box(lidHinge, 'Carry handle grip', 0, 0.22, 0.4, 0.4, 0.055, 0.065, black);
+  for (const x of [-0.2, 0.2]) box(lidHinge, 'Carry handle mount', x, 0.165, 0.4, 0.045, 0.12, 0.065);
+  for (const x of [-0.52, 0.52]) box(lidHinge, 'Toolbox latch', x, 0, 0.825, 0.065, 0.14, 0.035);
 
-  const toolCabinet = new THREE.Group();
-  toolCabinet.name = 'Searchable maintenance cabinet';
-  toolCabinet.position.set(5.55, 0, 3);
-  toolCabinet.rotation.y = Math.PI;
-  storage.add(toolCabinet);
-  box(toolCabinet, 'Cabinet back', 0, 1.1, -0.3, 1.2, 2.2, 0.08, black, true);
-  for (const x of [-0.6, 0.6]) box(toolCabinet, 'Cabinet side', x, 1.1, 0, 0.08, 2.2, 0.65, black, true);
-  for (const y of [0.05, 1.05, 2.15]) box(toolCabinet, 'Cabinet shelf', 0, y, 0, 1.2, 0.08, 0.65, metal, true);
-  const cabinetHinge = new THREE.Group();
-  cabinetHinge.name = 'Cabinet door hinge';
-  cabinetHinge.position.set(-0.6, 0, 0.36);
-  toolCabinet.add(cabinetHinge);
-  box(cabinetHinge, 'Unmarked dark access panel', 0.6, 1.1, 0, 1.2, 2.2, 0.06, black);
-  box(cabinetHinge, 'Small flush latch', 1.05, 1.1, 0.034, 0.035, 0.09, 0.015, black);
-  let cabinetOpen = false;
-  const screwdriver = new THREE.Group();
-  screwdriver.name = 'Collectable screwdriver';
-  screwdriver.position.set(0, 1.13, 0.13);
-  screwdriver.visible = false;
-  toolCabinet.add(screwdriver);
-  box(screwdriver, 'Red grip', -0.15, 0.01, 0, 0.24, 0.07, 0.075, handle);
-  box(screwdriver, 'Steel shaft', 0.08, 0.01, 0, 0.23, 0.025, 0.025);
-  box(screwdriver, 'Flat tip', 0.21, 0.01, 0, 0.05, 0.012, 0.035);
-  // Search the cabinet first, then collect the revealed tool from its shelf.
   const inventory = document.getElementById('tool-inventory');
   inventory.textContent = 'TOOL: None';
   inventory.classList.remove('hidden');
-  let hasTool = false;
-  toolCabinet.userData.interactable = true;
-  toolCabinet.userData.reach = 1.25;
-  toolCabinet.userData.getLabel = () => !cabinetOpen ? 'Open access panel' :
-    hasTool ? 'Cabinet empty' : cabinetHinge.rotation.y > -1 ? 'Opening cabinet...' : 'Take screwdriver from shelf';
-  toolCabinet.userData.onInteract = () => {
-    if (!cabinetOpen) { cabinetOpen = true; sound.playSwitch(); return; }
-    if (cabinetHinge.rotation.y > -1) return;
-    if (hasTool) return;
-    hasTool = true;
-    screwdriver.visible = false;
-    inventory.textContent = 'TOOL: Screwdriver';
-    sound.playInteract();
+  let heldTool = null;
+  let toolboxOpen = false;
+  const tools = [];
+  const toolsExposed = () => toolboxOpen && lidHinge.rotation.x < -1.1;
+  function refreshTools() {
+    inventory.textContent = `TOOL: ${heldTool ?? 'None'}`;
+    for (const tool of tools) {
+      tool.visible = toolsExposed() && heldTool !== tool.name;
+      tool.userData.interactable = tool.visible;
+    }
+  }
+  toolbox.userData.interactable = true;
+  toolbox.userData.getLabel = () => !toolboxOpen ? 'Open toolbox' :
+    !toolsExposed() ? 'Opening toolbox...' : heldTool ? `Return ${heldTool} to toolbox` : 'Choose a tool from the tray';
+  toolbox.userData.onInteract = () => {
+    if (!toolboxOpen) { toolboxOpen = true; sound.playSwitch(); return; }
+    if (!toolsExposed()) return;
+    if (heldTool) { heldTool = null; refreshTools(); sound.playInteract(); }
   };
+  function toolModel(name, z) {
+    const tool = new THREE.Group();
+    tool.name = name;
+    tool.position.set(0, 0.9, z);
+    toolbox.add(tool);
+    tools.push(tool);
+    tool.visible = false;
+    tool.userData.getLabel = () => heldTool ? `Return ${heldTool} before taking ${name}` : `Take ${name}`;
+    tool.userData.onInteract = () => {
+      if (!toolsExposed()) return;
+      if (heldTool) {
+        hud.setObjective(`You can carry one tool. Return the ${heldTool.toLowerCase()} to the toolbox first.`);
+        return;
+      }
+      heldTool = name;
+      refreshTools();
+      sound.playInteract();
+      hud.setObjective(`${name} equipped. Try it on the vent, or return it to choose another tool.`);
+    };
+    return tool;
+  }
+  const screwdriver = toolModel('Screwdriver', -0.25);
+  box(screwdriver, 'Red screwdriver grip', -0.2, 0, 0, 0.25, 0.075, 0.075, handle);
+  box(screwdriver, 'Screwdriver shaft', 0.075, 0, 0, 0.3, 0.022, 0.022);
+  box(screwdriver, 'Flat screwdriver tip', 0.245, 0, 0, 0.05, 0.012, 0.035);
+  const hammer = toolModel('Hammer', -0.08);
+  box(hammer, 'Hammer grip', -0.15, 0, 0, 0.3, 0.065, 0.065, black);
+  box(hammer, 'Hammer shaft', 0.08, 0, 0, 0.17, 0.035, 0.035);
+  box(hammer, 'Hammer head', 0.2, 0, 0, 0.095, 0.07, 0.15);
+  const wrench = toolModel('Wrench', 0.1);
+  box(wrench, 'Wrench shaft', -0.04, 0, 0, 0.45, 0.025, 0.055);
+  box(wrench, 'Wrench jaw base', 0.2, 0, 0, 0.06, 0.03, 0.14);
+  for (const z of [-0.055, 0.055]) box(wrench, 'Open wrench jaw', 0.255, 0, z, 0.075, 0.03, 0.03);
+  const pliers = toolModel('Pliers', 0.27);
+  for (const side of [-1, 1]) {
+    const grip = box(pliers, 'Blue pliers grip', -0.14, 0, side * 0.045, 0.27, 0.04, 0.035, blueGrip);
+    grip.rotation.y = side * 0.18;
+    const jaw = box(pliers, 'Pliers jaw', 0.12, 0, side * 0.023, 0.19, 0.035, 0.027);
+    jaw.rotation.y = -side * 0.1;
+  }
+  box(pliers, 'Pliers pivot', 0.015, 0.012, 0, 0.045, 0.04, 0.065);
 
   // Cabinets frame a narrow discovery space without blocking the balcony path.
   const cabinets = new THREE.Group();
@@ -166,15 +184,21 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   let scrapeTime = 0;
   vent.userData.interactable = true;
   vent.userData.getLabel = () => open ? (scheduleTaken ? 'Schedule recovered' : 'Read the rolled paper inside') :
-    hasTool ? `Hold E to unscrew grille - ${Math.floor(progress / 4 * 100)}%` : 'Maintenance duct - screws require a screwdriver';
+    heldTool === 'Screwdriver' ? `Hold E to unscrew grille - ${Math.floor(progress / 4 * 100)}%` :
+    heldTool ? `Try ${heldTool} on vent` : 'Maintenance duct - screws require a tool';
+  vent.userData.onInteract = () => {
+    if (open || !heldTool || heldTool === 'Screwdriver') return;
+    sound.playInteract();
+    hud.setObjective(`The ${heldTool.toLowerCase()} cannot loosen these screws. Return it to the toolbox and try another tool.`);
+  };
   vent.userData.onHold = delta => {
-    if (!hasTool || open) return;
+    if (heldTool !== 'Screwdriver' || open) return;
     progress = Math.min(4, progress + delta);
     aiState.raise(delta * 18);
     scrapeTime += delta;
     if (scrapeTime >= 0.3) { sound.playVentScrape(); scrapeTime = 0; }
     const removed = Math.floor(progress);
-    if (removed > lastScrew) {
+    while (removed > lastScrew) {
       screws[lastScrew].visible = false;
       lastScrew = removed;
       sound.playSwitch();
@@ -183,28 +207,16 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   };
 
 
-  // A separate, enclosed passage supports a short scripted crawl without cutting
-  // holes into the existing room walls or changing normal player collision height.
+  // Collect collision bounds after all assemblies have their world transforms.
   
   group.updateMatrixWorld(true);
   const colliders = solidMeshes.map(mesh => new THREE.Box3().setFromObject(mesh));
-  storageDoorBox.setFromObject(storageDoor);
-  colliders.push(storageDoorBox);
   return {
     group, colliders,
     
     update(delta, camera) {
-      // Do not close the door through someone standing in the doorway.
-      if (!storageOpen && camera.position.z > 0.85 && camera.position.z < 2.75 &&
-          Math.abs(camera.position.x - 4.56) < 0.4 && camera.position.y < 3.9) storageOpen = true;
-      const doorAngle = storageOpen ? -1.8 : 0;
-      if (storageHinge.rotation.y !== doorAngle) {
-        storageHinge.rotation.y = doorAngle;
-        storageHinge.updateMatrixWorld(true);
-        storageDoorBox.setFromObject(storageDoor);
-      }
-      if (cabinetOpen) cabinetHinge.rotation.y = THREE.MathUtils.damp(cabinetHinge.rotation.y, -1.85, 6, delta);
-      screwdriver.visible = cabinetOpen && cabinetHinge.rotation.y < -0.7 && !hasTool;
+      if (toolboxOpen) lidHinge.rotation.x = THREE.MathUtils.damp(lidHinge.rotation.x, -1.85, 6, delta);
+      refreshTools();
       if (open) hinge.rotation.y = THREE.MathUtils.damp(hinge.rotation.y, -1.6, 7, delta);
       const paperExposed = open && hinge.rotation.y < -1.2;
       schedule.mesh.visible = paperExposed;
@@ -214,8 +226,7 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
       group.removeFromParent();
       schedule.dispose();
       unitBox.dispose();
-      for (const material of [metal, black, stairBlack, handle, lightMaterial]) material.dispose();
-      textures.release();
+      for (const material of [metal, black, toolboxPaint, handle, blueGrip]) material.dispose();
       inventory.classList.add('hidden');
     },
   };

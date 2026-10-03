@@ -6,6 +6,7 @@ import { sound } from '../systems/audio.js';
 import { buildMaintenanceWalkway } from './maintenanceWalkway.js';
 import { buildElectricalHazard } from './electricalHazard.js';
 import { buildMaintenanceVent } from './maintenanceVent.js';
+import { buildNoticeBoard } from './noticeBoard.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -16,7 +17,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   const cleanup = [];
 
   // Build the clean substation corridor with gaps
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5 });
   scene.add(room);
   colliders.push(...wallColliders);
 
@@ -33,6 +34,10 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(ventRoute.group);
   colliders.push(...ventRoute.colliders);
   cleanup.push(() => ventRoute.dispose());
+
+  const noticeBoard = buildNoticeBoard({ hud });
+  scene.add(noticeBoard.group);
+  cleanup.push(() => noticeBoard.dispose());
 
   // Lighting
   const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x6a7b8c, 0.55);
@@ -137,8 +142,8 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     cleanup, 
     hud, 
     sound,
-    clockPosition: [-6.92, 2.2, 0.0],
-    lockerPosition: [-6.6, 0, 1.8]
+    clockPosition: [-6.92, 2.2, 7.2],
+    lockerPosition: [-6.6, 0, 9.0]
   });
 
   // Ambient sparks
@@ -197,33 +202,86 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
 
     keypad.material.emissive = new THREE.Color(0x2bff6f);
     keypad.material.emissiveIntensity = 1.5;
-    doorMesh.visible = false;
-    doorCollider.min.set(1000, 1000, 1000);
-    doorCollider.max.set(1001, 1001, 1001);
-    hud.setObjective('Access granted. Proceed through the blast door to the control room.');
-    hud.markLevelComplete();
+    hud.setObjective('Access granted. Use the double doors below the camera to enter Level 2.');
   };
   scene.add(keypad);
   cleanup.push(() => scene.remove(keypad));
 
-  const doorMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(2.4, 3.2, 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x2c353f, metalness: 0.8, roughness: 0.3 })
-  );
-  doorMesh.position.set(0, 1.6, -9.88);
-  scene.add(doorMesh);
+  const exitDoors = new THREE.Group();
+  exitDoors.name = 'Level 2 double doors';
+  exitDoors.position.set(0, 0, -9.78);
+  const doorGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const doorPaint = new THREE.MeshStandardMaterial({ color: 0xc7c8c2, metalness: 0.25, roughness: 0.7 });
+  const doorTrim = new THREE.MeshStandardMaterial({ color: 0x383b3b, metalness: 0.7, roughness: 0.45 });
+  const doorHardware = new THREE.MeshStandardMaterial({ color: 0x939a9d, metalness: 0.85, roughness: 0.35 });
+  const doorGlass = new THREE.MeshStandardMaterial({ color: 0x344c58, metalness: 0.35, roughness: 0.2 });
+  function doorPart(parent, name, x, y, z, width, height, depth, material = doorPaint) {
+    const mesh = new THREE.Mesh(doorGeometry, material);
+    mesh.name = name;
+    mesh.position.set(x, y, z);
+    mesh.scale.set(width, height, depth);
+    mesh.castShadow = mesh.receiveShadow = true;
+    parent.add(mesh);
+  }
+  for (const x of [-1.27, 1.27]) doorPart(exitDoors, 'Door jamb', x, 1.63, 0.02, 0.12, 3.26, 0.18);
+  doorPart(exitDoors, 'Door frame header', 0, 3.27, 0.02, 2.66, 0.12, 0.18);
+  const doorHinges = [];
+  for (const side of [-1, 1]) {
+    const pivot = new THREE.Group();
+    pivot.position.x = side * 1.2;
+    exitDoors.add(pivot);
+    doorHinges.push(pivot);
+    const leaf = new THREE.Group();
+    leaf.position.x = -side * 0.6;
+    pivot.add(leaf);
+    const windowX = -side * 0.23;
+    // Separate panels leave a real opening for the narrow blue window.
+    doorPart(leaf, 'Lower door panel', 0, 0.76, 0, 1.19, 1.52, 0.1);
+    doorPart(leaf, 'Upper door panel', 0, 2.99, 0, 1.19, 0.42, 0.1);
+    const leftEdge = windowX - 0.145;
+    const rightEdge = windowX + 0.145;
+    doorPart(leaf, 'Panel left of window', (-0.595 + leftEdge) / 2, 2.15, 0, leftEdge + 0.595, 1.26, 0.1);
+    doorPart(leaf, 'Panel right of window', (rightEdge + 0.595) / 2, 2.15, 0, 0.595 - rightEdge, 1.26, 0.1);
+    doorPart(leaf, 'Window dark surround', windowX, 2.15, 0.055, 0.34, 1.34, 0.025, doorTrim);
+    doorPart(leaf, 'Narrow vision window', windowX, 2.15, 0.072, 0.25, 1.24, 0.018, doorGlass);
+    for (const x of [-0.46, 0.46]) doorPart(leaf, 'Push bar bracket', x, 1.22, 0.1, 0.07, 0.14, 0.13, doorHardware);
+    doorPart(leaf, 'Horizontal panic bar', 0, 1.2, 0.19, 1.0, 0.055, 0.055, doorHardware);
+    doorPart(leaf, 'Overhead door closer', 0, 3.06, 0.1, 0.7, 0.13, 0.12, doorHardware);
+    doorPart(leaf, 'Closer arm', -side * 0.12, 2.94, 0.14, 0.5, 0.025, 0.04, doorTrim);
+    for (const y of [0.3, 1.65, 2.9]) doorPart(leaf, 'Door hinge', side * 0.57, y, 0.07, 0.035, 0.18, 0.045, doorHardware);
+  }
+  let doorsOpen = false;
+  exitDoors.userData.interactable = true;
+  exitDoors.userData.getLabel = () => doorsOpen ? 'Entering Level 2...' : unlocked ? 'Push doors to enter Level 2' : 'Doors locked - use access keypad';
+  exitDoors.userData.onInteract = () => {
+    if (doorsOpen) return;
+    if (!unlocked) { hud.setObjective('Unlock the double doors using the access keypad beside them.'); return; }
+    doorsOpen = true;
+    doorCollider.makeEmpty();
+    sound.playSwitch();
+    hud.setObjective('Entering Level 2: the control room.');
+    hud.markLevelComplete();
+  };
+  scene.add(exitDoors);
   const doorCollider = new THREE.Box3().setFromCenterAndSize(
-    new THREE.Vector3(0, 1.6, -9.88),
-    new THREE.Vector3(2.4, 3.2, 0.2)
+    new THREE.Vector3(0, 1.6, -9.78), new THREE.Vector3(2.4, 3.2, 0.2)
   );
   colliders.push(doorCollider);
-  cleanup.push(() => scene.remove(doorMesh));
+  cleanup.push(() => {
+    scene.remove(exitDoors);
+    doorGeometry.dispose();
+    for (const material of [doorPaint, doorTrim, doorHardware, doorGlass]) material.dispose();
+  });
 
   let t = 0;
   let warnTimer = 0;
 
   function update(delta, camera) {
     ventRoute.update(delta, camera);
+    if (doorsOpen) {
+      doorHinges[0].rotation.y = THREE.MathUtils.damp(doorHinges[0].rotation.y, -1.4, 6, delta);
+      doorHinges[1].rotation.y = THREE.MathUtils.damp(doorHinges[1].rotation.y, 1.4, 6, delta);
+    }
     t += delta;
 
     electricalHazard.update(delta, camera);

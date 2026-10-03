@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CLOCK_CLUE } from '../scenes/noticeBoard.js';
 import { buildKeypad } from '../scenes/roomBuilder.js'; // Make sure this path matches your project!
 
 /**
@@ -22,6 +23,9 @@ export function createClockPuzzle({
   const clockGroup = new THREE.Group();
   clockGroup.position.set(...clockPosition);
   clockGroup.rotation.y = Math.PI / 2;
+  clockGroup.userData.interactable = true;
+  clockGroup.userData.label = CLOCK_CLUE;
+  clockGroup.userData.onInteract = () => hud.setObjective(`CLOCK CALIBRATION: ${CLOCK_CLUE}`);
 
   const outerFrame = new THREE.Mesh(
     new THREE.BoxGeometry(1.3, 1.5, 0.14),
@@ -130,53 +134,57 @@ export function createClockPuzzle({
   scene.add(keyGroup);
   cleanup.push(() => scene.remove(keyGroup));
 
-  // 4. MAINTENANCE LOCKER (Hollow version)
+  // Compact steel cabinet on legs, with a hollow interior for the logbook.
   const lockerGroup = new THREE.Group();
+  lockerGroup.name = 'Logbook cabinet';
   lockerGroup.position.set(...lockerPosition);
-
-  const lockerMat = new THREE.MeshStandardMaterial({ color: 0x4a5560, metalness: 0.7, roughness: 0.4 });
-
-  // Back Wall (Facing the wall of the room)
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.6, 0.7), lockerMat);
-  backWall.position.set(-0.33, 1.3, 0);
-  lockerGroup.add(backWall);
-
-  // Left & Right Walls
-  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.66, 2.6, 0.04), lockerMat);
-  leftWall.position.set(0, 1.3, -0.33);
-  lockerGroup.add(leftWall);
-
-  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.66, 2.6, 0.04), lockerMat);
-  rightWall.position.set(0, 1.3, 0.33);
-  lockerGroup.add(rightWall);
-
-  // Top & Bottom Walls
-  const topWall = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.62), lockerMat);
-  topWall.position.set(0, 2.58, 0);
-  lockerGroup.add(topWall);
-
-  const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.62), lockerMat);
-  bottomWall.position.set(0, 0.02, 0);
-  lockerGroup.add(bottomWall);
-
+  const lockerMat = new THREE.MeshStandardMaterial({ color: 0x293540, metalness: 0.65, roughness: 0.65 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x18232c, metalness: 0.7, roughness: 0.55 });
+  const lockMat = new THREE.MeshStandardMaterial({ color: 0xa9adb0, metalness: 0.9, roughness: 0.3 });
+  function cabinetBox(parent, name, x, y, z, width, height, depth, material = lockerMat) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.name = name;
+    mesh.position.set(x, y, z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    parent.add(mesh);
+    return mesh;
+  }
+  cabinetBox(lockerGroup, 'Cabinet back', -0.33, 1.05, 0, 0.04, 1.4, 0.9);
+  for (const z of [-0.43, 0.43]) {
+    cabinetBox(lockerGroup, 'Cabinet side', 0, 1.05, z, 0.66, 1.4, 0.04);
+  }
+  cabinetBox(lockerGroup, 'Overhanging cabinet top', 0.015, 1.77, 0, 0.75, 0.06, 0.96, trimMat);
+  cabinetBox(lockerGroup, 'Cabinet base', 0, 0.37, 0, 0.7, 0.06, 0.9, trimMat);
+  for (const x of [-0.27, 0.27]) for (const z of [-0.37, 0.37]) {
+    cabinetBox(lockerGroup, 'Square cabinet leg', x, 0.175, z, 0.055, 0.35, 0.055, trimMat);
+  }
   const lockerBox = new THREE.Box3().setFromCenterAndSize(
-    new THREE.Vector3(lockerPosition[0], lockerPosition[1] + 1.3, lockerPosition[2]),
-    new THREE.Vector3(0.7, 2.6, 0.7)
+    new THREE.Vector3(lockerPosition[0] + 0.015, lockerPosition[1] + 0.9, lockerPosition[2]),
+    new THREE.Vector3(0.75, 1.8, 0.96)
   );
   colliders.push(lockerBox);
 
-  // Hinge and Door
   const hinge = new THREE.Group();
-  hinge.position.set(0.35, 1.3, 0.35); 
+  hinge.position.set(0.35, 1.05, 0.43);
   lockerGroup.add(hinge);
-
-  const lockerDoor = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.5, 0.68), new THREE.MeshStandardMaterial({ color: 0x5a6570, metalness: 0.8, roughness: 0.3 }));
-  lockerDoor.position.set(0, 0, -0.34); 
-  hinge.add(lockerDoor);
-
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.25, 0.04), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9 }));
-  handle.position.set(0.04, 0, -0.25);
-  lockerDoor.add(handle);
+  const lockerDoor = cabinetBox(hinge, 'Inset cabinet door', 0, 0, -0.43, 0.04, 1.32, 0.82);
+  const handleCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.035, 0.3, -0.72),
+    new THREE.Vector3(0.08, 0.26, -0.72),
+    new THREE.Vector3(0.08, -0.02, -0.72),
+    new THREE.Vector3(0.035, -0.06, -0.72),
+  ]);
+  const handle = new THREE.Mesh(new THREE.TubeGeometry(handleCurve, 16, 0.014, 6, false), trimMat);
+  hinge.add(handle);
+  const keyhole = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.027, 0.012, 16), lockMat);
+  keyhole.rotation.z = Math.PI / 2;
+  keyhole.position.set(0.03, -0.18, -0.72);
+  hinge.add(keyhole);
+  cabinetBox(hinge, 'Key slot', 0.038, -0.18, -0.72, 0.003, 0.004, 0.025, trimMat);
+  for (const y of [-0.36, -0.44, -0.52]) {
+    cabinetBox(hinge, 'Lower door ventilation slot', 0.024, y, -0.43, 0.008, 0.025, 0.48, trimMat);
+    cabinetBox(hinge, 'Vent louver lip', 0.033, y - 0.017, -0.43, 0.014, 0.012, 0.48);
+  }
 
   hinge.userData.interactable = true;
   hinge.userData.label = 'Locked Maintenance Locker';
@@ -201,12 +209,12 @@ export function createClockPuzzle({
     roughness: 0.45
   });
 
-  const shelf1 = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.62), shelfMat);
-  shelf1.position.set(0, 0.85, 0);
+  const shelf1 = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.04, 0.82), shelfMat);
+  shelf1.position.set(0, 0.78, 0);
   lockerGroup.add(shelf1);
 
-  const shelf2 = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.62), shelfMat);
-  shelf2.position.set(0, 1.65, 0);
+  const shelf2 = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.04, 0.82), shelfMat);
+  shelf2.position.set(0, 1.22, 0);
   lockerGroup.add(shelf2);
 
   // Technician Book
@@ -217,7 +225,7 @@ export function createClockPuzzle({
   });
 
   const techBook = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.38), bookCoverMat);
-  techBook.position.set(0.1, 1.70, 0); 
+  techBook.position.set(0.1, 1.27, 0);
   lockerGroup.add(techBook);
 
   techBook.userData.interactable = true;

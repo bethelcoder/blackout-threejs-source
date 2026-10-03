@@ -94,7 +94,7 @@ function createOfficeTextures(height) {
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false }) {
+export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false, leftCabinetMaxZ = Infinity }) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
@@ -198,6 +198,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   for (let z = -depth / 2 + 1.8; z <= depth / 2 - 1.8; z += 1.3) {
     [-width / 2 + 0.8, width / 2 - 0.8].forEach((xPos, sideIdx) => {
       if (sideIdx === 1 && !includeRightCabinets) return;
+      if (sideIdx === 0 && z > leftCabinetMaxZ) return;
       if (sideIdx === 0 && z > -1.2 && z < 2.5) return;
       if (sideIdx === 1 && z > 6.0 && z < 8.5) return;
 
