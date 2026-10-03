@@ -4,6 +4,7 @@
 // licence where one applies."
 
 export const CREDITS = [
+  { what: 'Rusty Metal 04 - maintenance structures (1K colour, OpenGL normal, roughness)', from: 'Poly Haven - https://polyhaven.com/a/rusty_metal_04', licence: 'CC0' },
   { what: 'Three.js 3D WebGL Library', from: 'threejs.org', licence: 'MIT' },
   { what: 'PointerLockControls', from: 'three/examples/jsm/controls/PointerLockControls.js', licence: 'MIT' },
   { what: 'Web Audio API Procedural Synthesizer', from: 'Self-authored procedural synthesis engine', licence: 'Original / MIT' },

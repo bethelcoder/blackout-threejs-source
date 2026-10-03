@@ -32,17 +32,83 @@ function getSharedTextures() {
   return { wall: { map: wallTex, bumpMap: wallTex }, grate: grateTex };
 }
 
+// Painted plaster and terrazzo tiles for the worn office finish.
+function createOfficeTextures(height) {
+  let seed = 731;
+  const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const makeCanvas = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 512;
+    return canvas;
+  };
+  const floorCanvas = makeCanvas();
+  const floor = floorCanvas.getContext('2d');
+  floor.fillStyle = '#aaa99a';
+  floor.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 22000; i++) {
+    floor.fillStyle = ['#737b70', '#c4c1aa', '#8f7564', '#555e55', '#d2ceba'][Math.floor(random() * 5)];
+    floor.globalAlpha = 0.25 + random() * 0.4;
+    floor.fillRect(random() * 512, random() * 512, 1 + random() * 3, 1 + random() * 2);
+  }
+  floor.globalAlpha = 1;
+  for (let i = 0; i < 512; i += 128) {
+    floor.fillStyle = '#626458';
+    floor.fillRect(i, 0, 2, 512);
+    floor.fillRect(0, i, 512, 2);
+    floor.fillStyle = 'rgba(224,220,196,0.3)';
+    floor.fillRect(i + 2, 0, 1, 512);
+    floor.fillRect(0, i + 2, 512, 1);
+  }
+  const wallCanvas = makeCanvas();
+  const wall = wallCanvas.getContext('2d');
+  wall.fillStyle = '#a4a697';
+  wall.fillRect(0, 0, 512, 512);
+  const stripeTop = (1 - 1.65 / height) * 512;
+  wall.fillStyle = '#7b857b';
+  wall.fillRect(0, stripeTop, 512, 512 - stripeTop);
+  wall.fillStyle = '#713327';
+  wall.fillRect(0, stripeTop, 512, 0.18 / height * 512);
+  for (let i = 0; i < 18000; i++) {
+    wall.fillStyle = random() > 0.5 ? 'rgba(45,48,35,0.07)' : 'rgba(235,232,210,0.06)';
+    wall.fillRect(random() * 512, random() * 512, 1 + random() * 2, 1 + random() * 5);
+  }
+  for (let i = 0; i < 65; i++) {
+    const x = random() * 512;
+    const y = random() * 512;
+    const stain = wall.createRadialGradient(x, y, 0, x, y, 20 + random() * 60);
+    stain.addColorStop(0, 'rgba(42,45,29,0.09)');
+    stain.addColorStop(1, 'rgba(42,45,29,0)');
+    wall.fillStyle = stain;
+    wall.fillRect(0, 0, 512, 512);
+  }
+  const floorMap = new THREE.CanvasTexture(floorCanvas);
+  const wallMap = new THREE.CanvasTexture(wallCanvas);
+  for (const map of [floorMap, wallMap]) {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.anisotropy = 4;
+  }
+  return { floorMap, wallMap };
+}
+
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68 }) {
+export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false, leftCabinetMaxZ = Infinity }) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
 
+  const officeTextures = officeFinishes ? createOfficeTextures(height) : null;
+
   // 1. FLOOR & CATWALK GRATING
   gTex.repeat.set(width * 0.8, depth * 0.8);
-  const floorMat = new THREE.MeshStandardMaterial({ map: gTex, roughness: 0.3, metalness: 0.85 });
+  if (officeTextures) officeTextures.floorMap.repeat.set(width / 3.2, depth / 3.2);
+  const floorMat = new THREE.MeshStandardMaterial({
+    map: officeTextures?.floorMap ?? gTex,
+    roughness: officeFinishes ? 0.92 : 0.3,
+    metalness: officeFinishes ? 0 : 0.85,
+  });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -58,9 +124,12 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
 
   // 2. WALLS & CEILING
   const wallMat = new THREE.MeshStandardMaterial({
-    color: wallColor, map: wTex.map, bumpMap: wTex.bumpMap, bumpScale: 0.04, roughness: 0.5, metalness: 0.2,
+    color: officeFinishes ? 0xffffff : wallColor,
+    map: officeTextures?.wallMap ?? wTex.map,
+    bumpMap: officeFinishes ? null : wTex.bumpMap,
+    bumpScale: 0.04, roughness: officeFinishes ? 0.96 : 0.5, metalness: officeFinishes ? 0 : 0.2,
   });
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x1a2128, roughness: 0.6, metalness: 0.4 });
+  const ceilMat = new THREE.MeshStandardMaterial({ color: officeCeiling ? 0x777b7c : 0x1a2128, roughness: 0.6, metalness: 0.4 });
   
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), ceilMat);
   ceiling.rotation.x = Math.PI / 2;
@@ -76,7 +145,14 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
 
   const wallThickness = 0.2;
   for (const w of wallDefs) {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w.size[0], w.size[1]), wallMat);
+    let material = wallMat;
+    if (officeTextures) {
+      material = wallMat.clone();
+      material.map = officeTextures.wallMap.clone();
+      material.map.repeat.set(w.size[0] / 3.2, 1);
+      material.map.needsUpdate = true;
+    }
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w.size[0], w.size[1]), material);
     mesh.position.set(...w.pos);
     mesh.rotation.set(...w.rot);
     mesh.receiveShadow = true;
@@ -96,7 +172,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   const redBeamMat = new THREE.MeshStandardMaterial({ color: 0x8b1a1a, metalness: 0.7, roughness: 0.3 });
   const pipeMat = new THREE.MeshStandardMaterial({ color: 0x3d4853, metalness: 0.8, roughness: 0.2 });
 
-  for (let z = -depth / 2 + 2; z <= depth / 2 - 2; z += 2.8) {
+  for (let z = -depth / 2 + 2; !officeCeiling && z <= depth / 2 - 2; z += 2.8) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(width - 0.4, 0.18, 0.18), redBeamMat);
     beam.position.set(0, height - 0.2, z);
     group.add(beam);
@@ -107,7 +183,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     }
   }
 
-  for (const x of [-width / 2 + 1.4, -width / 2 + 1.8, width / 2 - 1.8, width / 2 - 1.4]) {
+  for (const x of (officeCeiling ? [] : [-width / 2 + 1.4, -width / 2 + 1.8, width / 2 - 1.8, width / 2 - 1.4])) {
     const longPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, depth, 12), pipeMat);
     longPipe.rotation.x = Math.PI / 2;
     longPipe.position.set(x, height - 0.45, 0);
@@ -121,6 +197,8 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
 
   for (let z = -depth / 2 + 1.8; z <= depth / 2 - 1.8; z += 1.3) {
     [-width / 2 + 0.8, width / 2 - 0.8].forEach((xPos, sideIdx) => {
+      if (sideIdx === 1 && !includeRightCabinets) return;
+      if (sideIdx === 0 && z > leftCabinetMaxZ) return;
       if (sideIdx === 0 && z > -1.2 && z < 2.5) return;
       if (sideIdx === 1 && z > 6.0 && z < 8.5) return;
 
@@ -177,6 +255,129 @@ export function buildHazardStrip({ width = 4.0, depth = 0.8, position = [0, 0.01
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(...position);
   return mesh;
+}
+
+function createScheduleCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = '#eeeeee';
+  ctx.fillRect(0, 0, 512, 1024);
+  
+  ctx.fillStyle = '#222222';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FACILITY MAINTENANCE', 256, 70);
+  ctx.fillText('SHIFT SCHEDULE', 256, 120);
+
+  ctx.beginPath(); ctx.moveTo(30, 150); ctx.lineTo(482, 150);
+  ctx.strokeStyle = '#aa0000'; ctx.lineWidth = 8; ctx.stroke();
+
+  ctx.fillStyle = '#444444';
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('OPERATOR', 40, 220);
+  ctx.fillText('SECTOR', 260, 220);
+  ctx.fillText('TIME', 380, 220);
+
+  ctx.beginPath(); ctx.moveTo(30, 240); ctx.lineTo(482, 240);
+  ctx.strokeStyle = '#999999'; ctx.lineWidth = 2; ctx.stroke();
+
+  const shifts = [
+    { name: "DOE, J.",   sec: "SEC-8", time: "08:30" },
+    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" }, 
+    { name: "JONES, B.", sec: "SEC-4", time: "11:00" },
+    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" }, 
+    { name: "CHEN, M.",  sec: "SEC-5", time: "23:15" },
+    { name: "CROSS, E.", sec: "SEC-9", time: "13:20" },
+    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" }, 
+    { name: "GOMEZ, L.", sec: "SEC-6", time: "09:45" },
+    { name: "WITT, S.",  sec: "SEC-7", time: "16:30" },
+  ];
+
+  ctx.fillStyle = '#111111';
+  ctx.font = '26px monospace';
+  
+  let yPos = 300;
+  shifts.forEach(shift => {
+    ctx.fillText(shift.name, 40, yPos);
+    ctx.fillText(shift.sec, 260, yPos);
+    ctx.font = 'bold 26px monospace';
+    ctx.fillText(shift.time, 380, yPos);
+    ctx.font = '26px monospace'; 
+    
+    ctx.beginPath(); ctx.moveTo(30, yPos + 20); ctx.lineTo(482, yPos + 20);
+    ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.stroke();
+    yPos += 75; 
+  });
+
+  ctx.fillStyle = '#aa0000';
+  ctx.font = 'bold 24px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('** CONFIDENTIAL **', 256, 980);
+  return canvas;
+}
+
+function addScheduleInteraction(group, canvas) {
+  group.userData.interactable = true;
+  group.userData.label = 'Read Shift Schedule';
+  group.userData.onInteract = () => {
+    if (document.getElementById('schedule-overlay')) return;
+
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'schedule-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.85)', display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center', zIndex: '9999'
+    });
+
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL();
+    Object.assign(img.style, { maxHeight: '90vh', border: '4px solid #444', borderRadius: '5px' });
+
+    const hint = document.createElement('div');
+    hint.innerText = "Click or press 'E' / 'Escape' to close";
+    Object.assign(hint.style, { color: '#ffffff', fontFamily: 'monospace', fontSize: '20px', marginTop: '20px' });
+
+    overlay.appendChild(img);
+    overlay.appendChild(hint);
+    document.body.appendChild(overlay);
+
+    const closeOverlay = (e) => {
+      if (e.type === 'click' || (e.type === 'keydown' && ['e', 'E', 'Escape'].includes(e.key))) {
+        overlay.remove();
+        document.removeEventListener('keydown', closeOverlay);
+      }
+    };
+    overlay.addEventListener('click', closeOverlay);
+    document.addEventListener('keydown', closeOverlay);
+  };
+}
+
+export function buildRolledUpSchedule({ position = [0, 0, 0], rotation = [0, 0, 0] }) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  group.rotation.set(...rotation);
+
+  const canvas = createScheduleCanvas();
+  const tex = new THREE.CanvasTexture(canvas);
+  
+  const paper = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.4, 12),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, color: 0xddddcc })
+  );
+  group.add(paper);
+
+  addScheduleInteraction(group, canvas);
+
+  return { mesh: group, dispose: () => tex.dispose() };
 }
 
 export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {

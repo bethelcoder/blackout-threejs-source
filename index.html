@@ -27,7 +27,7 @@
       <p class="tagline">"The AI wasn't designed to destroy the city. It was designed to protect it. At all costs."</p>
       <button id="btn-play">ENTER FACILITY</button>
       <button id="btn-credits">CREDITS</button>
-      <div class="menu-hint">WASD to move &middot; SHIFT to sprint &middot; Mouse to look &middot; E to interact &middot; Esc to pause</div>
+      <div class="menu-hint">WASD to move &middot; SHIFT to sprint &middot; SPACE to jump &middot; Mouse to look &middot; E to interact &middot; Esc to pause</div>
     </div>
   </div>
 
@@ -55,6 +55,20 @@
 
   <!-- In-game HUD -->
   <div id="hud" class="hidden">
+    <div id="shock-flash" aria-hidden="true"></div>
+    <div id="hazard-status" class="hidden" role="status" aria-live="polite"></div>
+    <div id="tool-inventory" class="hidden" role="status"></div>
+    <aside id="controls-guide" aria-label="Game controls">
+      <div class="controls-label">CONTROLS</div>
+      <div class="controls-list">
+        <span><kbd>W A S D</kbd> Move</span>
+        <span><kbd>Mouse</kbd> Look</span>
+        <span><kbd>Shift</kbd> Sprint</span>
+        <span><kbd>Space</kbd> Jump</span>
+        <span><kbd>E</kbd> Interact</span>
+        <span><kbd>Esc</kbd> Pause</span>
+      </div>
+    </aside>
     <div id="crosshair"></div>
     <div id="interact-prompt" class="hidden">[E] Interact</div>
 

@@ -17,6 +17,18 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
     width: 14, depth: 16, height: 4.2, wallColor: 0x5a6d80, floorColor: 0x485868,
   });
   scene.add(room);
+  // Alternate-route arrival beside the right-hand server bank.
+  const serviceGrilleGeometry = new THREE.BoxGeometry(0.06, 1.1, 1.3);
+  const serviceGrilleMaterial = new THREE.MeshStandardMaterial({ color: 0x283235, roughness: 0.85 });
+  const serviceGrille = new THREE.Mesh(serviceGrilleGeometry, serviceGrilleMaterial);
+  serviceGrille.name = 'Maintenance duct exit';
+  serviceGrille.position.set(6.85, 0.7, 5.8);
+  scene.add(serviceGrille);
+  cleanup.push(() => {
+    scene.remove(serviceGrille);
+    serviceGrilleGeometry.dispose();
+    serviceGrilleMaterial.dispose();
+  });
   colliders.push(...wallColliders);
 
   // Bright server room illumination
@@ -142,6 +154,7 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
 
   return {
     colliders,
+    serviceSpawn: new THREE.Vector3(5.95, 1.7, 5.8),
     update,
     dispose: () => {
       terminalUI.onSolved = null;

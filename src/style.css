@@ -97,6 +97,52 @@ html, body {
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 
+#tool-inventory {
+  position: absolute; top: 185px; left: 18px;
+  max-width: 250px; padding: 9px 12px;
+  border: 1px solid #34404a; background: rgba(5, 10, 15, 0.88);
+  color: #c9d8d2; font-size: 12px; line-height: 1.5;
+}
+
+#shock-flash {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse, transparent 35%, rgba(100, 200, 255, 0.8));
+}
+#hazard-status {
+  position: absolute; top: 100px; right: 18px;
+  width: 260px; max-width: calc(100vw - 36px);
+  padding: 12px; border: 1px solid currentColor;
+  background: rgba(5, 10, 15, 0.92);
+  font-size: 12px; line-height: 1.5;
+}
+#hazard-status[data-state="safe"] { color: #99e9c2; }
+#hazard-status[data-state="warning"] { color: #ffd18a; }
+#hazard-status[data-state="live"] { color: #ff9999; }
+
+#controls-guide {
+  position: absolute; bottom: 18px; right: 18px;
+  padding: 12px 14px;
+  border: 1px solid #34404a;
+  background: rgba(5, 7, 10, 0.82);
+  color: #cfe8ff;
+  font-size: 12px;
+}
+.controls-label { margin-bottom: 10px; font-size: 10px; letter-spacing: 0.18em; color: #91a4af; }
+.controls-list { display: grid; grid-template-columns: auto auto; gap: 9px 16px; }
+.controls-list span { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.controls-list kbd {
+  display: inline-block; min-width: 44px; padding: 3px 5px;
+  border: 1px solid #52616c; border-radius: 3px;
+  background: #182129; color: #edf5fa; text-align: center;
+  font: inherit; font-size: 11px;
+}
+@media (max-width: 720px) {
+  #controls-guide { right: 12px; bottom: 12px; left: 12px; padding: 8px 10px; }
+  .controls-label { display: none; }
+  .controls-list { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+  #objective-panel { bottom: 125px; max-width: calc(100vw - 36px); }
+}
+
 #crosshair {
   position: absolute; top: 50%; left: 50%;
   width: 6px; height: 6px;

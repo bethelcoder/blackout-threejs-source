@@ -135,6 +135,30 @@ class SoundEngine {
     this.alarmLfo = null;
   }
 
+  /** Brief metal-on-metal scrape while removing the maintenance grille. */
+  playVentScrape() {
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(170, now);
+    osc.frequency.linearRampToValueAtTime(95, now + 0.18);
+    filter.type = 'bandpass';
+    filter.frequency.value = 1700;
+    filter.Q.value = 0.7;
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.07, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+    osc.start(now);
+    osc.stop(now + 0.21);
+  }
+
   /** Footstep sound */
   playFootstep(isSprint = false) {
     if (!this.ctx || this.isMuted) return;
