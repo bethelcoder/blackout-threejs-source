@@ -91,19 +91,23 @@ export function buildLevel3({ scene, aiState, hud, onEnding }) {
   const positions = { A: [-4.0, 0, -4.0], B: [0, 0, -4.5], C: [4.0, 0, -4.0] };
 
   for (const key of sequence) {
-    const swDesk = buildProp({ width: 0.5, height: 1.1, depth: 0.4, color: 0x3d4855, position: positions[key] });
-    swDesk.mesh.position.y = 1.0;
-    swDesk.mesh.userData.interactable = true;
-    swDesk.mesh.userData.label = `Pull isolation breaker [${key}]`;
+    const swDesk = buildProp({
+      geometry: new THREE.BoxGeometry(0.5, 1.1, 0.4),
+      material: new THREE.MeshStandardMaterial({ color: 0x3d4855 }),
+      position: positions[key],
+    });
+    swDesk.position.y = 1.0;
+    swDesk.userData.interactable = true;
+    swDesk.userData.label = `Pull isolation breaker [${key}]`;
 
-    swDesk.mesh.userData.onInteract = () => {
+    swDesk.userData.onInteract = () => {
       if (finished) return;
       sound.playSwitch();
 
       if (sequence[progress] === key) {
         progress++;
-        swDesk.mesh.material.emissive = new THREE.Color(0x2bff6f);
-        swDesk.mesh.material.emissiveIntensity = 1.8;
+        swDesk.material.emissive = new THREE.Color(0x2bff6f);
+        swDesk.material.emissiveIntensity = 1.8;
         sound.playAccessGranted();
         hud.setObjective(`Isolation sequence: ${progress}/${sequence.length} breakers locked.`);
 
@@ -117,8 +121,8 @@ export function buildLevel3({ scene, aiState, hud, onEnding }) {
         // Wrong sequence order — reset switches and escalate AI suspicion
         progress = 0;
         for (const s of Object.values(switches)) {
-          s.mesh.material.emissive = new THREE.Color(0x000000);
-          s.mesh.material.emissiveIntensity = 0;
+          s.material.emissive = new THREE.Color(0x000000);
+          s.material.emissiveIntensity = 0;
         }
         sound.playDetectionWarning(0.9);
         aiState.raise(30);
@@ -126,17 +130,21 @@ export function buildLevel3({ scene, aiState, hud, onEnding }) {
       }
     };
 
-    scene.add(swDesk.mesh);
-    colliders.push(swDesk.box);
-    cleanup.push(() => scene.remove(swDesk.mesh));
+    scene.add(swDesk);
+    colliders.push(new THREE.Box3().setFromObject(swDesk));
+    cleanup.push(() => scene.remove(swDesk));
     switches[key] = swDesk;
   }
 
   // Maintenance schedule clue clipboard
-  const hintDesk = buildProp({ width: 1.0, height: 0.9, depth: 0.5, color: 0x3d4855, position: [5.0, 0, 4.0] });
-  scene.add(hintDesk.mesh);
-  colliders.push(hintDesk.box);
-  cleanup.push(() => scene.remove(hintDesk.mesh));
+  const hintDesk = buildProp({
+    geometry: new THREE.BoxGeometry(1.0, 0.9, 0.5),
+    material: new THREE.MeshStandardMaterial({ color: 0x3d4855 }),
+    position: [5.0, 0.45, 4.0],
+  });
+  scene.add(hintDesk);
+  colliders.push(new THREE.Box3().setFromObject(hintDesk));
+  cleanup.push(() => scene.remove(hintDesk));
 
   const hintProp = new THREE.Mesh(
     new THREE.BoxGeometry(0.35, 0.02, 0.25),
