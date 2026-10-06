@@ -7,6 +7,8 @@ import { buildMaintenanceWalkway } from './maintenanceWalkway.js';
 import { buildElectricalHazard } from './electricalHazard.js';
 import { buildMaintenanceVent } from './maintenanceVent.js';
 import { buildNoticeBoard } from './noticeBoard.js';
+import { buildSecurityKeypad } from './securityKeypad.js';
+import { buildCardboardBoxes } from './cardboardBoxes.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -125,12 +127,15 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   });
 
   // Clutter props / crates using new buildProp format
-  const crate1 = buildProp({ geometry: new THREE.BoxGeometry(1.2, 1.2, 1.2), material: new THREE.MeshStandardMaterial({ color: 0x4a5868 }), position: [-3.5, 0.6, -3] });
+  const cardboardBoxes = buildCardboardBoxes();
+  scene.add(cardboardBoxes.group);
+  colliders.push(...cardboardBoxes.colliders);
+  cleanup.push(() => cardboardBoxes.dispose());
   const crate2 = buildProp({ geometry: new THREE.BoxGeometry(1.6, 0.9, 1.2), material: new THREE.MeshStandardMaterial({ color: 0x5a6a7c }), position: [3.5, 0.45, 3.6] });
   const crate3 = buildProp({ geometry: new THREE.BoxGeometry(1.0, 0.8, 1.0), material: new THREE.MeshStandardMaterial({ color: 0x4a5868 }), position: [4.0, 0.4, -5] });
-  scene.add(crate1, crate2, crate3);
-  colliders.push(new THREE.Box3().setFromObject(crate1), new THREE.Box3().setFromObject(crate2), new THREE.Box3().setFromObject(crate3));
-  cleanup.push(() => scene.remove(crate1, crate2, crate3));
+  scene.add(crate2, crate3);
+  colliders.push(new THREE.Box3().setFromObject(crate2), new THREE.Box3().setFromObject(crate3));
+  cleanup.push(() => scene.remove(crate2, crate3));
 
   // 1. Clock Hint Poster (Right wall gap)
 
@@ -186,26 +191,17 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(hazardStrip);
   cleanup.push(() => scene.remove(hazardStrip));
 
-  let unlocked = false;
-  const keypad = new THREE.Mesh(
-    new THREE.BoxGeometry(0.25, 0.35, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x1c232a, metalness: 0.7, roughness: 0.2 })
-  );
-  keypad.position.set(2.0, 1.4, -9.85);
-  keypad.userData.interactable = true;
-  keypad.userData.label = 'Enter access code';
-  keypad.userData.onInteract = () => {
-    if (unlocked) return;
-    unlocked = true;
-    sound.playKeypadBeep();
-    setTimeout(() => sound.playAccessGranted(), 200);
-
-    keypad.material.emissive = new THREE.Color(0x2bff6f);
-    keypad.material.emissiveIntensity = 1.5;
-    hud.setObjective('Access granted. Use the double doors below the camera to enter Level 2.');
-  };
-  scene.add(keypad);
-  cleanup.push(() => scene.remove(keypad));
+  const securityKeypad = buildSecurityKeypad({
+    position: [2.0, 1.4, -9.85],
+    rotation: [0, 0, 0],
+    correctCode: '0451',
+    sound,
+    hud,
+  });
+  scene.add(securityKeypad.mesh);
+  cleanup.push(() => {
+    securityKeypad.dispose();
+  });
 
   const exitDoors = new THREE.Group();
   exitDoors.name = 'Level 2 double doors';
@@ -252,10 +248,10 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   }
   let doorsOpen = false;
   exitDoors.userData.interactable = true;
-  exitDoors.userData.getLabel = () => doorsOpen ? 'Entering Level 2...' : unlocked ? 'Push doors to enter Level 2' : 'Doors locked - use access keypad';
+  exitDoors.userData.getLabel = () => doorsOpen ? 'Entering Level 2...' : securityKeypad.isUnlocked() ? 'Push doors to enter Level 2' : 'Doors locked - use access keypad';
   exitDoors.userData.onInteract = () => {
     if (doorsOpen) return;
-    if (!unlocked) { hud.setObjective('Unlock the double doors using the access keypad beside them.'); return; }
+    if (!securityKeypad.isUnlocked()) { hud.setObjective('Find the code in the technician logbook and enter it on the access keypad.'); return; }
     doorsOpen = true;
     doorCollider.makeEmpty();
     sound.playSwitch();
