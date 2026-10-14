@@ -295,7 +295,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+document.addEventListener('security-keypad-close', () => {
+  if (mainMenu.classList.contains('hidden') && creditsScreen.classList.contains('hidden')) {
+    showOnly(pauseMenu);
+  }
+});
+
 playerControls.controls.addEventListener('unlock', () => {
+  if (document.getElementById('security-keypad-overlay')) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   showOnly(pauseMenu);

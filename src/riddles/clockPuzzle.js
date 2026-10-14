@@ -217,7 +217,7 @@ export function createClockPuzzle({
   shelf2.position.set(0, 1.22, 0);
   lockerGroup.add(shelf2);
 
-  // Technician Book
+  // Technician Book / Logbook
   const bookCoverMat = new THREE.MeshStandardMaterial({
     color: 0x1166aa,
     roughness: 0.4,
@@ -229,10 +229,76 @@ export function createClockPuzzle({
   lockerGroup.add(techBook);
 
   techBook.userData.interactable = true;
-  techBook.userData.label = 'Read Technician Book';
+  techBook.userData.label = 'Read Technician Logbook';
   techBook.userData.onInteract = () => {
     if (sound.playInteract) sound.playInteract();
-    hud.setObjective('Technician Book: "Override Code 0451 confirmed." Head to the blast door!');
+    hud.setObjective('Technician Logbook: "Override Code 0451 confirmed." Enter it on the Level 2 keypad.');
+
+    if (document.getElementById('logbook-overlay')) return;
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'logbook-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.85)', display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center', zIndex: '9999',
+      fontFamily: 'monospace'
+    });
+
+    const page = document.createElement('div');
+    Object.assign(page.style, {
+      width: '460px',
+      backgroundColor: '#f5efe0',
+      color: '#1a1a1a',
+      padding: '36px 32px',
+      borderRadius: '6px',
+      border: '2px solid #b8a98b',
+      boxShadow: '0 20px 50px rgba(0,0,0,0.8), inset 0 0 60px rgba(180, 160, 120, 0.3)',
+      boxSizing: 'border-box',
+      lineHeight: '1.6'
+    });
+
+    page.innerHTML = `
+      <div style="border-bottom: 2px solid #8b0000; padding-bottom: 10px; margin-bottom: 16px;">
+        <div style="color: #8b0000; font-size: 13px; font-weight: bold; letter-spacing: 2px;">CONFIDENTIAL • SUBSTATION LOGBOOK</div>
+        <div style="font-size: 22px; font-weight: bold; font-family: serif; color: #111;">DAILY MAINTENANCE LOG</div>
+      </div>
+      <p style="font-size: 14px; margin-bottom: 12px; color: #333;">
+        <strong>OPERATOR:</strong> Tim, E. (Shift Lead)<br>
+        <strong>ZONE:</strong> Sector 1-3 Infrastructure<br>
+        <strong>STATUS:</strong> Facility Lockdown Active
+      </p>
+      <div style="background: rgba(0,0,0,0.04); border-left: 4px solid #335577; padding: 12px 14px; margin: 16px 0; font-family: serif; font-size: 15px; font-style: italic;">
+        "Emergency protocols have isolated the corridor. The blast doors to Level 2 remain locked under digital authorization. Use the master technician override code below to reset the security door keypad."
+      </div>
+      <div style="background: #252b33; color: #2bff6f; padding: 16px; border-radius: 4px; text-align: center; margin: 20px 0; border: 2px solid #1a1e24; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+        <div style="font-size: 12px; color: #8899aa; letter-spacing: 1px; margin-bottom: 4px;">LEVEL 2 KEYPAD OVERRIDE CODE:</div>
+        <div style="font-size: 38px; font-weight: bold; letter-spacing: 8px; font-family: monospace; text-shadow: 0 0 10px #2bff6f;">0451</div>
+      </div>
+      <div style="font-size: 13px; color: #555; text-align: center; border-top: 1px dashed #999; padding-top: 12px;">
+        Enter this code into the security keypad beside the exit double doors.
+      </div>
+    `;
+
+    const hint = document.createElement('div');
+    hint.innerText = "Click anywhere or press 'E' / 'Escape' to close";
+    Object.assign(hint.style, { color: '#ffffff', fontFamily: 'monospace', fontSize: '15px', marginTop: '18px' });
+
+    overlay.appendChild(page);
+    overlay.appendChild(hint);
+    document.body.appendChild(overlay);
+
+    const closeLogbook = (e) => {
+      if (e.type === 'click' || (e.type === 'keydown' && ['e', 'E', 'Escape'].includes(e.key))) {
+        overlay.remove();
+        document.removeEventListener('keydown', closeLogbook);
+      }
+    };
+    overlay.addEventListener('click', closeLogbook);
+    document.addEventListener('keydown', closeLogbook);
   };
 
   scene.add(lockerGroup);

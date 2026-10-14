@@ -98,10 +98,14 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
   }
 
   // Terminal console desk
-  const consoleDesk = buildProp({ width: 2.0, height: 1.0, depth: 0.8, color: 0x3d4b59, position: [0, 0, -6.0] });
-  scene.add(consoleDesk.mesh);
-  colliders.push(consoleDesk.box);
-  cleanup.push(() => scene.remove(consoleDesk.mesh));
+  const consoleDesk = buildProp({
+    geometry: new THREE.BoxGeometry(2.0, 1.0, 0.8),
+    material: new THREE.MeshStandardMaterial({ color: 0x3d4b59 }),
+    position: [0, 0.5, -6.0],
+  });
+  scene.add(consoleDesk);
+  colliders.push(new THREE.Box3().setFromObject(consoleDesk));
+  cleanup.push(() => scene.remove(consoleDesk));
 
   // Glowing green CRT terminal monitor
   const screen = new THREE.Mesh(
