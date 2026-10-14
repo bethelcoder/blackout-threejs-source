@@ -100,118 +100,149 @@ const terminal = new Terminal({
   inputEl: el('terminal-input'),
 });
 
+
 function loadPlayerModel() {
+  // Clean up the previous model and its animation mixer.
+  if (playerMixer) {
+    playerMixer.stopAllAction();
+    playerMixer = null;
+  }
 
   if (playerModel) {
     scene.remove(playerModel);
     playerModel = null;
   }
 
+  playerActions = {};
+  activeAction = null;
+
   gltfLoader.load(
     '/models/player.glb',
 
     (gltf) => {
-      playerModel = gltf.scene;
+      const model = gltf.scene;
+      playerModel = model;
 
-      playerMixer = new THREE.AnimationMixer(playerModel);
-      playerActions = {};
-      activeAction = null;
+      model.scale.set(1.2, 1.2, 1.2);
+      model.position.copy(camera.position);
+      model.position.y = 0;
+      model.rotation.y = 0;
+      model.visible = false;
 
-      fbxLoader.load('/models/animations/idle.fbx', (fbx) => {
-        const clip = fbx.animations[0];
+      scene.add(model);
 
-        if (!clip) {
-          console.error('Idle animation has no clips!');
-          return;
-        }
+      // One mixer controls all animations for this character.
+      const mixer = new THREE.AnimationMixer(model);
+      playerMixer = mixer;
 
-        // Keep only tracks that target nodes in the character.
-        const boneNames = new Set();
-        playerModel.traverse((object) => {
-          boneNames.add(object.name);
-        });
+      const animations = {
+        idle: '/models/animations/idle.fbx',
+        walk: '/models/animations/walking.fbx',
+        run: '/models/animations/running.fbx',
+      };
 
-        const validTracks = clip.tracks.filter((track) => {
-          const nodeName = track.name.split('.')[0];
-        
-          return (
-            boneNames.has(nodeName) &&
-            nodeName !== 'Armature' &&
-            nodeName !== 'Hips'
-          );
-        });
+      const boneNames = new Set();
 
-        console.log(
-          'Animation tracks:',
-          validTracks.map((track) => track.name)
-        );
-
-        const idleClip = new THREE.AnimationClip(
-          'idle',
-          clip.duration,
-          validTracks
-        );
-
-        playerActions.idle = playerMixer.clipAction(idleClip);
-        playerActions.idle.play();
-
-        // Temporarily test the animation's first frame
-        playerMixer.update(0);
-        playerActions.idle.time = 0;
-        playerMixer.update(0);
-
-        console.log('Idle animation loaded:', validTracks.length, 'tracks');
+      model.traverse((object) => {
+        boneNames.add(object.name);
       });
 
-      // TEMPORARY: check animation skeleton compatibility
-      const modelBones = [];
+      for (const [name, path] of Object.entries(animations)) {
+        fbxLoader.load(
+          path,
 
-      playerModel.traverse((object) => {
-        if (object.isBone) {
-          modelBones.push(object.name);
-        }
-      });
+          (fbx) => {
+            // Ignore animations belonging to a model that was replaced.
+            if (playerModel !== model) return;
 
-      console.log('CHARACTER BONES:', modelBones);
+            const sourceClip = fbx.animations[0];
 
-      fbxLoader.load('/models/animations/idle.fbx', (fbx) => {
-        const animation = fbx.animations[0];
+            if (!sourceClip) {
+              console.error(`No animation clip found in ${path}`);
+              return;
+            }
 
-        if (!animation) {
-          console.warn('No animation clip found in idle.fbx');
-          return;
-        }
+            // Keep the working fix: exclude Armature and Hips tracks.
+            const validTracks = sourceClip.tracks.filter((track) => {
+              const nodeName = track.name.split('.')[0];
 
-        console.log(
-          'IDLE ANIMATION TRACKS:',
-          animation.tracks.slice(0, 20).map((track) => track.name)
+              return (
+                boneNames.has(nodeName) &&
+                nodeName !== 'Armature' &&
+                nodeName !== 'Hips'
+              );
+            });
+
+            if (validTracks.length === 0) {
+              console.error(`No compatible tracks found for ${name}`);
+              return;
+            }
+
+            const clip = new THREE.AnimationClip(
+              name,
+              sourceClip.duration,
+              validTracks
+            );
+
+            const action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat, Infinity);
+
+            playerActions[name] = action;
+
+            console.log(
+              `${name} animation loaded:`,
+              validTracks.length,
+              'tracks'
+            );
+
+            // Start idle once it is available, unless another
+            // animation has already started.
+            if (name === 'idle' && !activeAction) {
+              action.play();
+              activeAction = action;
+            }
+          },
+
+          undefined,
+
+          (error) => {
+            console.error(`Failed to load ${name} animation:`, error);
+          }
         );
-      });
+      }
 
-      playerModel.scale.set(1.2, 1.2, 1.2);
-
-      // Start at the player's feet.
-      playerModel.position.copy(camera.position);
-      playerModel.position.y = 0;
-
-      // Face the same direction as the player.
-      playerModel.rotation.y = 0;
-
-      // Hide it by default because we start in first person.
-      playerModel.visible = false;
-
-      scene.add(playerModel);
-
-      console.log("🎉 Player model loaded!");
+      console.log('🎉 Player model loaded!');
     },
 
     undefined,
 
     (error) => {
-      console.error("Failed to load player model:", error);
+      console.error('Failed to load player model:', error);
     }
   );
 }
+
+
+function playPlayerAnimation(name) {
+  const nextAction = playerActions[name];
+
+  // The requested animation may still be loading.
+  if (!nextAction || activeAction === nextAction) return;
+
+  nextAction.reset();
+  nextAction.enabled = true;
+  nextAction.setEffectiveTimeScale(1);
+  nextAction.setEffectiveWeight(1);
+  nextAction.play();
+
+  if (activeAction) {
+    activeAction.crossFadeTo(nextAction, 0.25, false);
+  }
+
+  activeAction = nextAction;
+}
+
+
 
 // ---------- Level manager ----------
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
@@ -428,9 +459,28 @@ function tick() {
     playerMixer.update(delta);
   }
 
+  
   if (playerControls.isLocked) {
     playerControls.update(delta);
+
+    const controls = playerControls.move;
+
+    const isMoving =
+      controls.forward ||
+      controls.back ||
+      controls.left ||
+      controls.right;
+
+    const animationName = !isMoving
+      ? 'idle'
+      : controls.sprint
+        ? 'run'
+        : 'walk';
+
+    playPlayerAnimation(animationName);
+
     interaction.update(delta);
+
     currentLevel?.update?.(delta, camera);
 
     if (playerModel) {
