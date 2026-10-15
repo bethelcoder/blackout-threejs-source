@@ -10,6 +10,7 @@ import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 // ---------- Renderer / scene / camera ----------
 const canvas = document.getElementById('app');
@@ -77,7 +78,12 @@ const btnAudio = el('btn-audio');
 const hud = new HUD();
 
 const gltfLoader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
 let playerModel = null;
+
+let playerMixer = null;
+let playerActions = {};
+let activeAction = null;
 
 let previousPlayerPosition = new THREE.Vector3();
 
@@ -94,43 +100,210 @@ const terminal = new Terminal({
   inputEl: el('terminal-input'),
 });
 
+
 function loadPlayerModel() {
+  // Clean up the previous model and its animation mixer.
+  if (playerMixer) {
+    playerMixer.stopAllAction();
+    playerMixer = null;
+  }
 
   if (playerModel) {
     scene.remove(playerModel);
     playerModel = null;
   }
 
+  playerActions = {};
+  activeAction = null;
+
   gltfLoader.load(
     '/models/player.glb',
 
     (gltf) => {
-      playerModel = gltf.scene;
+      const model = gltf.scene;
 
-      playerModel.scale.set(1.2, 1.2, 1.2);
+      model.traverse((object) => {
+        if (object.isBone && (
+          object.name === 'Hips' ||
+          object.name === 'LeftUpLeg' ||
+          object.name === 'LeftLeg' ||
+          object.name === 'RightUpLeg' ||
+          object.name === 'RightLeg'
+        )) {
+          console.log(
+            'Player bone:',
+            object.name,
+            'rotation:',
+            object.rotation.toArray(),
+            'position:',
+            object.position.toArray()
+          );
+        }
+      });
 
-      // Start at the player's feet.
-      playerModel.position.copy(camera.position);
-      playerModel.position.y = 0;
 
-      // Face the same direction as the player.
-      playerModel.rotation.y = 0;
+      playerModel = model;
 
-      // Hide it by default because we start in first person.
-      playerModel.visible = false;
+      model.scale.set(1.2, 1.2, 1.2);
+      model.position.copy(camera.position);
+      model.position.y = 0;
+      model.rotation.y = 0;
+      model.visible = false;
 
-      scene.add(playerModel);
+      scene.add(model);
 
-      console.log("🎉 Player model loaded!");
+      // One mixer controls all animations for this character.
+      const mixer = new THREE.AnimationMixer(model);
+      playerMixer = mixer;
+
+      const animations = {
+        idle: '/models/animations/idle.fbx',
+        walk: '/models/animations/walking.fbx',
+        run: '/models/animations/running.fbx',
+        jump: '/models/animations/jumping-up.fbx',
+        crouchIdle: '/models/animations/crouching-idle.fbx',
+        crouchWalk: 'models/animations/crouched-walking.fbx',
+      };
+
+      const boneNames = new Set();
+
+      model.traverse((object) => {
+        boneNames.add(object.name);
+      });
+
+      for (const [name, path] of Object.entries(animations)) {
+        fbxLoader.load(
+          path,
+
+          (fbx) => {
+            // Ignore animations belonging to a model that was replaced.
+            if (playerModel !== model) return;
+
+            const sourceClip = fbx.animations[0];
+
+            if (!sourceClip) {
+              console.error(`No animation clip found in ${path}`);
+              return;
+            }
+
+            // Keep the working fix: exclude Armature and Hips tracks.
+            
+            if (name === 'crouchIdle') {
+              console.log(
+                'Crouch idle tracks:',
+                sourceClip.tracks.map((track) => track.name)
+              );
+            }
+            
+            console.log(
+              'Crouch foot position tracks:',
+              sourceClip.tracks
+                .filter((track) =>
+                  /Foot|Toe/i.test(track.name) &&
+                  /\.position$/.test(track.name)
+                )
+                .map((track) => track.name)
+            );
+            
+            const validTracks = sourceClip.tracks.filter((track) => {
+              const parts = track.name.split('.');
+              const nodeName = parts[0];
+              const property = parts[1];
+
+              const isCrouchAnimation =
+                name === 'crouchIdle' || name === 'crouchWalk';
+
+              const isVerticalPositionTrack =
+                property === 'position' &&
+                isCrouchAnimation;
+
+
+              const isHipsTrack = nodeName === 'Hips';
+
+              // Keep the existing Hips exclusion for other animations,
+              // but allow Hips rotation during crouching.
+              return (
+                boneNames.has(nodeName) &&
+                nodeName !== 'Armature' &&
+                nodeName !== 'Hips' &&
+                !isVerticalPositionTrack
+              );
+
+            });
+
+
+
+
+            if (validTracks.length === 0) {
+              console.error(`No compatible tracks found for ${name}`);
+              return;
+            }
+
+            const clip = new THREE.AnimationClip(
+              name,
+              sourceClip.duration,
+              validTracks
+            );
+
+            const action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat, Infinity);
+
+            playerActions[name] = action;
+
+            console.log(
+              `${name} animation loaded:`,
+              validTracks.length,
+              'tracks'
+            );
+
+            // Start idle once it is available, unless another
+            // animation has already started.
+            if (name === 'idle' && !activeAction) {
+              action.play();
+              activeAction = action;
+            }
+          },
+
+          undefined,
+
+          (error) => {
+            console.error(`Failed to load ${name} animation:`, error);
+          }
+        );
+      }
+
+      console.log('🎉 Player model loaded!');
     },
 
     undefined,
 
     (error) => {
-      console.error("Failed to load player model:", error);
+      console.error('Failed to load player model:', error);
     }
   );
 }
+
+
+function playPlayerAnimation(name) {
+  const nextAction = playerActions[name];
+
+  // The requested animation may still be loading.
+  if (!nextAction || activeAction === nextAction) return;
+
+  nextAction.reset();
+  nextAction.enabled = true;
+  nextAction.setEffectiveTimeScale(1);
+  nextAction.setEffectiveWeight(1);
+  nextAction.play();
+
+  if (activeAction) {
+    activeAction.crossFadeTo(nextAction, 0.25, false);
+  }
+
+  activeAction = nextAction;
+}
+
+
 
 // ---------- Level manager ----------
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
@@ -343,9 +516,44 @@ const clock = new THREE.Clock();
 function tick() {
   const delta = Math.min(clock.getDelta(), 0.05);
 
+  if (playerMixer) {
+    playerMixer.update(delta);
+  }
+
+  
   if (playerControls.isLocked) {
     playerControls.update(delta);
+
+    
+    
+    const controls = playerControls.move;
+
+    const isMoving =
+      controls.forward ||
+      controls.back ||
+      controls.left ||
+      controls.right;
+
+    let animationName;
+
+    if (!playerControls.grounded) {
+      animationName = 'jump';
+    } else if (controls.crouch) {
+      animationName = isMoving ? 'crouchWalk' : 'crouchIdle';
+    } else if (isMoving && controls.sprint) {
+      animationName = 'run';
+    } else if (isMoving) {
+      animationName = 'walk';
+    } else {
+      animationName = 'idle';
+    }
+
+    playPlayerAnimation(animationName);
+
+
+
     interaction.update(delta);
+
     currentLevel?.update?.(delta, camera);
 
     if (playerModel) {
@@ -354,7 +562,9 @@ function tick() {
       // Keep the character on the ground and follow the player.
       playerModel.position.x = camera.position.x;
       playerModel.position.z = camera.position.z;
-      playerModel.position.y = 0;
+
+      const crouchOffset = controls.crouch ? 0.3 : 0;
+      playerModel.position.y = camera.position.y - 1.7 - crouchOffset;
 
       // Detect switching from first person to third person.
       if (
@@ -389,24 +599,38 @@ function tick() {
     }
 
     // Make the third-person camera follow behind the player.
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
 
-    direction.y = 0;
-    direction.normalize();
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
 
-    const thirdPersonPosition = camera.position
-      .clone()
-      .addScaledVector(direction, -2.8)
-      .add(new THREE.Vector3(0.8, 1.6, 0));
+  direction.y = 0;
+  direction.normalize();
 
-    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+  // Follow the player's horizontal position,
+  // but keep the camera's height independent of jumping.
+  const groundY = currentLevel?.spawn?.y ?? 0;
 
-    const lookTarget = camera.position.clone();
-    lookTarget.y -= 0.4;
+  const thirdPersonPosition = new THREE.Vector3 (
+    camera.position.x,
+    groundY,
+    camera.position.z
+  )
+    .addScaledVector(direction, -2.8)
+    .add(new THREE.Vector3(0.8, 1.6, 0));
 
-    thirdPersonCamera.lookAt(lookTarget);
+  thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+
+  // Keep the look target at a fixed height too.
+  const lookTarget = new THREE.Vector3(
+    camera.position.x,
+    groundY - 0.4,
+    camera.position.z
+  );
+
+  thirdPersonCamera.lookAt(lookTarget);
   }
+
+
 
   previousCameraMode = playerControls.cameraMode;
 
