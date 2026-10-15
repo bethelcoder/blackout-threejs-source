@@ -516,6 +516,11 @@ function bootSequence() {
 }
 bootSequence();
 
+let firstPersonCrouchOffset = 0;
+
+const FIRST_PERSON_CROUCH_DROP = 0.4;
+const THIRD_PERSON_CROUCH_DROP = 0.2;
+
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
 function tick() {
@@ -527,11 +532,26 @@ function tick() {
 
   
   if (playerControls.isLocked) {
+    // Restore the camera's normal height before movement and collision updates.
+    camera.position.y += firstPersonCrouchOffset;
+  
     playerControls.update(delta);
-
-    
-    
+  
     const controls = playerControls.move;
+  
+    // Smoothly lower the first-person camera while crouching.
+    const targetCrouchOffset = controls.crouch
+      ? FIRST_PERSON_CROUCH_DROP
+      : 0;
+  
+    firstPersonCrouchOffset = THREE.MathUtils.damp(
+      firstPersonCrouchOffset,
+      targetCrouchOffset,
+      10,
+      delta
+    );
+  
+    camera.position.y -= firstPersonCrouchOffset;
 
     const isMoving =
       controls.forward ||
@@ -569,6 +589,7 @@ function tick() {
       playerModel.position.z = camera.position.z;
 
       const crouchOffset = controls.crouch ? 0.3 : 0;
+
       playerModel.position.y = camera.position.y - 1.7 - crouchOffset;
 
       // Detect switching from first person to third person.
@@ -604,35 +625,30 @@ function tick() {
     }
 
 
-    // Make the third-person camera follow behind the player
-    // while allowing mouse look in both directions.
 
+    // Make the third-person camera follow behind the player.
     const direction = new THREE.Vector3();
     camera.getWorldDirection(direction);
 
-    // Use horizontal direction to keep the camera behind the player.
+    // Keep the camera behind the player based on horizontal look direction.
     const horizontalDirection = direction.clone();
     horizontalDirection.y = 0;
     horizontalDirection.normalize();
 
-    const thirdPersonPosition = new THREE.Vector3(
-      camera.position.x,
-      camera.position.y,
-      camera.position.z
-    )
+    const thirdPersonCrouchOffset = controls.crouch
+      ? THIRD_PERSON_CROUCH_DROP
+      : 0;
+
+    // Position the camera behind and above the player.
+    // Do not use the first-person crouch offset here.
+    const thirdPersonPosition = camera.position.clone()
       .addScaledVector(horizontalDirection, -1.8)
-      .add(new THREE.Vector3(0, 0.5, 0));
+      .add(new THREE.Vector3(0, 0.5 - thirdPersonCrouchOffset, 0));
 
-    thirdPersonCamera.position.lerp(
-      thirdPersonPosition,
-      0.10
-    );
+    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
 
-    
-    // Limit vertical mouse look so we can't look too far
-    // up or down into the void.
+    // Preserve the existing limited mouse-look angle.
     const horizontalAngle = Math.atan2(direction.x, direction.z);
-
     const pitch = Math.asin(
       THREE.MathUtils.clamp(direction.y, -1, 1)
     );
@@ -649,12 +665,18 @@ function tick() {
       Math.cos(horizontalAngle) * Math.cos(limitedPitch)
     );
 
-    const lookTarget = camera.position.clone()
-      .addScaledVector(lookDirection, 5);
+    // Aim at the player's normal reference height, not the lowered
+    // first-person camera height.
+    const lookTarget = new THREE.Vector3(
+      camera.position.x,
+      camera.position.y - 0.5,
+      camera.position.z
+    ).addScaledVector(lookDirection, 5);
+
+    lookTarget.y -= thirdPersonCrouchOffset;
 
     thirdPersonCamera.lookAt(lookTarget);
-
-  }
+    }
 
 
 
