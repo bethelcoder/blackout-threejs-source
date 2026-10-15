@@ -192,14 +192,14 @@ function loadPlayerModel() {
             }
 
             // Keep the working fix: exclude Armature and Hips tracks.
-            
+
             if (name === 'crouchIdle') {
               console.log(
                 'Crouch idle tracks:',
                 sourceClip.tracks.map((track) => track.name)
               );
             }
-            
+
             console.log(
               'Crouch foot position tracks:',
               sourceClip.tracks
@@ -209,7 +209,7 @@ function loadPlayerModel() {
                 )
                 .map((track) => track.name)
             );
-            
+
             const validTracks = sourceClip.tracks.filter((track) => {
               const parts = track.name.split('.');
               const nodeName = parts[0];
@@ -496,7 +496,7 @@ setInterval(() => {
 
 // ---------- Loading sequence ----------
 function bootSequence() {
-  let progress = 0; 
+  let progress = 0;
   const iv = setInterval(() => {
     progress += 8 + Math.random() * 12;
     if (progress >= 100) {
@@ -516,10 +516,6 @@ function bootSequence() {
 }
 bootSequence();
 
-let firstPersonCrouchOffset = 0;
-
-const FIRST_PERSON_CROUCH_DROP = 0.4;
-const THIRD_PERSON_CROUCH_DROP = 0.2;
 
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
@@ -530,28 +526,12 @@ function tick() {
     playerMixer.update(delta);
   }
 
-  
+
   if (playerControls.isLocked) {
-    // Restore the camera's normal height before movement and collision updates.
-    camera.position.y += firstPersonCrouchOffset;
-  
+
     playerControls.update(delta);
-  
+
     const controls = playerControls.move;
-  
-    // Smoothly lower the first-person camera while crouching.
-    const targetCrouchOffset = controls.crouch
-      ? FIRST_PERSON_CROUCH_DROP
-      : 0;
-  
-    firstPersonCrouchOffset = THREE.MathUtils.damp(
-      firstPersonCrouchOffset,
-      targetCrouchOffset,
-      10,
-      delta
-    );
-  
-    camera.position.y -= firstPersonCrouchOffset;
 
     const isMoving =
       controls.forward ||
@@ -563,7 +543,7 @@ function tick() {
 
     if (!playerControls.grounded) {
       animationName = 'jump';
-    } else if (controls.crouch) {
+    } else if (playerControls.height < PLAYER_HEIGHT) {
       animationName = isMoving ? 'crouchWalk' : 'crouchIdle';
     } else if (isMoving && controls.sprint) {
       animationName = 'run';
@@ -588,9 +568,7 @@ function tick() {
       playerModel.position.x = camera.position.x;
       playerModel.position.z = camera.position.z;
 
-      const crouchOffset = controls.crouch ? 0.3 : 0;
-
-      playerModel.position.y = camera.position.y - 1.7 - crouchOffset;
+      playerModel.position.y = camera.position.y - playerControls.height;
 
       // Detect switching from first person to third person.
       if (
@@ -635,15 +613,10 @@ function tick() {
     horizontalDirection.y = 0;
     horizontalDirection.normalize();
 
-    const thirdPersonCrouchOffset = controls.crouch
-      ? THIRD_PERSON_CROUCH_DROP
-      : 0;
-
-    // Position the camera behind and above the player.
-    // Do not use the first-person crouch offset here.
+    // Follow the physical eye height; PlayerControls applies crouch once.
     const thirdPersonPosition = camera.position.clone()
       .addScaledVector(horizontalDirection, -1.8)
-      .add(new THREE.Vector3(0, 0.5 - thirdPersonCrouchOffset, 0));
+      .add(new THREE.Vector3(0, 0.5, 0));
 
     thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
 
@@ -673,7 +646,6 @@ function tick() {
       camera.position.z
     ).addScaledVector(lookDirection, 5);
 
-    lookTarget.y -= thirdPersonCrouchOffset;
 
     thirdPersonCamera.lookAt(lookTarget);
     }

@@ -7,15 +7,12 @@ class SoundEngine {
     this.ctx = null;
     this.masterGain = null;
     this.ambientGain = null;
-    this.alarmGain = null;
     this.isMuted = false;
     this.initialized = false;
 
     // Ambient oscillator references
     this.droneOsc1 = null;
     this.droneOsc2 = null;
-    this.alarmOsc = null;
-    this.alarmLfo = null;
   }
 
   init() {
@@ -89,50 +86,6 @@ class SoundEngine {
     const targetFreq = 55 + (suspicionLevel / 100) * 20;
     this.droneOsc1.frequency.setTargetAtTime(targetFreq, now, 0.5);
 
-    // If in HUNTING or LOCKDOWN, pulse emergency siren
-    if (suspicionLevel >= 75 && !this.alarmOsc) {
-      this._startAlarmSiren();
-    } else if (suspicionLevel < 75 && this.alarmOsc) {
-      this._stopAlarmSiren();
-    }
-  }
-
-  _startAlarmSiren() {
-    if (!this.ctx || this.alarmOsc) return;
-    const now = this.ctx.currentTime;
-
-    this.alarmGain = this.ctx.createGain();
-    this.alarmGain.gain.setValueAtTime(0.12, now);
-    this.alarmGain.connect(this.masterGain);
-
-    this.alarmOsc = this.ctx.createOscillator();
-    this.alarmOsc.type = 'sawtooth';
-    this.alarmOsc.frequency.setValueAtTime(600, now);
-
-    // LFO to modulate siren pitch (woop-woop effect)
-    this.alarmLfo = this.ctx.createOscillator();
-    this.alarmLfo.type = 'sine';
-    this.alarmLfo.frequency.setValueAtTime(1.5, now);
-
-    const lfoGain = this.ctx.createGain();
-    lfoGain.gain.setValueAtTime(250, now);
-
-    this.alarmLfo.connect(lfoGain);
-    lfoGain.connect(this.alarmOsc.frequency);
-
-    this.alarmOsc.connect(this.alarmGain);
-    this.alarmLfo.start();
-    this.alarmOsc.start();
-  }
-
-  _stopAlarmSiren() {
-    if (!this.alarmOsc) return;
-    try {
-      this.alarmOsc.stop();
-      this.alarmLfo.stop();
-    } catch (_) {}
-    this.alarmOsc = null;
-    this.alarmLfo = null;
   }
 
   /** Brief metal-on-metal scrape while removing the maintenance grille. */

@@ -170,7 +170,6 @@ html, body {
 #ai-status-value.suspicious { color: #ffd24f; }
 #ai-status-value.alert { color: #ff9d4f; }
 #ai-status-value.hunting { color: #ff5f4f; }
-#ai-status-value.lockdown { color: #ff2b2b; text-shadow: 0 0 12px #ff2b2b; }
 
 /* CCTV Picture-in-Picture window */
 #cctv-container {

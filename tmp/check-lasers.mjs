@@ -1,0 +1,97 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { buildLaserSecurity } from '../src/scenes/laserSecurity.js';
+import { buildLevel2 } from '../src/scenes/level2.js';
+
+const ctx = new Proxy({}, { get: (_, key) => key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
+globalThis.document = {
+  createElement: () => ({ getContext: () => ctx }),
+  createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, set src(value) {} }),
+};
+const scene = new THREE.Scene();
+let hits = 0;
+let alerts = 0;
+const camera = new THREE.PerspectiveCamera();
+camera.position.set(0, 1.7, 6);
+const aiState = { raise: () => alerts++, decay() {} };
+const hud = { setObjective() {}, markLevelComplete() { throw Error('Premature completion'); } };
+const sound = { playSwitch() {}, playDetectionWarning() {} };
+const laser = buildLaserSecurity({ scene, aiState, hud, sound, onHit: pos => { hits++; camera.position.copy(pos); } });
+const beamGroup = scene.getObjectByName('AI laser security').children[0];
+assert.equal(beamGroup.children[0].geometry.attributes.position.count, 124 * 3, 'Uses the imported 124-triangle beam');
+assert.ok(beamGroup.children[0].material.isShaderMaterial, 'Beam is shaded as scattered light');
+assert.ok(beamGroup.children[2].geometry.isBufferGeometry);
+assert.equal(beamGroup.children[2].geometry.type, 'PlaneGeometry', 'Surface spot replaces the solid endpoint ball');
+laser.update(5.5, camera);
+assert.equal(hits, 0, 'Entrance is safe');
+camera.position.set(6.25, 1.7, 5);
+laser.update(0.01, camera);
+camera.position.z = 2;
+laser.update(0.05, camera);
+assert.equal(hits, 1, 'Swept collision detects a crossing that skips the thin beam');
+assert.equal(alerts, 1);
+assert.deepEqual(camera.position.toArray(), [0, 1.7, 6]);
+const panel = scene.getObjectByName('Laser shutdown button');
+const importedButton = panel.getObjectByName('Button_ru2 imported shutdown switch');
+assert.equal(importedButton.children.length, 3, 'Original three button meshes are present');
+assert.ok(importedButton.children.every(mesh => mesh.geometry.attributes.uv && mesh.material.map && mesh.material.normalMap), 'Original UVs and textures retained');
+scene.updateMatrixWorld(true);
+const buttonBounds = new THREE.Box3().setFromObject(importedButton);
+const buttonSize = buttonBounds.getSize(new THREE.Vector3());
+assert.ok(Math.abs(buttonSize.y - 0.6) < 0.001 && Math.abs(buttonSize.z - 0.6) < 0.001, 'Plate retains square proportions');
+const aim = new THREE.Raycaster(new THREE.Vector3(6, 1.5, 0), new THREE.Vector3(1, 0, 0), 0, 1.5);
+assert.ok(aim.intersectObject(importedButton, true).length > 0, 'Imported button faces player and is in interaction reach');
+const cap = importedButton.children.find(mesh => mesh.name === 'Circle_001__0');
+const beforePress = cap.position.z;
+panel.userData.onInteract();
+assert.ok(cap.position.z < beforePress, 'Imported red cap depresses');
+panel.userData.onInteract();
+assert.equal(cap.position.z, beforePress - 0.015, 'Pressing again does not move the cap again');
+assert.equal(laser.isActive(), false);
+assert.equal(scene.getObjectByName('AI laser security').children[0].visible, false);
+camera.position.set(6.25, 1.7, 3.5);
+laser.update(10, camera);
+assert.equal(hits, 1, 'Disabled beams cannot hit player');
+laser.dispose();
+assert.equal(scene.children.length, 0);
+
+function crossBeam({ height, eyeY, fromZ, toZ }) {
+  const testScene = new THREE.Scene();
+  const testCamera = new THREE.PerspectiveCamera();
+  testCamera.userData.playerHeight = height;
+  testCamera.position.set(0, eyeY, fromZ);
+  let contacts = 0;
+  const security = buildLaserSecurity({ scene: testScene, aiState, hud, sound, onHit: () => contacts++ });
+  const meshes = testScene.getObjectByName('AI laser security').children[0].children;
+  const before = meshes.map(mesh => mesh.position.toArray());
+  security.update(1 / 60, testCamera);
+  testCamera.position.z = toZ;
+  security.update(1 / 60, testCamera);
+  assert.deepEqual(meshes.map(mesh => mesh.position.toArray()), before, 'Laser positions stay fixed');
+  security.dispose();
+  return contacts;
+}
+assert.equal(crossBeam({ height: 1.7, eyeY: 1.7, fromZ: 4.3, toZ: 2.7 }), 1, 'Walking into low beam alarms');
+assert.equal(crossBeam({ height: 1.7, eyeY: 2.5, fromZ: 4.3, toZ: 2.7 }), 0, 'Jump clears low beam');
+assert.equal(crossBeam({ height: 1.7, eyeY: 1.7, fromZ: 2.3, toZ: 0.6 }), 1, 'Standing hits high beam');
+assert.equal(crossBeam({ height: 0.95, eyeY: 0.95, fromZ: 2.3, toZ: 0.6 }), 0, 'Crouch clears high beam');
+
+let opens = 0;
+let complete = 0;
+const terminalUI = { show() { opens++; }, open: false };
+const level = buildLevel2({ scene, aiState, terminalUI, hud: { setObjective() {}, markLevelComplete() { complete++; } } });
+const terminal = scene.children.find(obj => obj.userData.label === 'Use grid terminal');
+terminal.userData.onInteract();
+terminalUI.onSolved();
+assert.equal(opens, 0, 'Terminal locked while lasers active');
+assert.equal(complete, 0, 'Completion blocked while lasers active');
+scene.getObjectByName('Laser shutdown button').userData.onInteract();
+terminal.userData.onInteract();
+assert.equal(opens, 1);
+terminalUI.onSolved();
+terminalUI.onSolved();
+assert.equal(complete, 1, 'Terminal puzzle still required and completes once');
+level.dispose();
+assert.equal(terminalUI.onSolved, null);
+assert.equal(scene.getObjectByName('AI laser security'), undefined);
+console.log('Laser checks passed: safe spawn, swept hits, AI alert/reset, shutdown, terminal interlock, completion and cleanup.');

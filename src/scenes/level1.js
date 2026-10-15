@@ -9,6 +9,7 @@ import { buildMaintenanceVent } from './maintenanceVent.js';
 import { buildNoticeBoard } from './noticeBoard.js';
 import { buildSecurityKeypad } from './securityKeypad.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
+import { buildSecurityCamera, createRoomSecurityView } from './securityCamera.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -156,35 +157,22 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(sparks);
   cleanup.push(() => scene.remove(sparks));
 
-  // SECURITY SYSTEM
-  const camHead = new THREE.Group();
-  camHead.position.set(0, 3.8, -9.6);
-  
-  const camBody = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.12, 0.12, 0.35, 12),
-    new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 })
-  );
-  camBody.rotation.z = Math.PI / 2;
-  
-  const camLens = new THREE.Mesh(
-    new THREE.SphereGeometry(0.07, 10, 10),
-    new THREE.MeshStandardMaterial({ color: 0xff1111, emissive: 0xff1111, emissiveIntensity: 2.0 })
-  );
-  camLens.position.x = 0.2;
-  camHead.add(camBody, camLens);
-  scene.add(camHead);
-  cleanup.push(() => scene.remove(camHead));
-
-  const cctvCamera = new THREE.PerspectiveCamera(65, 16 / 9, 0.1, 50);
-  cctvCamera.position.copy(camHead.position);
-
-  const camCone = new THREE.SpotLight(0xff4433, 4, 15, THREE.MathUtils.degToRad(22), 0.4);
-  camCone.position.copy(camHead.position);
-  const camTarget = new THREE.Object3D();
-  scene.add(camTarget);
-  camCone.target = camTarget;
-  scene.add(camCone);
-  cleanup.push(() => scene.remove(camCone, camTarget));
+  // High-mounted fixed wide-angle camera, looking into the room from above the doors.
+  const cctvCamera = createRoomSecurityView();
+  const securityCamera = buildSecurityCamera();
+  securityCamera.group.position.copy(cctvCamera.position);
+  securityCamera.group.lookAt(0, 0, -0.8);
+  scene.add(securityCamera.group);
+  cleanup.push(() => securityCamera.dispose());
+  const cameraStatus = new THREE.PointLight(0xff3322, 0.5, 1.5);
+  cameraStatus.position.copy(cctvCamera.position);
+  scene.add(cameraStatus);
+  cleanup.push(() => scene.remove(cameraStatus));
+  const securityFrustum = new THREE.Frustum();
+  securityFrustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cctvCamera.projectionMatrix, cctvCamera.matrixWorldInverse));
+  const sightRay = new THREE.Ray();
+  const sightDirection = new THREE.Vector3();
+  const obstruction = new THREE.Vector3();
 
   // Hazard stripe & Exit Door
   const hazardStrip = buildHazardStrip({ width: 4.0, depth: 0.8, position: [0, 0.01, -9.0] });
@@ -269,7 +257,6 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     for (const material of [doorPaint, doorTrim, doorHardware, doorGlass]) material.dispose();
   });
 
-  let t = 0;
   let warnTimer = 0;
 
   function update(delta, camera) {
@@ -278,28 +265,17 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
       doorHinges[0].rotation.y = THREE.MathUtils.damp(doorHinges[0].rotation.y, -1.4, 6, delta);
       doorHinges[1].rotation.y = THREE.MathUtils.damp(doorHinges[1].rotation.y, 1.4, 6, delta);
     }
-    t += delta;
 
     electricalHazard.update(delta, camera);
     clockPuzzle.update(delta);
 
-    camHead.rotation.y = Math.sin(t * 0.7) * Math.PI * 0.35;
-    const dir = new THREE.Vector3(Math.sin(camHead.rotation.y), -0.25, -Math.cos(camHead.rotation.y)).normalize();
-    camTarget.position.copy(camHead.position).add(dir.clone().multiplyScalar(6));
-    camCone.target.updateMatrixWorld();
-
-    cctvCamera.lookAt(camTarget.position);
-
     if (sparks.userData.update) sparks.userData.update(delta);
 
-    const toPlayer = new THREE.Vector3().subVectors(camera.position, camHead.position);
-    const dist = toPlayer.length();
-    toPlayer.normalize();
-
-    const facing = new THREE.Vector3(Math.sin(camHead.rotation.y), 0, -Math.cos(camHead.rotation.y));
-    const angle = toPlayer.angleTo(facing);
-
-    if (angle < THREE.MathUtils.degToRad(22) && dist < 14) {
+    sightDirection.subVectors(camera.position, cctvCamera.position);
+    const distance = sightDirection.length();
+    sightRay.set(cctvCamera.position, sightDirection.normalize());
+    const hidden = colliders.some(box => !box.isEmpty() && sightRay.intersectBox(box, obstruction) && obstruction.distanceTo(cctvCamera.position) < distance - 0.35);
+    if (securityFrustum.containsPoint(camera.position) && !hidden) {
       aiState.raise(28 * delta);
       warnTimer += delta;
       if (warnTimer > 0.35) {

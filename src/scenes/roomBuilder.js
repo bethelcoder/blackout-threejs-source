@@ -94,20 +94,20 @@ function createOfficeTextures(height) {
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false, leftCabinetMaxZ = Infinity }) {
+export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false, officeFloor = officeFinishes, leftCabinetMaxZ = Infinity }) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
 
-  const officeTextures = officeFinishes ? createOfficeTextures(height) : null;
+  const officeTextures = officeFinishes || officeFloor ? createOfficeTextures(height) : null;
 
   // 1. FLOOR & CATWALK GRATING
   gTex.repeat.set(width * 0.8, depth * 0.8);
-  if (officeTextures) officeTextures.floorMap.repeat.set(width / 3.2, depth / 3.2);
+  if (officeFloor) officeTextures.floorMap.repeat.set(width / 3.2, depth / 3.2);
   const floorMat = new THREE.MeshStandardMaterial({
-    map: officeTextures?.floorMap ?? gTex,
-    roughness: officeFinishes ? 0.92 : 0.3,
-    metalness: officeFinishes ? 0 : 0.85,
+    map: officeFloor ? officeTextures.floorMap : gTex,
+    roughness: officeFloor ? 0.92 : 0.3,
+    metalness: officeFloor ? 0 : 0.85,
   });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -125,7 +125,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   // 2. WALLS & CEILING
   const wallMat = new THREE.MeshStandardMaterial({
     color: officeFinishes ? 0xffffff : wallColor,
-    map: officeTextures?.wallMap ?? wTex.map,
+    map: officeFinishes ? officeTextures.wallMap : wTex.map,
     bumpMap: officeFinishes ? null : wTex.bumpMap,
     bumpScale: 0.04, roughness: officeFinishes ? 0.96 : 0.5, metalness: officeFinishes ? 0 : 0.2,
   });
@@ -146,7 +146,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   const wallThickness = 0.2;
   for (const w of wallDefs) {
     let material = wallMat;
-    if (officeTextures) {
+    if (officeFinishes) {
       material = wallMat.clone();
       material.map = officeTextures.wallMap.clone();
       material.map.repeat.set(w.size[0] / 3.2, 1);
@@ -229,7 +229,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     });
   }
 
-  return { group, colliders };
+  return { group, colliders, floor };
 }
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ export function createElectricCorruptionMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
-      uIntensity: { value: 0.25 },       // 0 = dormant, 1 = full lockdown corruption
+      uIntensity: { value: 0.25 },       // 0 = dormant, 1 = maximum corruption
       uColorLow: { value: new THREE.Color(0x0a2a3a) },
       uColorHigh: { value: new THREE.Color(0xff2b2b) },
     },

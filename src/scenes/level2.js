@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
 import { createServerRackTexture } from '../systems/textures.js';
 import { sound } from '../systems/audio.js';
+import { buildLaserSecurity } from './laserSecurity.js';
 
 /**
  * LEVEL 2 — CONTROL
@@ -9,12 +10,14 @@ import { sound } from '../systems/audio.js';
  * Signature Mechanic: Fictional interactive command-line terminal system.
  * Narrative progression: Restore water infrastructure, alerting the AI.
  */
-export function buildLevel2({ scene, aiState, hud, terminalUI }) {
+export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
   const colliders = [];
   const cleanup = [];
 
   const { group: room, colliders: wallColliders } = buildRoom({
     width: 14, depth: 16, height: 4.2, wallColor: 0x5a6d80, floorColor: 0x485868,
+    includeRightCabinets: false,
+    officeFloor: true,
   });
   scene.add(room);
   // Alternate-route arrival beside the right-hand server bank.
@@ -30,6 +33,9 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
     serviceGrilleMaterial.dispose();
   });
   colliders.push(...wallColliders);
+
+  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, onHit: onShock });
+  cleanup.push(() => laserSecurity.dispose());
 
   // Bright server room illumination
   const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x556677, 1.6);
@@ -115,13 +121,20 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
   screen.position.set(0, 1.7, -6.38);
   screen.userData.interactable = true;
   screen.userData.label = 'Use grid terminal';
-  screen.userData.onInteract = () => terminalUI.show();
+  screen.userData.getLabel = () => laserSecurity.isActive() ? 'Terminal locked - disable laser security' : 'Use grid terminal';
+  screen.userData.onInteract = () => {
+    if (laserSecurity.isActive()) {
+      hud.setObjective('AI security interlock active. Press the laser shutdown button midway along the right wall.');
+      return;
+    }
+    terminalUI.show();
+  };
   scene.add(screen);
   cleanup.push(() => scene.remove(screen));
 
   let solved = false;
   terminalUI.onSolved = () => {
-    if (solved) return;
+    if (solved || laserSecurity.isActive()) return;
     solved = true;
     hud.setObjective('Water infrastructure restored! AI alert triggered — proceed to the Core.');
     hud.markLevelComplete();
@@ -146,7 +159,8 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
   colliders.push(doorCollider);
   cleanup.push(() => scene.remove(doorMesh));
 
-  function update(delta) {
+  function update(delta, camera) {
+    laserSecurity.update(delta, camera);
     if (solved && doorMesh.visible) {
       doorMesh.visible = false;
       doorCollider.min.set(1000, 1000, 1000);
@@ -167,6 +181,6 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
     spawn: new THREE.Vector3(0, 1.7, 6.0),
     title: 'LEVEL 2 — CONTROL',
     subtitle: 'Restore municipal power & water routing from the central terminal.',
-    objective: 'Access the terminal and authenticate using technician credentials.',
+    objective: 'Jump low lasers (Space), duck high lasers (hold C or Ctrl). Reach the shutdown button midway along the right wall (E).',
   };
 }

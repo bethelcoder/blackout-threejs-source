@@ -3,10 +3,9 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import { sound } from './audio.js';
 
 const PLAYER_HEIGHT = 1.7;
+const CROUCH_HEIGHT = 0.95;
 const MOVE_SPEED = 4.2;
 const SPRINT_MULT = 1.6;
-const CROUCH_HEIGHT = 1.0;
-const CROUCH_SPEED = 2.0;
 
 /**
  * Wraps PointerLockControls with WASD movement, procedural footstep audio,
@@ -25,6 +24,8 @@ export class PlayerControls {
     this.fallSpeed = 0;
     this.grounded = true;
     this.jumpQueued = false;
+    this.height = PLAYER_HEIGHT;
+    camera.userData.playerHeight = this.height;
 
     this.move = { forward: false, back: false, left: false, right: false, sprint: false, crouch: false };
 
@@ -47,6 +48,8 @@ export class PlayerControls {
   }
 
   setColliders(boxes, walkableSurfaces = []) {
+    this.height = PLAYER_HEIGHT;
+    this.camera.userData.playerHeight = this.height;
     this.colliders = boxes;
     this.walkableSurfaces = walkableSurfaces;
     this.velocity.set(0, 0, 0);
@@ -68,28 +71,20 @@ export class PlayerControls {
       case 'KeyA': case 'ArrowLeft': this.move.left = isDown; break;
       case 'KeyD': case 'ArrowRight': this.move.right = isDown; break;
       case 'ShiftLeft': case 'ShiftRight': this.move.sprint = isDown; break;
-      case 'KeyV': if (isDown) this.toggleCamera(); break;
-      
+      case 'KeyC': case 'ControlLeft': case 'ControlRight':
+        if (this.isLocked) e.preventDefault();
+        this.move.crouch = isDown;
+        break;
+      case 'KeyV':
+        if (isDown && !e.repeat && this.isLocked) this.toggleCamera();
+        break;
       case 'Space':
-        if (isDown && !e.repeat) {
-          console.log('Space pressed', {
-            locked: this.isLocked,
-            grounded: this.grounded,
-            fallSpeed: this.fallSpeed
-          });
-        }
-
         if (this.isLocked) {
           e.preventDefault();
-
-          if (isDown && !e.repeat && this.grounded) {
-            this.jumpQueued = true;
-            console.log('JUMP QUEUED!');
-          }
+          if (isDown && !e.repeat && this.grounded) this.jumpQueued = true;
         }
         break;
 
-      case 'ControlLeft': case 'ControlRight': this.move.crouch = isDown; break;
     }
   }
 
@@ -104,6 +99,20 @@ export class PlayerControls {
   update(delta) {
     if (!this.enabled || !this.controls.isLocked) return;
 
+    const feetY = this.camera.position.y - this.height;
+    if (this.move.crouch && this.height !== CROUCH_HEIGHT) {
+      this.height = CROUCH_HEIGHT;
+      this.camera.position.y = feetY + this.height;
+    } else if (!this.move.crouch && this.height !== PLAYER_HEIGHT) {
+      const standing = this.camera.position.clone();
+      standing.y = feetY + PLAYER_HEIGHT;
+      this.height = PLAYER_HEIGHT;
+      if (this._collides(standing)) this.height = CROUCH_HEIGHT;
+      else this.camera.position.copy(standing);
+    }
+    this.camera.userData.playerHeight = this.height;
+    const crouched = this.height < PLAYER_HEIGHT;
+
     const damping = Math.min(10 * delta, 1);
 
     this.direction.z = Number(this.move.forward) - Number(this.move.back);
@@ -111,14 +120,12 @@ export class PlayerControls {
     this.direction.normalize();
 
     const isMoving = this.move.forward || this.move.back || this.move.left || this.move.right;
-    const speed = this.move.crouch
-      ? CROUCH_SPEED
-      : MOVE_SPEED * (this.move.sprint ? SPRINT_MULT : 1);
+    const speed = MOVE_SPEED * (crouched ? 0.45 : this.move.sprint ? SPRINT_MULT : 1);
 
     // Velocity is in metres/second, so jump distance is consistent across frame rates.
     this.velocity.x += (this.direction.x * speed - this.velocity.x) * damping;
     this.velocity.z += (this.direction.z * speed - this.velocity.z) * damping;
-    if (this.jumpQueued && this.grounded) {
+    if (this.jumpQueued && this.grounded && !crouched) {
       this.fallSpeed = -6;
       this.grounded = false;
     }
@@ -155,28 +162,18 @@ export class PlayerControls {
   _collides(pos) {
     const r = 0.35;
     const playerBox = this.playerBox;
-    const height = this.move.crouch ? CROUCH_HEIGHT : PLAYER_HEIGHT;
-  
-    playerBox.min.set(
-      pos.x - r,
-      pos.y - height + 0.01,
-      pos.z - r
-    );
-  
-    playerBox.max.set(
-      pos.x + r,
-      pos.y,
-      pos.z + r
-    );
-  
+    playerBox.min.set(pos.x - r, pos.y - this.height + 0.01, pos.z - r);
+    playerBox.max.set(pos.x + r, pos.y, pos.z + r);
     for (const box of this.colliders) {
       if (playerBox.intersectsBox(box)) return true;
     }
-  
+
     return false;
   }
 
   teleport(position) {
+    this.height = PLAYER_HEIGHT;
+    this.camera.userData.playerHeight = this.height;
     this.camera.position.copy(position);
     this.velocity.set(0, 0, 0);
     this.fallSpeed = 0;
@@ -200,9 +197,9 @@ export class PlayerControls {
     const oldAxis = pos[axis];
     const oldY = pos.y;
     pos[axis] += distance;
-    const feet = oldY - PLAYER_HEIGHT;
+    const feet = oldY - this.height;
     const support = this._supportHeight(pos, feet);
-    if (this.grounded && (support > feet || feet - support <= 0.21)) pos.y = support + PLAYER_HEIGHT;
+    if (this.grounded && (support > feet || feet - support <= 0.21)) pos.y = support + this.height;
     if (this._collides(pos)) {
       pos[axis] = oldAxis;
       pos.y = oldY;
@@ -212,7 +209,7 @@ export class PlayerControls {
 
   _moveVertical(delta) {
     const pos = this.camera.position;
-    const feet = pos.y - PLAYER_HEIGHT;
+    const feet = pos.y - this.height;
     this.fallSpeed += 18 * delta;
     let nextFeet = feet - this.fallSpeed * delta;
     let landed = false;
@@ -224,14 +221,13 @@ export class PlayerControls {
         nextFeet = box.max.y;
         landed = true;
       } else if (this.fallSpeed < 0 && box.min.y >= pos.y - 0.001 &&
-                 box.min.y <= nextFeet + PLAYER_HEIGHT) {
-        nextFeet = box.min.y - PLAYER_HEIGHT - 0.01;
+                 box.min.y <= nextFeet + this.height) {
+        nextFeet = box.min.y - this.height - 0.01;
       }
     }
     if (nextFeet <= 0) { nextFeet = 0; landed = true; }
     if (landed || (this.fallSpeed < 0 && nextFeet < feet - this.fallSpeed * delta)) this.fallSpeed = 0;
-    pos.y = nextFeet + PLAYER_HEIGHT;
+    pos.y = nextFeet + this.height;
     this.grounded = landed;
   }
 }
-
