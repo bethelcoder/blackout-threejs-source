@@ -36,6 +36,9 @@ export class PlayerControls {
 
     this.stepTimer = 0;
 
+    this.crateSoundCooldown = 0;
+    this.crateImpactCooldown = 0;
+
     document.addEventListener('keydown', (e) => this._onKey(e, true));
     document.addEventListener('keyup', (e) => this._onKey(e, false));
     this.controls.addEventListener('unlock', () => {
@@ -96,20 +99,32 @@ export class PlayerControls {
   unlock() { this.controls.unlock(); }
   get isLocked() { return this.controls.isLocked; }
 
-  update(delta) {
-    if (!this.enabled || !this.controls.isLocked) return;
+ 
+update(delta) {
+  if (!this.enabled || !this.controls.isLocked) return;
 
-    const feetY = this.camera.position.y - this.height;
-    if (this.move.crouch && this.height !== CROUCH_HEIGHT) {
-      this.height = CROUCH_HEIGHT;
-      this.camera.position.y = feetY + this.height;
-    } else if (!this.move.crouch && this.height !== PLAYER_HEIGHT) {
-      const standing = this.camera.position.clone();
-      standing.y = feetY + PLAYER_HEIGHT;
-      this.height = PLAYER_HEIGHT;
-      if (this._collides(standing)) this.height = CROUCH_HEIGHT;
-      else this.camera.position.copy(standing);
-    }
+  // Cooldowns for crate movement and impact sounds
+  this.crateSoundCooldown = Math.max(
+    0, this.crateSoundCooldown - delta
+  );
+  this.crateImpactCooldown = Math.max(
+    0, this.crateImpactCooldown - delta
+  );
+
+  const feetY = this.camera.position.y - this.height;
+  if (this.move.crouch && this.height !== CROUCH_HEIGHT) {
+    this.height = CROUCH_HEIGHT;
+    this.camera.position.y = feetY + this.height;
+  } else if (!this.move.crouch && this.height !== PLAYER_HEIGHT) {
+    const standing = this.camera.position.clone();
+    standing.y = feetY + PLAYER_HEIGHT;
+    this.height = PLAYER_HEIGHT;
+    if (this._collides(standing)) this.height = CROUCH_HEIGHT;
+    else this.camera.position.copy(standing);
+  }
+
+  // Keep the rest of your existing update(delta) code unchanged...
+
     this.camera.userData.playerHeight = this.height;
     const crouched = this.height < PLAYER_HEIGHT;
 
@@ -192,20 +207,94 @@ export class PlayerControls {
     return height;
   }
 
-  _moveAxis(axis, distance) {
-    const pos = this.camera.position;
-    const oldAxis = pos[axis];
-    const oldY = pos.y;
-    pos[axis] += distance;
-    const feet = oldY - this.height;
-    const support = this._supportHeight(pos, feet);
-    if (this.grounded && (support > feet || feet - support <= 0.21)) pos.y = support + this.height;
-    if (this._collides(pos)) {
-      pos[axis] = oldAxis;
-      pos.y = oldY;
+
+_moveAxis(axis, distance) {
+  const pos = this.camera.position;
+  const oldAxis = pos[axis];
+  const oldY = pos.y;
+
+  pos[axis] += distance;
+
+  const feet = oldY - this.height;
+  const support = this._supportHeight(pos, feet);
+
+  if (this.grounded && (support > feet || feet - support <= 0.21)) {
+    pos.y = support + this.height;
+  }
+
+  if (this._collides(pos)) {
+    pos[axis] = oldAxis;
+    pos.y = oldY;
+
+    const pushed = this._tryPush(axis, distance);
+
+    if (pushed) {
+      pos[axis] += distance;
+
+      if (this._collides(pos)) {
+        pos[axis] = oldAxis;
+        pos.y = oldY;
+        this.velocity[axis] = 0;
+      }
+    } else {
       this.velocity[axis] = 0;
     }
   }
+}
+
+
+_tryPush(axis, distance) {
+  for (const box of this.colliders) {
+    const mesh = box.pushableMesh;
+
+    if (!mesh || !this.playerBox.intersectsBox(box)) continue;
+
+    const oldPosition = mesh.position[axis];
+    const pushDistance = distance + Math.sign(distance) * 0.04;
+
+    mesh.position[axis] += pushDistance;
+    mesh.updateMatrixWorld(true);
+
+    // Update the crate's collider to its proposed position.
+    box.setFromObject(mesh);
+
+    // Check whether the proposed crate position hits another solid.
+    let blocked = false;
+
+    for (const other of this.colliders) {
+      if (other === box || other.pushableMesh === mesh) continue;
+
+      if (box.intersectsBox(other)) {
+        blocked = true;
+        break;
+      }
+    }
+
+    if (blocked) {
+      if (this.crateImpactCooldown <= 0) {
+        sound.playCrateImpact();
+        this.crateImpactCooldown = 0.35;
+      }
+    
+      // Restore the crate if its new position is obstructed.
+      mesh.position[axis] = oldPosition;
+      mesh.updateMatrixWorld(true);
+      box.setFromObject(mesh);
+      continue;
+    }
+
+    if (this.crateSoundCooldown <= 0) {
+      sound.playCrateMove();
+      this.crateSoundCooldown = 0.24;
+    }
+    
+    return true;
+  }
+
+  return false;
+}
+
+
 
   _moveVertical(delta) {
     const pos = this.camera.position;

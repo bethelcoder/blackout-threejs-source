@@ -58,7 +58,8 @@ export class InteractionSystem {
     if (this.current && this.held) this.current.userData.onHold?.(delta);
     if (this.current && this.promptEl) {
       const label = this.current.userData.getLabel?.() || this.current.userData.label;
-      this.promptEl.textContent = `[E] ${label}`;
+      const action = this.current.userData.promptAction ?? '[E]';
+      this.promptEl.textContent = `${action} ${label}`;
     }
   }
 
