@@ -94,7 +94,19 @@ function createOfficeTextures(height) {
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false, officeFloor = officeFinishes, leftCabinetMaxZ = Infinity }) {
+export function buildRoom({
+  width = 14,
+  depth = 20,
+  height = 4.2,
+  wallColor = 0x505c68,
+  includeLeftCabinets = true,
+  includeRightCabinets = true,
+  includePlinths = true,
+  officeCeiling = false,
+  officeFinishes = false,
+  officeFloor = officeFinishes,
+  leftCabinetMaxZ = Infinity,
+}) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
@@ -114,13 +126,15 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   floor.receiveShadow = true;
   group.add(floor);
 
-  // Side Concrete Plinths
-  const plinthMat = new THREE.MeshStandardMaterial({ color: 0x2e3740, roughness: 0.7, metalness: 0.2 });
-  const leftPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
-  leftPlinth.position.set(-width / 2 + 0.8, 0.175, 0);
-  const rightPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
-  rightPlinth.position.set(width / 2 - 0.8, 0.175, 0);
-  group.add(leftPlinth, rightPlinth);
+  // Side Concrete Plinths (optional)
+  if (includePlinths) {
+    const plinthMat = new THREE.MeshStandardMaterial({ color: 0x2e3740, roughness: 0.7, metalness: 0.2 });
+    const leftPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
+    leftPlinth.position.set(-width / 2 + 0.8, 0.175, 0);
+    const rightPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
+    rightPlinth.position.set(width / 2 - 0.8, 0.175, 0);
+    group.add(leftPlinth, rightPlinth);
+  }
 
   // 2. WALLS & CEILING
   const wallMat = new THREE.MeshStandardMaterial({
@@ -130,7 +144,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     bumpScale: 0.04, roughness: officeFinishes ? 0.96 : 0.5, metalness: officeFinishes ? 0 : 0.2,
   });
   const ceilMat = new THREE.MeshStandardMaterial({ color: officeCeiling ? 0x777b7c : 0x1a2128, roughness: 0.6, metalness: 0.4 });
-  
+
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), ceilMat);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = height;
@@ -190,13 +204,14 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     group.add(longPipe);
   }
 
-  // 4. SWITCHGEAR RACKS
+  // 4. SWITCHGEAR RACKS (optional)
   const rackMat = new THREE.MeshStandardMaterial({ color: 0x3b4752, metalness: 0.75, roughness: 0.3 });
   const panelDetailMat = new THREE.MeshStandardMaterial({ color: 0x1f262d, metalness: 0.8, roughness: 0.2 });
   const breakerMat = new THREE.MeshStandardMaterial({ color: 0xd2d7dc, metalness: 0.9, roughness: 0.1 });
 
   for (let z = -depth / 2 + 1.8; z <= depth / 2 - 1.8; z += 1.3) {
     [-width / 2 + 0.8, width / 2 - 0.8].forEach((xPos, sideIdx) => {
+      if (sideIdx === 0 && !includeLeftCabinets) return;
       if (sideIdx === 1 && !includeRightCabinets) return;
       if (sideIdx === 0 && z > leftCabinetMaxZ) return;
       if (sideIdx === 0 && z > -1.2 && z < 2.5) return;
@@ -262,10 +277,10 @@ function createScheduleCanvas() {
   canvas.width = 512;
   canvas.height = 1024;
   const ctx = canvas.getContext('2d');
-  
+
   ctx.fillStyle = '#eeeeee';
   ctx.fillRect(0, 0, 512, 1024);
-  
+
   ctx.fillStyle = '#222222';
   ctx.font = 'bold 42px monospace';
   ctx.textAlign = 'center';
@@ -287,30 +302,30 @@ function createScheduleCanvas() {
 
   const shifts = [
     { name: "DOE, J.",   sec: "SEC-8", time: "08:30" },
-    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" }, 
+    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" },
     { name: "JONES, B.", sec: "SEC-4", time: "11:00" },
-    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" }, 
+    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" },
     { name: "CHEN, M.",  sec: "SEC-5", time: "23:15" },
     { name: "CROSS, E.", sec: "SEC-9", time: "13:20" },
-    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" }, 
+    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" },
     { name: "GOMEZ, L.", sec: "SEC-6", time: "09:45" },
     { name: "WITT, S.",  sec: "SEC-7", time: "16:30" },
   ];
 
   ctx.fillStyle = '#111111';
   ctx.font = '26px monospace';
-  
+
   let yPos = 300;
   shifts.forEach(shift => {
     ctx.fillText(shift.name, 40, yPos);
     ctx.fillText(shift.sec, 260, yPos);
     ctx.font = 'bold 26px monospace';
     ctx.fillText(shift.time, 380, yPos);
-    ctx.font = '26px monospace'; 
-    
+    ctx.font = '26px monospace';
+
     ctx.beginPath(); ctx.moveTo(30, yPos + 20); ctx.lineTo(482, yPos + 20);
     ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.stroke();
-    yPos += 75; 
+    yPos += 75;
   });
 
   ctx.fillStyle = '#aa0000';
@@ -368,7 +383,7 @@ export function buildRolledUpSchedule({ position = [0, 0, 0], rotation = [0, 0, 
 
   const canvas = createScheduleCanvas();
   const tex = new THREE.CanvasTexture(canvas);
-  
+
   const paper = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04, 0.04, 0.4, 12),
     new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, color: 0xddddcc })
@@ -389,10 +404,10 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
   canvas.width = 512;
   canvas.height = 1024;
   const ctx = canvas.getContext('2d');
-  
+
   ctx.fillStyle = '#eeeeee';
   ctx.fillRect(0, 0, 512, 1024);
-  
+
   ctx.fillStyle = '#222222';
   ctx.font = 'bold 42px monospace';
   ctx.textAlign = 'center';
@@ -414,30 +429,30 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
 
   const shifts = [
     { name: "DOE, J.",   sec: "SEC-8", time: "08:30" },
-    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" }, 
+    { name: "TIM, E.",   sec: "SEC-1", time: "02:15" },
     { name: "JONES, B.", sec: "SEC-4", time: "11:00" },
-    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" }, 
+    { name: "TIM, E.",   sec: "SEC-2", time: "10:40" },
     { name: "CHEN, M.",  sec: "SEC-5", time: "23:15" },
     { name: "CROSS, E.", sec: "SEC-9", time: "13:20" },
-    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" }, 
+    { name: "TIM, E.",   sec: "SEC-3", time: "06:00" },
     { name: "GOMEZ, L.", sec: "SEC-6", time: "09:45" },
     { name: "WITT, S.",  sec: "SEC-7", time: "16:30" },
   ];
 
   ctx.fillStyle = '#111111';
   ctx.font = '26px monospace';
-  
+
   let yPos = 300;
   shifts.forEach(shift => {
     ctx.fillText(shift.name, 40, yPos);
     ctx.fillText(shift.sec, 260, yPos);
     ctx.font = 'bold 26px monospace';
     ctx.fillText(shift.time, 380, yPos);
-    ctx.font = '26px monospace'; 
-    
+    ctx.font = '26px monospace';
+
     ctx.beginPath(); ctx.moveTo(30, yPos + 20); ctx.lineTo(482, yPos + 20);
     ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.stroke();
-    yPos += 75; 
+    yPos += 75;
   });
 
   ctx.fillStyle = '#aa0000';
@@ -447,7 +462,7 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
 
   const tex = new THREE.CanvasTexture(canvas);
   const paper = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.8, 1.6), 
+    new THREE.PlaneGeometry(0.8, 1.6),
     new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 })
   );
   paper.position.z = 0.01;
@@ -547,13 +562,13 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
     // LEDs for stages
     const ledContainer = document.createElement('div');
     Object.assign(ledContainer.style, { display: 'flex', justifyContent: 'center', gap: '15px' });
-    
+
     const leds = [];
     for (let i = 0; i < targetCodes.length; i++) {
       const led = document.createElement('div');
       Object.assign(led.style, {
         width: '15px', height: '15px', borderRadius: '50%',
-        backgroundColor: i < currentStage ? '#00ff00' : '#440000', // Green if already passed
+        backgroundColor: i < currentStage ? '#00ff00' : '#440000',
         boxShadow: i < currentStage ? '0px 0px 10px #00ff00' : 'inset 0px 0px 5px rgba(0,0,0,0.8)',
         transition: 'background-color 0.3s, box-shadow 0.3s'
       });
@@ -570,14 +585,14 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
       height: '45px', lineHeight: '45px', letterSpacing: '4px',
       boxShadow: 'inset 0px 0px 10px rgba(0,0,0,0.5)'
     });
-    
+
     if (currentStage >= targetCodes.length) {
       display.innerText = "UNLOCKED";
       display.style.color = '#00ff00';
     } else {
       display.innerText = "";
     }
-    
+
     keypadBox.appendChild(display);
 
     // Number Grid
@@ -593,7 +608,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
       btnEl.innerText = btn;
       Object.assign(btnEl.style, {
         padding: '20px', fontSize: '28px', cursor: 'pointer', fontWeight: 'bold',
-        backgroundColor: btn === 'E' ? '#226622' : (btn === 'C' ? '#662222' : '#555'), 
+        backgroundColor: btn === 'E' ? '#226622' : (btn === 'C' ? '#662222' : '#555'),
         color: 'white', border: 'none', borderRadius: '5px',
         transition: 'background 0.1s, transform 0.1s'
       });
@@ -606,7 +621,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
       btnEl.onclick = (e) => {
         e.stopPropagation();
         if (isProcessing || currentStage >= targetCodes.length) return;
-        
+
         if (btn === 'C') {
           currentInput = "";
           display.innerText = currentInput;
@@ -617,15 +632,15 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
             leds[currentStage].style.backgroundColor = '#00ff00';
             leds[currentStage].style.boxShadow = '0px 0px 10px #00ff00';
             currentStage++;
-            
+
             display.style.color = '#ffffff';
             display.style.backgroundColor = '#00aa00';
-            
+
             if (currentStage >= targetCodes.length) {
               display.innerText = "UNLOCKED";
               setTimeout(() => {
                 closeKeypad();
-                if (onSuccess) onSuccess(); 
+                if (onSuccess) onSuccess();
               }, 1500);
             } else {
               display.innerText = "ACCEPTED";
@@ -652,7 +667,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
           }
         } else {
           // Standard number entry
-          if (currentInput.length < targetCodes[currentStage].length) { 
+          if (currentInput.length < targetCodes[currentStage].length) {
             currentInput += btn;
             display.innerText = currentInput;
           }
@@ -662,7 +677,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
     });
 
     keypadBox.appendChild(grid);
-    
+
     const hint = document.createElement('div');
     hint.innerText = "Click outside or press Escape to close";
     Object.assign(hint.style, { color: '#888', textAlign: 'center', marginTop: '5px', fontSize: '14px' });

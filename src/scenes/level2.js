@@ -1,25 +1,22 @@
 import * as THREE from 'three';
 import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
-import { createServerRackTexture } from '../systems/textures.js';
 import { sound } from '../systems/audio.js';
 import { buildLaserSecurity } from './laserSecurity.js';
+import { buildLevel2Design } from './design.js';
 
-/**
- * LEVEL 2 — CONTROL
- * Environment: Main Power-Grid Control Room & Server Banks
- * Signature Mechanic: Fictional interactive command-line terminal system.
- * Narrative progression: Restore water infrastructure, alerting the AI.
- */
 export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
   const colliders = [];
   const cleanup = [];
 
   const { group: room, colliders: wallColliders } = buildRoom({
     width: 14, depth: 16, height: 4.2, wallColor: 0x5a6d80, floorColor: 0x485868,
+    includeLeftCabinets: false,
     includeRightCabinets: false,
+    includePlinths: false,
     officeFloor: true,
   });
   scene.add(room);
+
   // Alternate-route arrival beside the right-hand server bank.
   const serviceGrilleGeometry = new THREE.BoxGeometry(0.06, 1.1, 1.3);
   const serviceGrilleMaterial = new THREE.MeshStandardMaterial({ color: 0x283235, roughness: 0.85 });
@@ -34,74 +31,23 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
   });
   colliders.push(...wallColliders);
 
-  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, onHit: onShock });
+  // Build the new industrial dressing
+  const design = buildLevel2Design({ scene, hud });
+  cleanup.push(() => design.dispose());
+  colliders.push(...design.colliders);
+
+  // Pass the design colliders to laser security so beams clip against lockers
+  const laserSecurity = buildLaserSecurity({ 
+    scene, aiState, hud, sound, onHit: onShock,
+    externalOccluders: design.colliders 
+  });
   cleanup.push(() => laserSecurity.dispose());
-
-  // Bright server room illumination
-  const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x556677, 1.6);
-  scene.add(hemiLight);
-  cleanup.push(() => scene.remove(hemiLight));
-
-  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
-  scene.add(ambient);
-  cleanup.push(() => scene.remove(ambient));
-
-  // Overhead ceiling light fixtures
-  const lightPanelGeo = new THREE.BoxGeometry(2.0, 0.08, 0.5);
-  const lightPanelMat = new THREE.MeshBasicMaterial({ color: 0xebf8ff });
-
-  const lightPositions = [
-    [0, 4.0, 4],
-    [0, 4.0, -2],
-  ];
-
-  for (const pos of lightPositions) {
-    const fixture = new THREE.Mesh(lightPanelGeo, lightPanelMat);
-    fixture.position.set(pos[0], pos[1], pos[2]);
-    scene.add(fixture);
-    cleanup.push(() => scene.remove(fixture));
-
-    const pLight = new THREE.PointLight(0x6be0ff, 14, 20, 1.0);
-    pLight.position.set(pos[0], pos[1] - 0.2, pos[2]);
-    scene.add(pLight);
-    cleanup.push(() => scene.remove(pLight));
-  }
 
   // Console green ambient glow
   const consoleLight = new THREE.PointLight(0x2bff8f, 12, 16, 1.0);
   consoleLight.position.set(0, 2.4, -5.0);
   scene.add(consoleLight);
   cleanup.push(() => scene.remove(consoleLight));
-
-  // Server rack texture & material
-  const rackTex = createServerRackTexture();
-  const rackMat = new THREE.MeshStandardMaterial({
-    map: rackTex,
-    roughness: 0.4,
-    metalness: 0.6,
-  });
-
-  // Banks of server racks on left and right sides
-  const rackLeds = [];
-  for (let i = -2; i <= 2; i++) {
-    // Left bank
-    const rackL = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.7), rackMat);
-    rackL.position.set(-4.8, 1.3, i * 2.2);
-    rackL.castShadow = true;
-    rackL.receiveShadow = true;
-    scene.add(rackL);
-    colliders.push(new THREE.Box3().setFromObject(rackL));
-    cleanup.push(() => scene.remove(rackL));
-
-    // Right bank
-    const rackR = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.7), rackMat);
-    rackR.position.set(4.8, 1.3, i * 2.2);
-    rackR.castShadow = true;
-    rackR.receiveShadow = true;
-    scene.add(rackR);
-    colliders.push(new THREE.Box3().setFromObject(rackR));
-    cleanup.push(() => scene.remove(rackR));
-  }
 
   // Terminal console desk
   const consoleDesk = buildProp({
@@ -161,12 +107,12 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
 
   function update(delta, camera) {
     laserSecurity.update(delta, camera);
+    design.update(delta, camera);
     if (solved && doorMesh.visible) {
       doorMesh.visible = false;
       doorCollider.min.set(1000, 1000, 1000);
       doorCollider.max.set(1001, 1001, 1001);
     }
-    // Ambient suspicion decay while working quietly
     if (!terminalUI.open) aiState.decay(3 * delta);
   }
 
