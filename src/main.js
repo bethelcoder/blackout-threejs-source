@@ -42,6 +42,9 @@ const PLAYER_HEIGHT = 1.7;
 
 const thirdPersonCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
 
+const MIN_CAMERA_PITCH = -0.08;
+const MAX_CAMERA_PITCH = 0.15;
+
 // Player flashlight / headlamp
 const flashlight = new THREE.SpotLight(0xffffff, 8, 28, Math.PI / 4, 0.4, 1.0);
 flashlight.position.set(0, 0, 0);
@@ -88,6 +91,8 @@ let activeAction = null;
 let previousPlayerPosition = new THREE.Vector3();
 
 let previousCameraMode = "first";
+
+
 
 // ---------- Systems ----------
 const playerControls = new PlayerControls(camera, renderer.domElement);
@@ -598,37 +603,59 @@ function tick() {
       previousPlayerPosition.copy(camera.position);
     }
 
-    // Make the third-person camera follow behind the player.
 
-  const direction = new THREE.Vector3();
-  camera.getWorldDirection(direction);
+    // Make the third-person camera follow behind the player
+    // while allowing mouse look in both directions.
 
-  direction.y = 0;
-  direction.normalize();
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
 
-  // Follow the player's horizontal position,
-  // but keep the camera's height independent of jumping.
-  const groundY = currentLevel?.spawn?.y ?? 0;
+    // Use horizontal direction to keep the camera behind the player.
+    const horizontalDirection = direction.clone();
+    horizontalDirection.y = 0;
+    horizontalDirection.normalize();
 
-  const thirdPersonPosition = new THREE.Vector3 (
-    camera.position.x,
-    groundY,
-    camera.position.z
-  )
-    .addScaledVector(direction, -2.8)
-    .add(new THREE.Vector3(0.8, 1.6, 0));
+    const thirdPersonPosition = new THREE.Vector3(
+      camera.position.x,
+      camera.position.y,
+      camera.position.z
+    )
+      .addScaledVector(horizontalDirection, -1.8)
+      .add(new THREE.Vector3(0, 0.5, 0));
 
-  thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+    thirdPersonCamera.position.lerp(
+      thirdPersonPosition,
+      0.10
+    );
 
-  // Keep the look target at a fixed height too.
-  const lookTarget = new THREE.Vector3(
-    camera.position.x,
-    groundY - 0.4,
-    camera.position.z
-  );
+    
+    // Limit vertical mouse look so we can't look too far
+    // up or down into the void.
+    const horizontalAngle = Math.atan2(direction.x, direction.z);
 
-  thirdPersonCamera.lookAt(lookTarget);
+    const pitch = Math.asin(
+      THREE.MathUtils.clamp(direction.y, -1, 1)
+    );
+
+    const limitedPitch = THREE.MathUtils.clamp(
+      pitch,
+      MIN_CAMERA_PITCH,
+      MAX_CAMERA_PITCH
+    );
+
+    const lookDirection = new THREE.Vector3(
+      Math.sin(horizontalAngle) * Math.cos(limitedPitch),
+      Math.sin(limitedPitch),
+      Math.cos(horizontalAngle) * Math.cos(limitedPitch)
+    );
+
+    const lookTarget = camera.position.clone()
+      .addScaledVector(lookDirection, 5);
+
+    thirdPersonCamera.lookAt(lookTarget);
+
   }
+
 
 
 
