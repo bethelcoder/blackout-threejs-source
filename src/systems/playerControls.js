@@ -5,6 +5,8 @@ import { sound } from './audio.js';
 const PLAYER_HEIGHT = 1.7;
 const MOVE_SPEED = 4.2;
 const SPRINT_MULT = 1.6;
+const CROUCH_HEIGHT = 1.0;
+const CROUCH_SPEED = 2.0;
 
 /**
  * Wraps PointerLockControls with WASD movement, procedural footstep audio,
@@ -109,7 +111,9 @@ export class PlayerControls {
     this.direction.normalize();
 
     const isMoving = this.move.forward || this.move.back || this.move.left || this.move.right;
-    const speed = MOVE_SPEED * (this.move.sprint ? SPRINT_MULT : 1);
+    const speed = this.move.crouch
+      ? CROUCH_SPEED
+      : MOVE_SPEED * (this.move.sprint ? SPRINT_MULT : 1);
 
     // Velocity is in metres/second, so jump distance is consistent across frame rates.
     this.velocity.x += (this.direction.x * speed - this.velocity.x) * damping;
@@ -151,11 +155,24 @@ export class PlayerControls {
   _collides(pos) {
     const r = 0.35;
     const playerBox = this.playerBox;
-    playerBox.min.set(pos.x - r, pos.y - PLAYER_HEIGHT + 0.01, pos.z - r);
-    playerBox.max.set(pos.x + r, pos.y, pos.z + r);
+    const height = this.move.crouch ? CROUCH_HEIGHT : PLAYER_HEIGHT;
+  
+    playerBox.min.set(
+      pos.x - r,
+      pos.y - height + 0.01,
+      pos.z - r
+    );
+  
+    playerBox.max.set(
+      pos.x + r,
+      pos.y,
+      pos.z + r
+    );
+  
     for (const box of this.colliders) {
       if (playerBox.intersectsBox(box)) return true;
     }
+  
     return false;
   }
 

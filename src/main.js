@@ -161,7 +161,7 @@ function loadPlayerModel() {
         walk: '/models/animations/walking.fbx',
         run: '/models/animations/running.fbx',
         jump: '/models/animations/jumping-up.fbx',
-        crouchIdle: '/models/animations/idle.fbx',
+        crouchIdle: '/models/animations/crouching-idle.fbx',
         crouchWalk: 'models/animations/crouched-walking.fbx',
       };
 
@@ -562,7 +562,9 @@ function tick() {
       // Keep the character on the ground and follow the player.
       playerModel.position.x = camera.position.x;
       playerModel.position.z = camera.position.z;
-      playerModel.position.y = camera.position.y - 1.7;
+
+      const crouchOffset = controls.crouch ? 0.3 : 0;
+      playerModel.position.y = camera.position.y - 1.7 - crouchOffset;
 
       // Detect switching from first person to third person.
       if (
