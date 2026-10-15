@@ -1,8 +1,7 @@
 import { sound } from './audio.js';
 
-// Security escalation ladder straight from the story brief (section 4):
-// CALM -> SUSPICIOUS -> ALERT -> HUNTING -> LOCKDOWN
-const STATES = ['CALM', 'SUSPICIOUS', 'ALERT', 'HUNTING', 'LOCKDOWN'];
+// CALM -> SUSPICIOUS -> ALERT -> HUNTING (highest alert level).
+const STATES = ['CALM', 'SUSPICIOUS', 'ALERT', 'HUNTING'];
 
 export class AIState {
   constructor(onChange) {
