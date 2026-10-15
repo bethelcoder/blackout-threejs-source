@@ -24,7 +24,7 @@ export class PlayerControls {
     this.grounded = true;
     this.jumpQueued = false;
 
-    this.move = { forward: false, back: false, left: false, right: false, sprint: false };
+    this.move = { forward: false, back: false, left: false, right: false, sprint: false, crouch: false };
 
     this.cameraMode = "first"; // "first" or "third"
 
@@ -67,12 +67,27 @@ export class PlayerControls {
       case 'KeyD': case 'ArrowRight': this.move.right = isDown; break;
       case 'ShiftLeft': case 'ShiftRight': this.move.sprint = isDown; break;
       case 'KeyV': if (isDown) this.toggleCamera(); break;
+      
       case 'Space':
+        if (isDown && !e.repeat) {
+          console.log('Space pressed', {
+            locked: this.isLocked,
+            grounded: this.grounded,
+            fallSpeed: this.fallSpeed
+          });
+        }
+
         if (this.isLocked) {
           e.preventDefault();
-          if (isDown && !e.repeat && this.grounded) this.jumpQueued = true;
+
+          if (isDown && !e.repeat && this.grounded) {
+            this.jumpQueued = true;
+            console.log('JUMP QUEUED!');
+          }
         }
         break;
+
+      case 'ControlLeft': case 'ControlRight': this.move.crouch = isDown; break;
     }
   }
 
