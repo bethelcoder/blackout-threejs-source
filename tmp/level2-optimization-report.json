@@ -1,0 +1,51 @@
+[
+  {
+    "name": "venator-room-modules",
+    "before": 1225120,
+    "after": 1170272,
+    "meshesBefore": 3,
+    "meshesAfter": 3
+  },
+  {
+    "name": "terminal-desk",
+    "before": 6713700,
+    "after": 6655540,
+    "meshesBefore": 1,
+    "meshesAfter": 1
+  },
+  {
+    "name": "retro-computer",
+    "before": 14219400,
+    "after": 10276480,
+    "meshesBefore": 2,
+    "meshesAfter": 2
+  },
+  {
+    "name": "office-chair",
+    "before": 8975084,
+    "after": 2252280,
+    "meshesBefore": 35,
+    "meshesAfter": 35
+  },
+  {
+    "name": "data-center-server-rack",
+    "before": 5510408,
+    "after": 3973692,
+    "meshesBefore": 15,
+    "meshesAfter": 4
+  },
+  {
+    "name": "server-racking-system",
+    "before": 30299932,
+    "after": 10508384,
+    "meshesBefore": 459,
+    "meshesAfter": 8
+  },
+  {
+    "name": "venator-small-door",
+    "before": 2402764,
+    "after": 1739828,
+    "meshesBefore": 2,
+    "meshesAfter": 2
+  }
+]

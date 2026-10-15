@@ -94,7 +94,7 @@ function createOfficeTextures(height) {
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, officeCeiling = false, officeFinishes = false, officeFloor = officeFinishes, leftCabinetMaxZ = Infinity }) {
+export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeRightCabinets = true, includeRightPlinth = true, officeCeiling = false, officeFinishes = false, officeFloor = officeFinishes, leftCabinetMaxZ = Infinity, backDoorOpening = null }) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
@@ -118,9 +118,12 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   const plinthMat = new THREE.MeshStandardMaterial({ color: 0x2e3740, roughness: 0.7, metalness: 0.2 });
   const leftPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
   leftPlinth.position.set(-width / 2 + 0.8, 0.175, 0);
-  const rightPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
-  rightPlinth.position.set(width / 2 - 0.8, 0.175, 0);
-  group.add(leftPlinth, rightPlinth);
+  group.add(leftPlinth);
+  if (includeRightPlinth) {
+    const rightPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, depth), plinthMat);
+    rightPlinth.position.set(width / 2 - 0.8, 0.175, 0);
+    group.add(rightPlinth);
+  }
 
   // 2. WALLS & CEILING
   const wallMat = new THREE.MeshStandardMaterial({
@@ -132,6 +135,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   const ceilMat = new THREE.MeshStandardMaterial({ color: officeCeiling ? 0x777b7c : 0x1a2128, roughness: 0.6, metalness: 0.4 });
   
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), ceilMat);
+  ceiling.name = 'Room ceiling';
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = height;
   group.add(ceiling);
@@ -143,16 +147,30 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     { pos: [width / 2, height / 2, 0], rot: [0, -Math.PI / 2, 0], size: [depth, height] },
   ];
 
+  // Leave a genuine doorway behind the exit doors, including in wall collision.
+  if (backDoorOpening) {
+    const openingWidth = backDoorOpening.width;
+    const openingHeight = backDoorOpening.height;
+    const sideWidth = (width - openingWidth) / 2;
+    wallDefs.splice(0, 1,
+      { pos: [-(openingWidth + sideWidth) / 2, height / 2, -depth / 2], rot: [0, 0, 0], size: [sideWidth, height] },
+      { pos: [(openingWidth + sideWidth) / 2, height / 2, -depth / 2], rot: [0, 0, 0], size: [sideWidth, height] },
+      { pos: [0, (height + openingHeight) / 2, -depth / 2], rot: [0, 0, 0], size: [openingWidth, height - openingHeight] },
+    );
+  }
+
   const wallThickness = 0.2;
   for (const w of wallDefs) {
     let material = wallMat;
     if (officeFinishes) {
       material = wallMat.clone();
       material.map = officeTextures.wallMap.clone();
-      material.map.repeat.set(w.size[0] / 3.2, 1);
+      material.map.repeat.set(w.size[0] / 3.2, w.size[1] / height);
+      material.map.offset.y = (w.pos[1] - w.size[1] / 2) / height;
       material.map.needsUpdate = true;
     }
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w.size[0], w.size[1]), material);
+    mesh.name = 'Room wall';
     mesh.position.set(...w.pos);
     mesh.rotation.set(...w.rot);
     mesh.receiveShadow = true;
@@ -161,9 +179,9 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     const isZWall = w.rot[1] === 0 || Math.abs(w.rot[1]) === Math.PI;
     const box = new THREE.Box3();
     if (isZWall) {
-      box.setFromCenterAndSize(new THREE.Vector3(w.pos[0], height / 2, w.pos[2]), new THREE.Vector3(width, height, wallThickness));
+      box.setFromCenterAndSize(new THREE.Vector3(...w.pos), new THREE.Vector3(w.size[0], w.size[1], wallThickness));
     } else {
-      box.setFromCenterAndSize(new THREE.Vector3(w.pos[0], height / 2, w.pos[2]), new THREE.Vector3(wallThickness, height, depth));
+      box.setFromCenterAndSize(new THREE.Vector3(...w.pos), new THREE.Vector3(wallThickness, w.size[1], w.size[0]));
     }
     colliders.push(box);
   }

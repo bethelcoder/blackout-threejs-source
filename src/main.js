@@ -10,6 +10,7 @@ import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
+import { preloadLevel2Models } from './systems/modelCache.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 // ---------- Renderer / scene / camera ----------
@@ -18,6 +19,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.localClippingEnabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -107,6 +109,7 @@ const terminal = new Terminal({
 
 
 function loadPlayerModel() {
+  const modelGeneration = loadGeneration;
   // Clean up the previous model and its animation mixer.
   if (playerMixer) {
     playerMixer.stopAllAction();
@@ -125,6 +128,7 @@ function loadPlayerModel() {
     '/models/player.glb',
 
     (gltf) => {
+      if (modelGeneration !== loadGeneration) return;
       const model = gltf.scene;
 
       model.traverse((object) => {
@@ -316,8 +320,13 @@ let currentLevel = null;
 let currentLevelIndex = 0;
 let gameEnded = false;
 let advanceTimeout = null;
+let levelLoading = false;
+let loadGeneration = 0;
 
 function clearScene() {
+  loadGeneration++;
+  levelLoading = false;
+  loadingScreen.classList.add('hidden');
   clearTimeout(advanceTimeout);
   interaction.reset();
   playerControls.enabled = true;
@@ -329,14 +338,37 @@ function clearScene() {
   }
 }
 
-function loadLevel(index, entry = 'door') {
+async function loadLevel(index, entry = 'door') {
   clearScene();
+  const generation = loadGeneration;
+  const needsLoadingScreen = index === 1;
   gameEnded = false;
   hud.resetLevelComplete();
+
+  if (needsLoadingScreen) {
+    levelLoading = true;
+    playerControls.enabled = false;
+    showOnly();
+    loadingScreen.style.transition = 'none';
+    loadingScreen.style.opacity = '1';
+    loadingScreen.classList.remove('hidden');
+    loadingLabel.textContent = 'Preparing the control room...';
+    loadingBarFill.style.width = '0%';
+    // Paint the transition before any cached geometry is prepared on the main thread.
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    if (generation !== loadGeneration) return;
+    await preloadLevel2Models((finished, total) => {
+      if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
+    });
+    if (generation !== loadGeneration) return;
+    loadingLabel.textContent = 'Setting up the control room...';
+  }
 
   const builder = LEVEL_BUILDERS[index];
   const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding,
     onShock: (position) => playerControls.teleport(position),
+    onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
+    isPlayerSeated: () => playerControls.isSeated,
     onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
     onVentExit: () => loadLevel(1, 'vent') };
   currentLevel = builder(args);
@@ -355,10 +387,43 @@ function loadLevel(index, entry = 'door') {
 
   aiState.reset();
 
+  if (needsLoadingScreen) {
+    await currentLevel.ready;
+    if (generation !== loadGeneration) return;
+    loadingBarFill.style.width = '90%';
+    loadingLabel.textContent = 'Finishing room lighting...';
+    // Upload textures and compile materials behind the transition, before play resumes.
+    const textures = new Set();
+    scene.traverse(object => {
+      if (object.material) {
+        for (const value of Object.values(object.material)) if (value?.isTexture) textures.add(value);
+      }
+    });
+    textures.forEach(texture => renderer.initTexture(texture));
+    try { await renderer.compileAsync(scene, camera); }
+    catch (error) { console.warn('Room lighting preparation will finish on first render.', error); }
+    if (generation !== loadGeneration) return;
+    renderer.render(scene, camera);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    if (generation !== loadGeneration) return;
+    loadingBarFill.style.width = '100%';
+    loadingScreen.classList.add('hidden');
+    levelLoading = false;
+    playerControls.enabled = true;
+    // Keep the existing pointer lock across transitions. If Escape released it,
+    // Resume provides the fresh click the browser requires to capture the mouse.
+    if (playerControls.isLocked) showOnly();
+    else showOnly(pauseMenu);
+  }
+
   loadPlayerModel();
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
+  if (index === 0) {
+    // Let Level 1's first frame appear before starting background model work.
+    setTimeout(() => { if (generation === loadGeneration) void preloadLevel2Models(); }, 500);
+  }
 
   // Show or hide CCTV PiP feed depending on whether this level provides a CCTV camera
   if (currentLevel.cctvCamera && cctvContainer) {
@@ -480,10 +545,15 @@ document.addEventListener('security-keypad-close', () => {
 });
 
 playerControls.controls.addEventListener('unlock', () => {
+  if (levelLoading) return;
   if (document.getElementById('security-keypad-overlay')) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   showOnly(pauseMenu);
+});
+
+playerControls.controls.addEventListener('lock', () => {
+  if (!levelLoading && mainMenu.classList.contains('hidden')) pauseMenu.classList.add('hidden');
 });
 
 // Auto-advance when a level marks itself complete
@@ -527,7 +597,7 @@ function tick() {
   }
 
 
-  if (playerControls.isLocked) {
+  if (playerControls.isLocked && !levelLoading) {
 
     playerControls.update(delta);
 

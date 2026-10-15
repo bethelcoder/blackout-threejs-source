@@ -20,7 +20,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   const cleanup = [];
 
   // Build the clean substation corridor with gaps
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5 });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5, backDoorOpening: { width: 2.4, height: 3.2 } });
   scene.add(room);
   colliders.push(...wallColliders);
 

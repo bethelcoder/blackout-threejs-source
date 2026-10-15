@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { buildRoom } from '../src/scenes/roomBuilder.js';
+const context = new Proxy({}, { get: (_, key) => key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
+globalThis.document = { createElement: () => ({ getContext: () => context }) };
+const open = buildRoom({ height: 6.8, officeFinishes: true, backDoorOpening: { width: 2.4, height: 3.2 } });
+const solidAt = (room, x, y) => room.colliders.some(box => box.containsPoint(new THREE.Vector3(x, y, -10)));
+assert.equal(solidAt(open, 0, 1.7), false, 'No invisible wall in doorway');
+assert.equal(solidAt(open, 2, 1.7), true, 'Wall beside doorway retained');
+assert.equal(solidAt(open, 0, 4), true, 'Wall above doorway retained');
+open.group.updateMatrixWorld(true);
+const ray = new THREE.Raycaster(new THREE.Vector3(0, 1.7, -9.5), new THREE.Vector3(0, 0, -1), 0, 1);
+assert.equal(ray.intersectObject(open.group, true).length, 0, 'No visible wall behind doors');
+const normal = buildRoom({});
+assert.equal(solidAt(normal, 0, 1.7), true, 'Other rooms retain their back wall');
+console.log('Doorway checks passed: visual opening, collision opening, adjacent walls preserved, other rooms unchanged.');
