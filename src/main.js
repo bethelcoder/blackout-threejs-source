@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PlayerControls } from './systems/playerControls.js';
 import { AIState } from './systems/aiState.js';
 import { InteractionSystem } from './systems/interaction.js';
@@ -9,6 +10,7 @@ import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 // ---------- Renderer / scene / camera ----------
 const canvas = document.getElementById('app');
@@ -35,6 +37,13 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x1a2634, 0.005);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+const PLAYER_HEIGHT = 1.7;
+//3rd person camera
+
+const thirdPersonCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+
+const MIN_CAMERA_PITCH = -0.08;
+const MAX_CAMERA_PITCH = 0.15;
 
 // Player flashlight / headlamp
 const flashlight = new THREE.SpotLight(0xffffff, 8, 28, Math.PI / 4, 0.4, 1.0);
@@ -49,6 +58,10 @@ scene.add(camera);
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+
+  thirdPersonCamera.aspect = window.innerWidth / window.innerHeight;
+  thirdPersonCamera.updateProjectionMatrix();
+
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
@@ -67,6 +80,20 @@ const btnAudio = el('btn-audio');
 
 const hud = new HUD();
 
+const gltfLoader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
+let playerModel = null;
+
+let playerMixer = null;
+let playerActions = {};
+let activeAction = null;
+
+let previousPlayerPosition = new THREE.Vector3();
+
+let previousCameraMode = "first";
+
+
+
 // ---------- Systems ----------
 const playerControls = new PlayerControls(camera, renderer.domElement);
 const interaction = new InteractionSystem(camera, scene, interactPrompt,
@@ -77,6 +104,211 @@ const terminal = new Terminal({
   outputEl: el('terminal-output'),
   inputEl: el('terminal-input'),
 });
+
+
+function loadPlayerModel() {
+  // Clean up the previous model and its animation mixer.
+  if (playerMixer) {
+    playerMixer.stopAllAction();
+    playerMixer = null;
+  }
+
+  if (playerModel) {
+    scene.remove(playerModel);
+    playerModel = null;
+  }
+
+  playerActions = {};
+  activeAction = null;
+
+  gltfLoader.load(
+    '/models/player.glb',
+
+    (gltf) => {
+      const model = gltf.scene;
+
+      model.traverse((object) => {
+        if (object.isBone && (
+          object.name === 'Hips' ||
+          object.name === 'LeftUpLeg' ||
+          object.name === 'LeftLeg' ||
+          object.name === 'RightUpLeg' ||
+          object.name === 'RightLeg'
+        )) {
+          console.log(
+            'Player bone:',
+            object.name,
+            'rotation:',
+            object.rotation.toArray(),
+            'position:',
+            object.position.toArray()
+          );
+        }
+      });
+
+
+      playerModel = model;
+
+      model.scale.set(1.2, 1.2, 1.2);
+      model.position.copy(camera.position);
+      model.position.y = 0;
+      model.rotation.y = 0;
+      model.visible = false;
+
+      scene.add(model);
+
+      // One mixer controls all animations for this character.
+      const mixer = new THREE.AnimationMixer(model);
+      playerMixer = mixer;
+
+      const animations = {
+        idle: '/models/animations/idle.fbx',
+        walk: '/models/animations/walking.fbx',
+        run: '/models/animations/running.fbx',
+        jump: '/models/animations/jumping-up.fbx',
+        crouchIdle: '/models/animations/crouching-idle.fbx',
+        crouchWalk: 'models/animations/crouched-walking.fbx',
+      };
+
+      const boneNames = new Set();
+
+      model.traverse((object) => {
+        boneNames.add(object.name);
+      });
+
+      for (const [name, path] of Object.entries(animations)) {
+        fbxLoader.load(
+          path,
+
+          (fbx) => {
+            // Ignore animations belonging to a model that was replaced.
+            if (playerModel !== model) return;
+
+            const sourceClip = fbx.animations[0];
+
+            if (!sourceClip) {
+              console.error(`No animation clip found in ${path}`);
+              return;
+            }
+
+            // Keep the working fix: exclude Armature and Hips tracks.
+
+            if (name === 'crouchIdle') {
+              console.log(
+                'Crouch idle tracks:',
+                sourceClip.tracks.map((track) => track.name)
+              );
+            }
+
+            console.log(
+              'Crouch foot position tracks:',
+              sourceClip.tracks
+                .filter((track) =>
+                  /Foot|Toe/i.test(track.name) &&
+                  /\.position$/.test(track.name)
+                )
+                .map((track) => track.name)
+            );
+
+            const validTracks = sourceClip.tracks.filter((track) => {
+              const parts = track.name.split('.');
+              const nodeName = parts[0];
+              const property = parts[1];
+
+              const isCrouchAnimation =
+                name === 'crouchIdle' || name === 'crouchWalk';
+
+              const isVerticalPositionTrack =
+                property === 'position' &&
+                isCrouchAnimation;
+
+
+              const isHipsTrack = nodeName === 'Hips';
+
+              // Keep the existing Hips exclusion for other animations,
+              // but allow Hips rotation during crouching.
+              return (
+                boneNames.has(nodeName) &&
+                nodeName !== 'Armature' &&
+                nodeName !== 'Hips' &&
+                !isVerticalPositionTrack
+              );
+
+            });
+
+
+
+
+            if (validTracks.length === 0) {
+              console.error(`No compatible tracks found for ${name}`);
+              return;
+            }
+
+            const clip = new THREE.AnimationClip(
+              name,
+              sourceClip.duration,
+              validTracks
+            );
+
+            const action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat, Infinity);
+
+            playerActions[name] = action;
+
+            console.log(
+              `${name} animation loaded:`,
+              validTracks.length,
+              'tracks'
+            );
+
+            // Start idle once it is available, unless another
+            // animation has already started.
+            if (name === 'idle' && !activeAction) {
+              action.play();
+              activeAction = action;
+            }
+          },
+
+          undefined,
+
+          (error) => {
+            console.error(`Failed to load ${name} animation:`, error);
+          }
+        );
+      }
+
+      console.log('🎉 Player model loaded!');
+    },
+
+    undefined,
+
+    (error) => {
+      console.error('Failed to load player model:', error);
+    }
+  );
+}
+
+
+function playPlayerAnimation(name) {
+  const nextAction = playerActions[name];
+
+  // The requested animation may still be loading.
+  if (!nextAction || activeAction === nextAction) return;
+
+  nextAction.reset();
+  nextAction.enabled = true;
+  nextAction.setEffectiveTimeScale(1);
+  nextAction.setEffectiveWeight(1);
+  nextAction.play();
+
+  if (activeAction) {
+    activeAction.crossFadeTo(nextAction, 0.25, false);
+  }
+
+  activeAction = nextAction;
+}
+
+
 
 // ---------- Level manager ----------
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
@@ -112,12 +344,18 @@ function loadLevel(index, entry = 'door') {
 
   playerControls.setColliders(currentLevel.colliders, currentLevel.walkableSurfaces);
   camera.position.copy(currentLevel.spawn);
+
   camera.rotation.set(0, 0, 0);
   if (entry === 'vent' && currentLevel.serviceSpawn) {
     camera.position.copy(currentLevel.serviceSpawn);
     camera.rotation.y = Math.PI / 2;
   }
+
+  previousPlayerPosition.copy(camera.position);
+
   aiState.reset();
+
+  loadPlayerModel();
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
@@ -278,25 +516,157 @@ function bootSequence() {
 }
 bootSequence();
 
+
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
 function tick() {
   const delta = Math.min(clock.getDelta(), 0.05);
 
-  if (playerControls.isLocked) {
-    playerControls.update(delta);
-    interaction.update(delta);
-    currentLevel?.update?.(delta, camera);
+  if (playerMixer) {
+    playerMixer.update(delta);
   }
 
-  // Render primary camera view
-  renderer.render(scene, camera);
 
-  // Render secondary CCTV Camera PiP view if active
+  if (playerControls.isLocked) {
+
+    playerControls.update(delta);
+
+    const controls = playerControls.move;
+
+    const isMoving =
+      controls.forward ||
+      controls.back ||
+      controls.left ||
+      controls.right;
+
+    let animationName;
+
+    if (!playerControls.grounded) {
+      animationName = 'jump';
+    } else if (playerControls.height < PLAYER_HEIGHT) {
+      animationName = isMoving ? 'crouchWalk' : 'crouchIdle';
+    } else if (isMoving && controls.sprint) {
+      animationName = 'run';
+    } else if (isMoving) {
+      animationName = 'walk';
+    } else {
+      animationName = 'idle';
+    }
+
+    playPlayerAnimation(animationName);
+
+
+
+    interaction.update(delta);
+
+    currentLevel?.update?.(delta, camera);
+
+    if (playerModel) {
+      playerModel.visible = playerControls.cameraMode === "third";
+
+      // Keep the character on the ground and follow the player.
+      playerModel.position.x = camera.position.x;
+      playerModel.position.z = camera.position.z;
+
+      playerModel.position.y = camera.position.y - playerControls.height;
+
+      // Detect switching from first person to third person.
+      if (
+        playerControls.cameraMode === "third" &&
+        previousCameraMode === "first"
+      ) {
+        const cameraDirection = new THREE.Vector3();
+
+        camera.getWorldDirection(cameraDirection);
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
+
+        const angle = Math.atan2(
+          cameraDirection.x,
+          cameraDirection.z
+        );
+
+        playerModel.rotation.y = angle;
+      }
+
+      // Work out which direction the player moved.
+      const movement = camera.position.clone().sub(previousPlayerPosition);
+      movement.y = 0;
+
+      if (movement.lengthSq() > 0.0001) {
+        // When moving, face the direction of movement.
+        const angle = Math.atan2(movement.x, movement.z);
+        playerModel.rotation.y = angle;
+      }
+
+      previousPlayerPosition.copy(camera.position);
+    }
+
+
+
+    // Make the third-person camera follow behind the player.
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+
+    // Keep the camera behind the player based on horizontal look direction.
+    const horizontalDirection = direction.clone();
+    horizontalDirection.y = 0;
+    horizontalDirection.normalize();
+
+    // Follow the physical eye height; PlayerControls applies crouch once.
+    const thirdPersonPosition = camera.position.clone()
+      .addScaledVector(horizontalDirection, -1.8)
+      .add(new THREE.Vector3(0, 0.5, 0));
+
+    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+
+    // Preserve the existing limited mouse-look angle.
+    const horizontalAngle = Math.atan2(direction.x, direction.z);
+    const pitch = Math.asin(
+      THREE.MathUtils.clamp(direction.y, -1, 1)
+    );
+
+    const limitedPitch = THREE.MathUtils.clamp(
+      pitch,
+      MIN_CAMERA_PITCH,
+      MAX_CAMERA_PITCH
+    );
+
+    const lookDirection = new THREE.Vector3(
+      Math.sin(horizontalAngle) * Math.cos(limitedPitch),
+      Math.sin(limitedPitch),
+      Math.cos(horizontalAngle) * Math.cos(limitedPitch)
+    );
+
+    // Aim at the player's normal reference height, not the lowered
+    // first-person camera height.
+    const lookTarget = new THREE.Vector3(
+      camera.position.x,
+      camera.position.y - 0.5,
+      camera.position.z
+    ).addScaledVector(lookDirection, 5);
+
+
+    thirdPersonCamera.lookAt(lookTarget);
+    }
+
+
+
+
+  previousCameraMode = playerControls.cameraMode;
+
+  const activeCamera =
+    playerControls.cameraMode === "third" ? thirdPersonCamera : camera;
+
+  // Render primary camera view.
+  renderer.render(scene, activeCamera);
+
+  // Render secondary CCTV Camera PiP view if active.
   if (currentLevel?.cctvCamera && cctvRenderer) {
     cctvRenderer.render(scene, currentLevel.cctvCamera);
   }
 
   requestAnimationFrame(tick);
 }
+
 tick();

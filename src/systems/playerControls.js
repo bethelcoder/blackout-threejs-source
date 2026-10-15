@@ -28,6 +28,9 @@ export class PlayerControls {
     camera.userData.playerHeight = this.height;
 
     this.move = { forward: false, back: false, left: false, right: false, sprint: false, crouch: false };
+
+    this.cameraMode = "first"; // "first" or "third"
+
     this.colliders = []; // array of THREE.Box3
     this.enabled = true;
 
@@ -55,6 +58,11 @@ export class PlayerControls {
     this.jumpQueued = false;
   }
 
+  toggleCamera() {
+    this.cameraMode = this.cameraMode === "first" ? "third" : "first";
+    console.log(this.cameraMode === "first" ? "First-person mode" : "Third-person mode");
+  }
+
   _onKey(e, isDown) {
     sound.resume();
     switch (e.code) {
@@ -67,12 +75,16 @@ export class PlayerControls {
         if (this.isLocked) e.preventDefault();
         this.move.crouch = isDown;
         break;
+      case 'KeyV':
+        if (isDown && !e.repeat && this.isLocked) this.toggleCamera();
+        break;
       case 'Space':
         if (this.isLocked) {
           e.preventDefault();
           if (isDown && !e.repeat && this.grounded) this.jumpQueued = true;
         }
         break;
+
     }
   }
 
@@ -155,6 +167,7 @@ export class PlayerControls {
     for (const box of this.colliders) {
       if (playerBox.intersectsBox(box)) return true;
     }
+
     return false;
   }
 
