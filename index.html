@@ -4,12 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BLACKOUT — Substation Escape</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./src/style.css" />
+  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.10.76/build/spline-viewer.js"></script>
 </head>
 <body>
 
   <!-- Main Renderer Target -->
   <canvas id="app"></canvas>
+
+  <!-- Background Music Audio Element -->
+  <audio id="backgroundMusic" src="/star.mp3" loop></audio>
+
+
 
   <!-- Loading screen -->
   <div id="loading-screen">
@@ -20,14 +29,234 @@
     </div>
   </div>
 
-  <!-- Main menu -->
-  <div id="main-menu" class="overlay hidden">
-    <div class="menu-panel">
-      <h1>BLACKOUT</h1>
-      <p class="tagline">"The AI wasn't designed to destroy the city. It was designed to protect it. At all costs."</p>
-      <button id="btn-play">ENTER FACILITY</button>
-      <button id="btn-credits">CREDITS</button>
-      <div class="menu-hint">WASD to move &middot; SHIFT to sprint &middot; SPACE to jump &middot; C / CTRL to duck &middot; V to switch view &middot; Mouse to look &middot; E to interact &middot; Esc to pause</div>
+  <!-- Main Landing Page Menu (Real Game Title Screen) -->
+  <div id="main-menu" class="landing-page hidden">
+    <!-- CRT and Glitch Shader Scanline Overlays -->
+    <div class="crt-scanlines"></div>
+    <div class="crt-vignette"></div>
+    <div class="hazard-tape top-hazard"></div>
+    <div class="hazard-tape bottom-hazard"></div>
+
+    <img class="img-gradient" src="/gradient.png" alt="gradient" />
+    <div class="layer-blur"></div>
+
+    <div class="landing-container">
+      <!-- Top Telemetry Status Header -->
+      <div class="game-top-bar">
+        <div class="top-status-block">
+          <span class="status-warning-icon">⚡</span>
+          <span class="status-text">FACILITY EMERGENCY PROTOCOL // ESKOM MUNICIPAL SUBSTATION 07</span>
+        </div>
+        <div class="top-meta-tags">
+          <span class="meta-pill alert">CONTAINMENT: LEVEL 4</span>
+          <span class="meta-pill">AI DIRECTIVE: LETHAL</span>
+          <span class="meta-pill safe">SECURITY KEY: REQUIRED</span>
+        </div>
+      </div>
+
+      <!-- Main Game Menu Layout (Left Console + Right 3D Sentinel Chamber) -->
+      <div class="game-layout-row">
+        <!-- Left Industrial Bulkhead Console -->
+        <div class="game-console-panel">
+          <!-- Danger High Voltage Warning Placard -->
+          <div class="danger-placard">
+            <div class="danger-header-stripe">
+              <span class="danger-icon">⚡</span>
+              <span class="danger-word">DANGER</span>
+              <span class="danger-icon">⚡</span>
+            </div>
+            <div class="danger-subtext">HIGH VOLTAGE &bull; 11,000 VOLTS &bull; UNGROUNDED POOLS DETECTED</div>
+          </div>
+
+          <!-- Main Game Branding -->
+          <div class="game-title-group">
+            <h1 class="game-title">BLACKOUT</h1>
+            <div class="game-subtitle">
+              <span class="sub-accent">SUBSTATION 07</span> // TACTICAL ESCAPE SIMULATION
+            </div>
+          </div>
+
+          <div class="game-mission-tag">
+            <span class="tag-flash">⚠</span> THE GRID HAS COLLAPSED &bull; ROGUE DEFENSE AI IN LOCKDOWN
+          </div>
+
+          <!-- Vertical Game Action Menu Stack -->
+          <div class="game-menu-stack">
+            <button id="btn-play" class="game-menu-btn primary-start">
+              <div class="btn-hazard-edge"></div>
+              <span class="menu-arrow">►</span>
+              <span class="menu-label">INFILTRATE FACILITY</span>
+              <span class="menu-shortcut">[ENTER]</span>
+            </button>
+
+            <button id="nav-mission" class="game-menu-btn">
+              <span class="menu-arrow">►</span>
+              <span class="menu-label">MISSION DOSSIER</span>
+              <span class="menu-shortcut">[BRIEFING]</span>
+            </button>
+
+            <button id="nav-controls" class="game-menu-btn">
+              <span class="menu-arrow">►</span>
+              <span class="menu-label">TACTICAL CONTROLS</span>
+              <span class="menu-shortcut">[MANUAL]</span>
+            </button>
+
+            <button id="nav-credits" class="game-menu-btn">
+              <span class="menu-arrow">►</span>
+              <span class="menu-label">PERSONNEL &amp; ASSETS</span>
+              <span class="menu-shortcut">[CREDITS]</span>
+            </button>
+          </div>
+
+          <!-- Bottom Telemetry Readouts -->
+          <div class="game-telemetry-box">
+            <div class="telemetry-row">
+              <span class="tel-label">CORE VOLTAGE:</span>
+              <span class="tel-val alert">0.00 kV (BLACKOUT)</span>
+            </div>
+            <div class="telemetry-row">
+              <span class="tel-label">ELECTRICAL TRAPS:</span>
+              <span class="tel-val warn">ACTIVE (LIVE WATER)</span>
+            </div>
+            <div class="telemetry-row">
+              <span class="tel-label">OPERATIVE GEAR:</span>
+              <span class="tel-val cyan">FIELD BACKPACK + TORCH</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 3D Sentinel Drone Surveillance Chamber -->
+        <div class="sentinel-chamber">
+          <div class="hud-target-frame">
+            <div class="bracket top-left"></div>
+            <div class="bracket top-right"></div>
+            <div class="bracket bottom-left"></div>
+            <div class="bracket bottom-right"></div>
+            
+            <div class="target-status-bar">
+              <span class="pulse-rec-dot"></span>
+              <span class="target-title">AI SENTINEL DRONE // OPTICS ENGAGED</span>
+            </div>
+
+            <div class="target-sub-coords">
+              <span>SCANNER: ACTIVE</span>
+              <span>TRACKING: POINTER</span>
+              <span>LETHALITY: 100%</span>
+            </div>
+
+            <!-- Interactive 3D Spline Robot Model -->
+            <spline-viewer class="robot-canvas" url="https://prod.spline.design/IGhNCQQwOgbIXJr7/scene.splinecode"></spline-viewer>
+
+            <div class="target-bottom-warning">
+              ⚡ WARNING: DO NOT ENTER SURVEILLANCE CONE
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level 1 Tactical Guidance & Directive Modal -->
+  <div id="guidance-modal" class="overlay hidden">
+    <div class="guidance-panel">
+      <div class="guidance-header">
+        <div class="guidance-badge-row">
+          <span class="guidance-pill-tag">⚡ OPERATIONAL BRIEFING</span>
+          <span class="guidance-meta">LEVEL 1 &bull; HIGH-VOLTAGE SUBSTATION CORRIDOR</span>
+        </div>
+        <h2 class="guidance-title">FACILITY INFILTRATION DIRECTIVE</h2>
+      </div>
+
+      <div class="guidance-body">
+        <!-- Core Objective Card -->
+        <div class="guidance-card objective-card">
+          <div class="card-pill alert-pill">PRIMARY OBJECTIVE</div>
+          <div class="objective-quote">&ldquo;The objective is to open the doors. But you need a passcode.&rdquo;</div>
+          <p class="objective-explanation">
+            The perimeter double blast doors leading to Level 2 are sealed tight under lockdown. Pushing the doors will do nothing until you unlock the electronic security keypad beside them.
+          </p>
+        </div>
+
+        <!-- Tactical Riddle Card -->
+        <div class="guidance-card riddle-card">
+          <div class="card-pill riddle-pill">TACTICAL RIDDLE &bull; CRITICAL CLUE</div>
+          <div class="riddle-quote">&ldquo;There&rsquo;s no TIME to waste.&rdquo;</div>
+          <div class="riddle-breakdown">
+            <div class="riddle-item">
+              <span class="riddle-glyph">⏱</span>
+              <span><strong>The Passcode is in the Locker:</strong> The blast door override code (0451) is written in the Technician Logbook, locked inside the wall locker.</span>
+            </div>
+            <div class="riddle-item">
+              <span class="riddle-glyph">🔑</span>
+              <span><strong>The Key is in the Clock:</strong> The locker key only drops when you enter the correct employee shift <strong>TIMES</strong> into the Industrial Clock Console keypad.</span>
+            </div>
+            <div class="riddle-item">
+              <span class="riddle-glyph">📜</span>
+              <span><strong>Find the Shift Records:</strong> Retrieve the screwdriver from the under-stairs toolbox and unscrew the high maintenance vent grille to recover the technician schedule.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Critical Losing Condition Card (Security Strikes) -->
+        <div class="guidance-card hazard-card">
+          <div class="card-pill hazard-pill">⚠ AI SECURITY THREAT // 3-STRIKE PROTOCOL</div>
+          <div class="hazard-desc">
+            The facility AI triggers a permanent lockdown after <strong>3 Strikes</strong>:
+            <br>&bull; <strong>Camera Exposure</strong>: Being spotted in the CCTV cone for &ge; 3.0 seconds causes a strike.
+            <br>&bull; <strong>Keypad / Clock Errors</strong>: 4 incorrect PIN attempts trigger a strike.
+            <br>&bull; <strong>Security Lasers</strong>: Tripping security beams in Level 2 triggers a strike.
+        <!-- Quick Walkthrough Steps -->
+        <div class="guidance-steps-row">
+          <div class="guide-step">
+            <span class="step-badge">1</span>
+            <strong>TOOLBOX</strong>
+            <p>Take Screwdriver under stairs</p>
+          </div>
+          <div class="guide-step">
+            <span class="step-badge">2</span>
+            <strong>HIGH VENT</strong>
+            <p>Push crate &amp; unscrew grille</p>
+          </div>
+          <div class="guide-step">
+            <span class="step-badge">3</span>
+            <strong>CLOCK RIDDLE</strong>
+            <p>Enter shift times for Sector 1, 2, 3</p>
+          </div>
+          <div class="guide-step">
+            <span class="step-badge">4</span>
+            <strong>BLAST DOORS</strong>
+            <p>Get logbook code &amp; unlock doors</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="guidance-footer">
+        <button id="btn-start-infiltration" class="btn-guidance-start">
+          <span class="btn-arrow">&#9658;</span> COMMENCE INFILTRATION [ENTER]
+        </button>
+        <button id="btn-guidance-close" class="btn-guidance-close">BACK TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls Guide Modal -->
+  <div id="controls-modal" class="overlay hidden">
+    <div class="controls-panel">
+      <h2>FIELD CONTROLS &amp; TACTICAL MANUAL</h2>
+      <div class="controls-modal-grid">
+        <div class="ctrl-row"><kbd>W A S D</kbd><span>Move Engineer</span></div>
+        <div class="ctrl-row"><kbd>MOUSE</kbd><span>Look &amp; Aim</span></div>
+        <div class="ctrl-row"><kbd>SHIFT</kbd><span>Sprint / Fast Run</span></div>
+        <div class="ctrl-row"><kbd>SPACE</kbd><span>Jump Over Traps</span></div>
+        <div class="ctrl-row"><kbd>C / CTRL</kbd><span>Duck &amp; Crouch Crawl</span></div>
+        <div class="ctrl-row"><kbd>V</kbd><span>Toggle 1st / 3rd Person View</span></div>
+        <div class="ctrl-row"><kbd>E</kbd><span>Interact &amp; Access Terminals</span></div>
+        <div class="ctrl-row"><kbd>F</kbd><span>Pick up Tools, Books &amp; Torch</span></div>
+        <div class="ctrl-row"><kbd>B</kbd><span>Open Field Backpack</span></div>
+        <div class="ctrl-row"><kbd>H</kbd><span>Review Guidance &amp; Riddle</span></div>
+        <div class="ctrl-row"><kbd>ESC</kbd><span>Pause / Close Menus</span></div>
+      </div>
+      <button id="btn-controls-close" class="modal-close-btn">CLOSE GUIDE</button>
     </div>
   </div>
 
@@ -78,11 +307,17 @@
         <span><kbd>C / Ctrl</kbd> Duck (hold)</span>
         <span><kbd>V</kbd> Switch view</span>
         <span><kbd>E</kbd> Interact</span>
+        <span><kbd>F</kbd> Pick up</span>
+        <span><kbd>B</kbd> Backpack</span>
+        <span><kbd>H</kbd> Guidance</span>
         <span><kbd>Esc</kbd> Pause</span>
       </div>
     </aside>
     <div id="crosshair"></div>
     <div id="interact-prompt" class="hidden">[E] Interact</div>
+    <div id="pickup-prompt" class="hidden">[F] Pick up</div>
+    <div id="hud-toast" class="hidden"></div>
+
 
     <!-- AI Security Status Panel -->
     <div id="ai-status-panel">
@@ -108,9 +343,32 @@
     </div>
 
     <!-- Mission Objective Panel -->
-    <div id="objective-panel">
-      <div class="objective-label">OBJECTIVE</div>
+    <div id="objective-panel" title="Click or press [H] to review Guidance &amp; Riddle">
+      <div class="objective-label">OBJECTIVE &bull; [H] GUIDANCE</div>
       <div id="objective-text">Explore the maintenance area.</div>
+      <div class="inventory-hint">[B] Backpack &middot; [F] Pick up &middot; [H] Mission Riddle</div>
+    </div>
+  </div>
+
+  <!-- Backpack UI Overlay -->
+  <div id="backpack-overlay" class="overlay hidden">
+    <div class="backpack-panel">
+      <div class="backpack-header">
+        <h2>🎒 FIELD BACKPACK</h2>
+        <span class="backpack-hint">Click item to use / inspect / toggle torch &middot; Press [B] or [ESC] to close</span>
+      </div>
+      <div id="backpack-slots" class="backpack-slots-grid">
+        <!-- Populated dynamically from src/systems/inventory.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Reader Overlay -->
+  <div id="doc-reader" class="overlay hidden">
+    <div class="doc-reader-panel">
+      <div class="doc-title">DOCUMENT</div>
+      <pre id="doc-content" class="doc-content-text"></pre>
+      <button id="btn-close-doc" class="doc-close-btn">CLOSE [ESC]</button>
     </div>
   </div>
 
