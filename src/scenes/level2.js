@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
-import { createServerRackTexture } from '../systems/textures.js';
 import { sound } from '../systems/audio.js';
+import { buildLevel2Design } from './design.js';
 import { buildLaserSecurity } from './laserSecurity.js';
 import { buildVenatorRoom } from './venatorRoom.js';
 import { buildTerminalStation } from './terminalStation.js';
@@ -21,7 +21,9 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
 
   const { group: room, colliders: wallColliders } = buildRoom({
     width: 14, depth: 16, height: 4.2, wallColor: 0x5a6d80, floorColor: 0x485868,
+    includeLeftCabinets: false,
     includeRightCabinets: false,
+    includePlinths: false,
     includeRightPlinth: false,
     officeFloor: true,
     officeCeiling: true,
@@ -48,9 +50,13 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   });
   colliders.push(...wallColliders);
 
+  const design = buildLevel2Design({ scene, hud, includeRightFurniture: false, includeCeiling: false });
+  colliders.push(...design.colliders);
+  cleanup.push(() => design.dispose());
+
   const ceilingLights = [];
   const rackOccluders = [];
-  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, rackOccluders, onHit: onSecurityHit ?? onShock, onDisabled: () => {
+  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, rackOccluders, externalOccluders: design.colliders, includeLeftBank: false, onHit: onSecurityHit ?? onShock, onDisabled: () => {
     venatorRoom.setLaserActive(false);
     ceilingLights.forEach(light => light.color.setHex(0xffffff));
     lightPanelMat.color.setHex(0xebf8ff);
@@ -95,27 +101,6 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   scene.add(consoleLight);
   cleanup.push(() => scene.remove(consoleLight));
 
-  // Server rack texture & material
-  const rackTex = createServerRackTexture();
-  const rackMat = new THREE.MeshStandardMaterial({
-    map: rackTex,
-    roughness: 0.4,
-    metalness: 0.6,
-  });
-
-  // Retain the left bank; replace the right-hand plain boxes with imported racks.
-  const rackLeds = [];
-  for (let i = -2; i <= 2; i++) {
-    // Left bank
-    const rackL = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.7), rackMat);
-    rackL.position.set(-4.8, 1.3, i * 2.2);
-    rackL.castShadow = true;
-    rackL.receiveShadow = true;
-    scene.add(rackL);
-    colliders.push(new THREE.Box3().setFromObject(rackL));
-    cleanup.push(() => scene.remove(rackL));
-
-  }
   const serverRacks = buildServerRacks({ scene, colliders, rackOccluders, onReady: () => laserSecurity.refreshOccluders() });
   cleanup.push(() => serverRacks.dispose());
 
@@ -195,11 +180,11 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   function update(delta, camera) {
     laserSecurity.update(delta, camera);
     smallDoor.update(delta, solved);
+    design.update(delta, camera);
     if (solved) {
       doorMesh.visible = false;
       doorCollider.makeEmpty();
     }
-    // Ambient suspicion decay while working quietly
     if (!terminalUI.open) aiState.decay(3 * delta);
   }
 

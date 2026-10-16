@@ -7,7 +7,7 @@ import { preloadLevel2Models } from '../src/systems/modelCache.js';
 import { buildLevel2 } from '../src/scenes/level2.js';
 globalThis.self = globalThis;
 globalThis.createImageBitmap = async () => ({ width: 1024, height: 1024, close() {} });
-const ctx = new Proxy({}, { get: (_, key) => key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
+const ctx = new Proxy({}, { get: (_, key) => key === 'measureText' ? text => ({ width: text.length * 8 }) : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
 globalThis.document = { createElement: () => ({ getContext: () => ctx }) };
 const originalModelLoad = GLTFLoader.prototype.loadAsync;
 const originalTextureLoad = THREE.TextureLoader.prototype.loadAsync;

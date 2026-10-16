@@ -38,6 +38,154 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   colliders.push(...ventRoute.colliders);
   cleanup.push(() => ventRoute.dispose());
 
+
+ // Sci-fi cargo crate
+ const ventCrate = new THREE.Group();
+ ventCrate.name = 'Crate blocking maintenance vent';
+ 
+ const bodyMaterial = new THREE.MeshStandardMaterial({
+   color: 0x303943,
+   roughness: 0.72,
+   metalness: 0.78,
+ });
+ 
+ const panelMaterial = new THREE.MeshStandardMaterial({
+   color: 0x56616b,
+   roughness: 0.62,
+   metalness: 0.8,
+ });
+ 
+ const darkMaterial = new THREE.MeshStandardMaterial({
+   color: 0x151c24,
+   roughness: 0.85,
+   metalness: 0.55,
+ });
+ 
+ const warningMaterial = new THREE.MeshStandardMaterial({
+   color: 0xffa52b,
+   roughness: 0.65,
+   metalness: 0.35,
+ });
+ 
+ const lightMaterial = new THREE.MeshStandardMaterial({
+   color: 0x39eaff,
+   emissive: 0x087d99,
+   emissiveIntensity: 2,
+   metalness: 0.25,
+   roughness: 0.3,
+ });
+ 
+ const crateWidth = 1.8;
+ const crateHeight = 2.2;
+ const crateDepth = 0.9;
+ 
+ function addPart(geometry, material, x, y, z) {
+   const part = new THREE.Mesh(geometry, material);
+   part.position.set(x, y, z);
+   part.castShadow = true;
+   part.receiveShadow = true;
+   ventCrate.add(part);
+   return part;
+ }
+ 
+ // Main reinforced body
+ addPart(
+   new THREE.BoxGeometry(crateWidth, crateHeight, crateDepth),
+   bodyMaterial, 0, 0, 0
+ );
+ 
+ // Front and rear inset panels
+ for (const side of [-1, 1]) {
+   const faceZ = side * (crateDepth / 2 + 0.012);
+ 
+   addPart(
+     new THREE.BoxGeometry(1.42, 1.78, 0.035),
+     darkMaterial, 0, 0, faceZ
+   );
+ 
+   // Three raised armour plates
+   for (const y of [-0.53, 0, 0.53]) {
+     addPart(
+       new THREE.BoxGeometry(1.25, 0.42, 0.045),
+       panelMaterial, 0, y, side * 0.485
+     );
+   }
+ 
+   // Heavy corner reinforcement
+   for (const x of [-0.79, 0.79]) {
+     addPart(
+       new THREE.BoxGeometry(0.14, 2.12, 0.09),
+       panelMaterial, x, 0, side * 0.47
+     );
+   }
+ 
+   // Cyan status lights
+   for (const y of [-0.78, 0.78]) {
+     addPart(
+       new THREE.BoxGeometry(0.38, 0.045, 0.025),
+       lightMaterial, 0, y, side * 0.505
+     );
+   }
+ 
+   // Industrial warning stripes
+   for (const x of [-0.48, -0.36, 0.36, 0.48]) {
+     const stripe = addPart(
+       new THREE.BoxGeometry(0.055, 0.24, 0.018),
+       warningMaterial, x, -0.91, side * 0.49
+     );
+     stripe.rotation.z = -0.3;
+   }
+ }
+ 
+ // Reinforced horizontal bands across the front and rear
+ for (const side of [-1, 1]) {
+   for (const y of [-1.02, 1.02]) {
+     addPart(
+       new THREE.BoxGeometry(1.72, 0.09, 0.055),
+       darkMaterial, 0, y, side * 0.46
+     );
+   }
+ }
+ 
+ // Keep your existing, working crate position here:
+ ventCrate.position.set(1.95, 4.8, 8.53);
+ 
+ scene.add(ventCrate);
+ 
+ // Keep the crate interactable
+ ventCrate.userData.interactable = true;
+ ventCrate.userData.label = 'Pushable crate — walk into it to push';
+ ventCrate.userData.promptAction = '[PUSH]';
+ 
+ // Register its collider for the existing pushing system
+ const ventCrateCollider = new THREE.Box3().setFromObject(ventCrate);
+ ventCrateCollider.pushableMesh = ventCrate;
+ colliders.push(ventCrateCollider);
+ 
+ // Clean up all crate resources when the level is disposed
+ cleanup.push(() => {
+   scene.remove(ventCrate);
+ 
+   const geometries = new Set();
+   const materials = new Set();
+ 
+   ventCrate.traverse(part => {
+     if (part.geometry) geometries.add(part.geometry);
+ 
+     if (part.material) {
+       for (const material of Array.isArray(part.material)
+         ? part.material
+         : [part.material]) {
+         materials.add(material);
+       }
+     }
+   });
+ 
+   geometries.forEach(geometry => geometry.dispose());
+   materials.forEach(material => material.dispose());
+ });
+ 
+
   const noticeBoard = buildNoticeBoard({ hud });
   scene.add(noticeBoard.group);
   cleanup.push(() => noticeBoard.dispose());

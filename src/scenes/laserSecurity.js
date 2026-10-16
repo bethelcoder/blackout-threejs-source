@@ -3,7 +3,7 @@ import laserBeam from '../assets/models/laser-beam.json' with { type: 'json' };
 import { buildShutdownButton } from './shutdownButton.js';
 
 // Fixed crisscross beams using the imported mesh; no sight/attachment hardware.
-export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, onDisabled, rackOccluders = [] }) {
+export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, onDisabled, rackOccluders = [], externalOccluders = [], includeLeftBank = true }) {
   const group = new THREE.Group();
   group.name = 'AI laser security';
   const beams = new THREE.Group();
@@ -132,15 +132,19 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, onDisabl
   const hitPoint = new THREE.Vector3();
   const surfaceNormal = new THREE.Vector3();
   const forward = new THREE.Vector3(0, 0, 1);
-  // Clip visible light to real room surfaces and the server banks.
+  // Clip visible light to real room surfaces, the server banks, and any
+  // external occluders (lockers, workbench, etc.) passed in from the level.
   const occluders = [];
-  for (const x of [-4.8]) {
+  for (const x of (includeLeftBank ? [-4.8] : [])) {
     for (let i = -2; i <= 2; i++) {
       occluders.push(new THREE.Box3(
         new THREE.Vector3(x - 0.45, 0, i * 2.2 - 0.35),
         new THREE.Vector3(x + 0.45, 2.6, i * 2.2 + 0.35),
       ));
     }
+  }
+  for (const box of externalOccluders) {
+    if (box && box.isBox3) occluders.push(box);
   }
   function positionBeams() {
     for (const beam of rays) {
@@ -151,7 +155,7 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, onDisabl
       surfaceNormal.set(-1, 0, 0);
       ray.set(beam.start, direction);
       for (const box of [...occluders, ...rackOccluders]) {
-        if (ray.intersectBox(box, hitPoint)) {
+        if (!box.containsPoint(beam.start) && ray.intersectBox(box, hitPoint)) {
           const distance = hitPoint.distanceTo(beam.start);
           if (distance < length) {
             length = distance;

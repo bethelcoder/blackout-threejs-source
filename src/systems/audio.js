@@ -88,6 +88,70 @@ class SoundEngine {
 
   }
 
+
+/** Short metallic scrape when the cargo crate moves. */
+playCrateMove() {
+  if (!this.ctx || this.isMuted) return;
+
+  const now = this.ctx.currentTime;
+  const osc = this.ctx.createOscillator();
+  const filter = this.ctx.createBiquadFilter();
+  const gain = this.ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(125, now);
+  osc.frequency.exponentialRampToValueAtTime(65, now + 0.16);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(900, now);
+  filter.Q.setValueAtTime(1.2, now);
+
+  gain.gain.setValueAtTime(0.001, now);
+  gain.gain.linearRampToValueAtTime(0.09, now + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(this.masterGain);
+
+  osc.onended = () => {
+    osc.disconnect();
+    filter.disconnect();
+    gain.disconnect();
+  };
+
+  osc.start(now);
+  osc.stop(now + 0.19);
+}
+
+/** Heavy metallic clunk when the crate is blocked. */
+playCrateImpact() {
+  if (!this.ctx || this.isMuted) return;
+
+  const now = this.ctx.currentTime;
+  const osc = this.ctx.createOscillator();
+  const gain = this.ctx.createGain();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(105, now);
+  osc.frequency.exponentialRampToValueAtTime(38, now + 0.13);
+
+  gain.gain.setValueAtTime(0.22, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+  osc.connect(gain);
+  gain.connect(this.masterGain);
+
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
+
+  osc.start(now);
+  osc.stop(now + 0.17);
+}
+
+
   /** Brief metal-on-metal scrape while removing the maintenance grille. */
   playVentScrape() {
     if (!this.ctx || this.isMuted) return;

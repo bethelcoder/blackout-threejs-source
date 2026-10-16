@@ -7,7 +7,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // This test exercises gameplay while the decorative room model is still loading.
 GLTFLoader.prototype.loadAsync = () => new Promise(() => {});
 
-const ctx = new Proxy({}, { get: (_, key) => key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
+const ctx = new Proxy({}, { get: (_, key) => key === 'measureText' ? text => ({ width: text.length * 8 }) : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
 globalThis.document = {
   createElement: () => ({ getContext: () => ctx }),
   createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, set src(value) {} }),
