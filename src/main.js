@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PlayerControls } from './systems/playerControls.js';
 import { AIState } from './systems/aiState.js';
+import { SecurityRun } from './systems/securityRun.js';
 import { InteractionSystem } from './systems/interaction.js';
 import { HUD } from './systems/hud.js';
 import { Terminal } from './systems/terminal.js';
@@ -74,6 +75,7 @@ const loadingBarFill = el('loading-bar-fill');
 const loadingLabel = el('loading-label');
 const mainMenu = el('main-menu');
 const pauseMenu = el('pause-menu');
+const loseScreen = el('lose-screen');
 const creditsScreen = el('credits-screen');
 const hudRoot = el('hud');
 const interactPrompt = el('interact-prompt');
@@ -322,6 +324,38 @@ let gameEnded = false;
 let advanceTimeout = null;
 let levelLoading = false;
 let loadGeneration = 0;
+const securityRun = new SecurityRun({
+  onChange: ({ strikes, exposure }) => {
+    el('security-strikes').textContent = `STRIKES: ${strikes} / 3`;
+    const warning = el('camera-exposure');
+    warning.classList.toggle('hidden', exposure === 0);
+    warning.textContent = `CAMERA EXPOSURE: ${exposure.toFixed(1)} / 3.0 s — find cover!`;
+  },
+  onStrike: (source) => {
+    playerControls.teleport(currentLevel.spawn);
+    previousPlayerPosition.copy(camera.position);
+    aiState.reset();
+    interaction.reset();
+    const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : 'Laser triggered';
+    hud.setObjective(`${reason} — strike ${securityRun.strikes} of 3. Back at the entrance; 3 seconds to recover. ${currentLevel.objective}`);
+  },
+  onLose: (source) => {
+    gameEnded = true;
+    clearTimeout(advanceTimeout);
+    hud.resetLevelComplete();
+    terminal.close();
+    interaction.reset();
+    playerControls.enabled = false;
+    playerControls.unlock();
+    el('lose-reason').textContent = source.endsWith('-pin')
+      ? 'Four incorrect PIN attempts caused your third strike. Check the clues before submitting another code.'
+      : source === 'camera'
+      ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
+      : 'A laser caused your third strike. Jump low beams and duck under high beams.';
+    showOnly(loseScreen);
+    el('btn-retry-level').focus();
+  },
+});
 
 function clearScene() {
   loadGeneration++;
@@ -338,11 +372,17 @@ function clearScene() {
   }
 }
 
-async function loadLevel(index, entry = 'door') {
+async function loadLevel(index, entry = 'door', resetStrikes = false) {
   clearScene();
   const generation = loadGeneration;
   const needsLoadingScreen = index === 1;
   gameEnded = false;
+  if (resetStrikes) securityRun.reset();
+  else {
+    securityRun.exposure = 0;
+    securityRun.grace = 0;
+    securityRun.notify();
+  }
   hud.resetLevelComplete();
 
   if (needsLoadingScreen) {
@@ -366,6 +406,9 @@ async function loadLevel(index, entry = 'door') {
 
   const builder = LEVEL_BUILDERS[index];
   const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding,
+    onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
+    onPinStrike: (source) => securityRun.strike(source),
+    onSecurityHit: () => securityRun.strike('laser'),
     onShock: (position) => playerControls.teleport(position),
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
@@ -487,7 +530,7 @@ function advanceLevel() {
 
 // ---------- Menu state machine ----------
 function showOnly(...visibleEls) {
-  [mainMenu, pauseMenu, creditsScreen].forEach((e) => e.classList.add('hidden'));
+  [mainMenu, pauseMenu, creditsScreen, loseScreen].forEach((e) => e.classList.add('hidden'));
   visibleEls.forEach((e) => e?.classList.remove('hidden'));
 }
 
@@ -495,7 +538,7 @@ el('btn-play').addEventListener('click', () => {
   sound.init();
   showOnly();
   hudRoot.classList.remove('hidden');
-  loadLevel(0);
+  loadLevel(0, 'door', true);
   playerControls.lock();
 });
 
@@ -520,10 +563,22 @@ if (btnAudio) {
 el('btn-restart').addEventListener('click', () => {
   showOnly();
   hudRoot.classList.remove('hidden');
-  loadLevel(0);
+  loadLevel(0, 'door', true);
   playerControls.lock();
 });
 el('btn-quit-menu').addEventListener('click', () => {
+  clearScene();
+  hudRoot.classList.add('hidden');
+  if (cctvContainer) cctvContainer.classList.add('hidden');
+  showOnly(mainMenu);
+});
+
+el('btn-retry-level').addEventListener('click', () => {
+  showOnly();
+  loadLevel(currentLevelIndex, 'door', true);
+  playerControls.lock();
+});
+el('btn-lose-menu').addEventListener('click', () => {
   clearScene();
   hudRoot.classList.add('hidden');
   if (cctvContainer) cctvContainer.classList.add('hidden');
@@ -545,7 +600,7 @@ document.addEventListener('security-keypad-close', () => {
 });
 
 playerControls.controls.addEventListener('unlock', () => {
-  if (levelLoading) return;
+  if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
@@ -597,7 +652,9 @@ function tick() {
   }
 
 
-  if (playerControls.isLocked && !levelLoading) {
+  if (playerControls.isLocked && !levelLoading && !gameEnded) {
+
+    securityRun.update(delta);
 
     playerControls.update(delta);
 

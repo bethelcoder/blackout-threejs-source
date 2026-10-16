@@ -516,7 +516,7 @@ export function buildClockPoster({ position = [0, 2, 0], rotationY = 0 }) {
 // ---------------------------------------------------------------------------
 // MULTI-STAGE KEYPAD BUILDER
 // ---------------------------------------------------------------------------
-export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes = ["0215", "1040", "0600"], onSuccess }) {
+export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes = ["0215", "1040", "0600"], onSuccess, onWrongCode }) {
   const group = new THREE.Group();
   group.position.set(...position);
   group.rotation.y = rotationY;
@@ -536,6 +536,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
 
   // 3. UI Interaction Logic
   let currentStage = 0; // Tracks which code we are on
+  let wrongAttempts = 0;
 
   group.userData.interactable = true;
   group.userData.label = 'Use Keypad';
@@ -629,6 +630,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
           currentInput = "";
           display.innerText = currentInput;
         } else if (btn === 'E') {
+          if (!currentInput.length) return;
           isProcessing = true;
           if (currentInput === targetCodes[currentStage]) {
             // Correct Code
@@ -657,6 +659,14 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
             }
           } else {
             // Wrong Code
+            wrongAttempts++;
+            const strike = wrongAttempts > 3;
+            if (strike) {
+              wrongAttempts = 0;
+              closeKeypad();
+            }
+            onWrongCode?.({ attempts: wrongAttempts, strike });
+            if (strike) return;
             display.style.color = '#ffffff';
             display.style.backgroundColor = '#aa0000';
             display.innerText = "ERROR";
@@ -683,6 +693,7 @@ export function buildKeypad({ position = [0, 1.5, 0], rotationY = 0, targetCodes
     
     const hint = document.createElement('div');
     hint.innerText = "Click outside or press Escape to close";
+    if (onWrongCode) hint.innerText += '. Four wrong PINs cause a security strike.';
     Object.assign(hint.style, { color: '#888', textAlign: 'center', marginTop: '5px', fontSize: '14px' });
     keypadBox.appendChild(hint);
 

@@ -168,13 +168,15 @@ export function buildSecurityKeypad({
   correctCode = '0451',
   sound,
   hud,
-  onSuccess
+  onSuccess,
+  onPinStrike
 }) {
   const group = new THREE.Group();
   group.position.set(...position);
   group.rotation.set(...rotation);
 
   let unlocked = false;
+  let wrongAttempts = 0;
   let disposeModal = null;
   let feedbackTimer = null;
 
@@ -693,6 +695,7 @@ export function buildSecurityKeypad({
 
     function validateCode() {
       if (isProcessing) return;
+      if (!currentInput.length) return;
       isProcessing = true;
 
       if (currentInput === correctCode) {
@@ -717,6 +720,14 @@ export function buildSecurityKeypad({
         feedbackTimer = setTimeout(closeModal, 1200);
       } else {
         // Access Denied!
+        wrongAttempts++;
+        if (wrongAttempts > 3) {
+          wrongAttempts = 0;
+          closeModal();
+          onPinStrike?.('door-pin');
+          return;
+        }
+        hud?.setObjective(`Incorrect door PIN (${wrongAttempts}/3). A fourth wrong attempt causes a security strike. Check the technician logbook.`);
         if (sound && sound.playDetectionWarning) sound.playDetectionWarning(0.6);
         statusLight.style.backgroundColor = '#ff1111';
         statusLight.style.boxShadow = '0 0 14px #ff0000';
@@ -752,7 +763,7 @@ export function buildSecurityKeypad({
 
     // Hint text below frame
     const hint = document.createElement('div');
-    hint.innerText = 'Enter the 4-digit code from the logbook. Escape to close.';
+    hint.innerText = 'Enter the 4-digit code from the logbook. Four wrong PINs cause a strike. Escape to close.';
     Object.assign(hint.style, {
       color: '#adb5bd',
       fontSize: '14px',

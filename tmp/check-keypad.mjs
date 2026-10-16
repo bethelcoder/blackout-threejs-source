@@ -41,4 +41,20 @@ assert.equal(successes, 1);
 keypad.dispose();
 assert.equal(body.children.length, 0, 'Disposal removes overlay');
 assert.equal(listeners.size, 0, 'Disposal removes keyboard handler');
+let pinStrikes = 0;
+const door = buildSecurityKeypad({ onPinStrike: source => {
+  assert.equal(source, 'door-pin'); pinStrikes++;
+} });
+for (let i = 0; i < 8; i++) {
+  door.mesh.userData.onInteract();
+  for (const digit of '9999') press(digit);
+  press('Enter');
+  assert.equal(pinStrikes, Math.floor((i + 1) / 4), 'Door strikes every fourth wrong submission');
+  if ((i + 1) % 4 === 0) {
+    assert.equal(body.children.length, 0, 'Door strike closes the overlay');
+  } else {
+    press('Escape');
+  }
+}
+door.dispose();
 console.log('Keypad checks passed: opening E, blank/wrong/correct codes, duplicate submit, cleanup.');

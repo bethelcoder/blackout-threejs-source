@@ -11,6 +11,7 @@ export function createClockPuzzle({
   cleanup, 
   hud, 
   sound,
+  onPinStrike,
   clockPosition = [-6.92, 2.2, 0],
   lockerPosition = [-6.6, 0, 1.8]
 }) {
@@ -100,6 +101,10 @@ export function createClockPuzzle({
   const clockKeypad = buildKeypad({
     position: [0, -0.92, 0.11],
     targetCodes: ["0215", "1040", "0600"],
+    onWrongCode: ({ attempts, strike }) => {
+      if (strike) onPinStrike?.('clock-pin');
+      else hud.setObjective(`Incorrect clock PIN (${attempts}/3). The next mistake after three wrong attempts causes a security strike. Check the shift schedule.`);
+    },
     onSuccess: () => {
       puzzleSolved = true;
       // Turn world lights green

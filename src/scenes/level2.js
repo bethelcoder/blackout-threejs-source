@@ -15,7 +15,7 @@ import { buildVenatorSmallDoor } from './venatorSmallDoor.js';
  * Signature Mechanic: Fictional interactive command-line terminal system.
  * Narrative progression: Restore water infrastructure, alerting the AI.
  */
-export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onChairSit, isPlayerSeated }) {
+export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecurityHit, onChairSit, isPlayerSeated }) {
   const colliders = [];
   const cleanup = [];
 
@@ -50,7 +50,7 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onChairS
 
   const ceilingLights = [];
   const rackOccluders = [];
-  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, rackOccluders, onHit: onShock, onDisabled: () => {
+  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, rackOccluders, onHit: onSecurityHit ?? onShock, onDisabled: () => {
     venatorRoom.setLaserActive(false);
     ceilingLights.forEach(light => light.color.setHex(0xffffff));
     lightPanelMat.color.setHex(0xebf8ff);

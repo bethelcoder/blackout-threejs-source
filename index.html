@@ -53,6 +53,16 @@
     </div>
   </div>
 
+  <div id="lose-screen" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="lose-title">
+    <div class="menu-panel">
+      <h2 id="lose-title">CAUGHT</h2>
+      <p>The AI has secured the substation.</p>
+      <p id="lose-reason"></p>
+      <button id="btn-retry-level">RETRY LEVEL</button>
+      <button id="btn-lose-menu">MAIN MENU</button>
+    </div>
+  </div>
+
   <!-- In-game HUD -->
   <div id="hud" class="hidden">
     <div id="shock-flash" aria-hidden="true"></div>
@@ -78,6 +88,8 @@
     <div id="ai-status-panel">
       <div class="ai-status-label">AI SECURITY STATE</div>
       <div id="ai-status-value">CALM</div>
+      <div id="security-strikes" role="status" aria-live="polite">STRIKES: 0 / 3</div>
+      <div id="camera-exposure" class="hidden" role="status"></div>
     </div>
 
     <!-- Security Camera CCTV Picture-in-Picture Feed (Viewing rubric) -->
