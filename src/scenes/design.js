@@ -270,7 +270,7 @@ function signTexture(kind) {
 }
 
 // ================================================================== builder
-export function buildLevel2Design({ scene, hud }) {
+export function buildLevel2Design({ scene, hud, includeRightFurniture = true, includeCeiling = true }) {
   const group = new THREE.Group();
   group.name = 'Level 2 — Industrial Substation';
   scene.add(group);
@@ -447,6 +447,7 @@ export function buildLevel2Design({ scene, hud }) {
   const bp = put(new THREE.CylinderGeometry(0.06, 0.06, 15.6, 8), pipeMat, 0, 3.9, -7.9); bp.rotation.z = Math.PI / 2; bp.scale.y = 0.9;
 
   // =========================== RIGHT WALL ===========================
+  if (includeRightFurniture) {
   // Two full-height lockers (same 3.5 m as the left cabinets) flank the laser shutdown button at z = 0.
   cabinet({ x: 6.6, z: -1.7, w: 1.3, h: 3.5, d: 0.8, dir: -1, label: 'LK-A', panel: false, seed: 200 });
   cabinet({ x: 6.6, z: 1.7, w: 1.3, h: 3.5, d: 0.8, dir: -1, label: 'LK-B', panel: true, seed: 201 });
@@ -496,11 +497,16 @@ export function buildLevel2Design({ scene, hud }) {
   }
   filing(-5.0, 1.3, 4); filing(-5.55, 0.72, 2);
 
+  }
+
   // ---- steel ladder leaning on the wall ----
+  if (includeRightFurniture) {
   const ladder = new THREE.Group(); ladder.position.set(6.1, 0, 3.9); ladder.rotation.z = -0.29; group.add(ladder);
   for (const dz of [-0.25, 0.25]) { block(0.05, 2.5, 0.05, steel, 0, 1.25, dz, ladder); block(0.08, 0.03, 0.08, rubber, 0, 0.015, dz, ladder); }
   for (let i = 0; i < 8; i++) { const rung = put(new THREE.CylinderGeometry(0.016, 0.016, 0.5, 8), steel, 0, 0.3 + i * 0.3, 0, ladder); rung.rotation.x = Math.PI / 2; }
   solid(0.5, 2.4, 0.6, 6.5, 1.2, 3.9);
+
+  }
 
   // ---- cork notice board (cork + wooden frame), random substation notices ----
   const nb = new THREE.Group(); nb.position.set(6.91, 2.0, 5.8); nb.rotation.y = -Math.PI / 2; group.add(nb);
@@ -551,11 +557,14 @@ export function buildLevel2Design({ scene, hud }) {
   for (const y of [3.85, 3.62]) { const p = put(new THREE.CylinderGeometry(0.06, 0.06, 15.6, 8), pipeMat, 6.92, y, 0); p.rotation.x = Math.PI / 2; }
 
   // =========================== CEILING ===========================
+  if (includeCeiling) {
   const tubeMat = new THREE.MeshBasicMaterial({ color: 0xe6f2ff });
   [[-2.5, 2.0], [2.5, -2.0], [0, 6.0]].forEach(([x, z]) => {
     block(0.22, 0.08, 2.4, darkMetal, x, 4.1, z); block(0.1, 0.03, 2.2, tubeMat, x, 4.05, z);
   });
   for (const z of [-6, -2, 2, 6]) block(13.8, 0.2, 0.25, darkMetal, 0, 4.05, z);
+
+  }
 
   // =========================== FLOOR ===========================
   const grime = new THREE.MeshBasicMaterial({ map: T(floorGrimeTexture()), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });

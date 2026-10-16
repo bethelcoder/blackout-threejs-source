@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { sound } from '../systems/audio.js';
 import { buildRolledUpSchedule} from './roomBuilder.js';
+import { buildVentCover } from './ventCover.js';
 export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   const group = new THREE.Group();
   group.name = 'Maintenance vent route';
@@ -153,9 +154,13 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
     slat.rotation.x = -0.3;
   }
   const screws = [];
+  const originalGrille = grille.children.filter(mesh => mesh.name !== 'Grille backing');
   for (const x of [0.07, 1.23]) for (const y of [-0.5, 0.5]) {
     screws.push(box(grille, 'Retaining screw', x, y, 0.06, 0.07, 0.07, 0.035, black));
   }
+  const ventCover = buildVentCover({ parent: grille, onReady: () => {
+    originalGrille.forEach(mesh => { mesh.visible = false; });
+  } });
 
     // Rolled technician schedule, tucked just inside the duct — only reachable
   // once the grille has been fully unscrewed.
@@ -200,7 +205,7 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
     const removed = Math.floor(progress);
     while (removed > lastScrew) {
       screws[lastScrew].visible = false;
-      lastScrew = removed;
+      lastScrew++;
       sound.playSwitch();
     }
     if (progress === 4) { open = true; sound.playAccessGranted(); }
@@ -212,6 +217,7 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   group.updateMatrixWorld(true);
   const colliders = solidMeshes.map(mesh => new THREE.Box3().setFromObject(mesh));
   return {
+    ready: ventCover.ready,
     group, colliders,
     
     update(delta, camera) {
@@ -223,6 +229,7 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
       schedule.mesh.userData.interactable = paperExposed;
     },
     dispose() {
+      ventCover.dispose();
       group.removeFromParent();
       schedule.dispose();
       unitBox.dispose();

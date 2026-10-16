@@ -9,18 +9,18 @@ import { buildMaintenanceVent } from './maintenanceVent.js';
 import { buildNoticeBoard } from './noticeBoard.js';
 import { buildSecurityKeypad } from './securityKeypad.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
-import { buildSecurityCamera, createRoomSecurityView } from './securityCamera.js';
+import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 
 /**
  * LEVEL 1 — INFILTRATION
  * Environment: High-Voltage Substation Corridor
  */
-export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit }) {
+export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit, onCameraExposure, onPinStrike }) {
   const colliders = [];
   const cleanup = [];
 
   // Build the clean substation corridor with gaps
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5 });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5, backDoorOpening: { width: 2.4, height: 3.2 } });
   scene.add(room);
   colliders.push(...wallColliders);
 
@@ -291,6 +291,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
 
   // 2. Clock Riddle System (Left wall gap)
   const clockPuzzle = createClockPuzzle({ 
+    onPinStrike,
     scene, 
     colliders, 
     cleanup, 
@@ -305,7 +306,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(sparks);
   cleanup.push(() => scene.remove(sparks));
 
-  // High-mounted fixed wide-angle camera, looking into the room from above the doors.
+  // High-mounted camera sweeps a visible, narrower view across the room.
   const cctvCamera = createRoomSecurityView();
   const securityCamera = buildSecurityCamera();
   securityCamera.group.position.copy(cctvCamera.position);
@@ -316,11 +317,9 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   cameraStatus.position.copy(cctvCamera.position);
   scene.add(cameraStatus);
   cleanup.push(() => scene.remove(cameraStatus));
-  const securityFrustum = new THREE.Frustum();
-  securityFrustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cctvCamera.projectionMatrix, cctvCamera.matrixWorldInverse));
-  const sightRay = new THREE.Ray();
-  const sightDirection = new THREE.Vector3();
-  const obstruction = new THREE.Vector3();
+  const securitySweep = createSecuritySweep(cctvCamera, securityCamera.group, colliders);
+  scene.add(securitySweep.group);
+  cleanup.push(() => securitySweep.dispose());
 
   // Hazard stripe & Exit Door
   const hazardStrip = buildHazardStrip({ width: 4.0, depth: 0.8, position: [0, 0.01, -9.0] });
@@ -328,6 +327,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   cleanup.push(() => scene.remove(hazardStrip));
 
   const securityKeypad = buildSecurityKeypad({
+    onPinStrike,
     position: [2.0, 1.4, -9.85],
     rotation: [0, 0, 0],
     correctCode: '0451',
@@ -419,11 +419,10 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
 
     if (sparks.userData.update) sparks.userData.update(delta);
 
-    sightDirection.subVectors(camera.position, cctvCamera.position);
-    const distance = sightDirection.length();
-    sightRay.set(cctvCamera.position, sightDirection.normalize());
-    const hidden = colliders.some(box => !box.isEmpty() && sightRay.intersectBox(box, obstruction) && obstruction.distanceTo(cctvCamera.position) < distance - 0.35);
-    if (securityFrustum.containsPoint(camera.position) && !hidden) {
+    securitySweep.update(delta);
+    const cameraSeesPlayer = securitySweep.sees(camera.position);
+    onCameraExposure?.(delta, cameraSeesPlayer);
+    if (cameraSeesPlayer) {
       aiState.raise(28 * delta);
       warnTimer += delta;
       if (warnTimer > 0.35) {
@@ -431,6 +430,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
         warnTimer = 0;
       }
     } else {
+      warnTimer = 0;
       aiState.decay(8 * delta);
     }
   }

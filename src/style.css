@@ -19,6 +19,11 @@ html, body {
 
 .hidden { display: none !important; }
 
+#security-strikes { margin-top: 10px; font-size: 12px; color: #ffbe65; }
+#camera-exposure { margin-top: 8px; font-size: 12px; color: #ff775e; }
+#lose-screen h2 { color: #ff775e; }
+#lose-reason { color: #ffbe65; font-size: 13px; line-height: 1.6; }
+
 /* ---------- Loading screen ---------- */
 #loading-screen {
   position: fixed; inset: 0;

@@ -1,0 +1,2372 @@
+[
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight28/VenatorLight28_VenatorV3_SmallDoor_WallLight_0/VenatorLight28_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.6225448899357,
+      724.0984169770625
+    ],
+    "max": [
+      -688.9362573947815,
+      137.3831782609487,
+      800.8616718244762
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame3/Small_DoorFrame3_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame3_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      -690.3034383766624,
+      -135.51308042640375,
+      573.5290497074297
+    ],
+    "max": [
+      -662.8281962219205,
+      122.49662405394592,
+      801.6703903944508
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel18/WallPanel18_VenatorV3_WallPanels_0/WallPanel18_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      -1110.3440609466513,
+      -135.77934603339196,
+      422.2886995659824
+    ],
+    "max": [
+      -1104.3059446680368,
+      122.49662782810091,
+      498.8044672653429
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights9/VenatorLights9_VenatorV3_SmallDoor_WallLight_0/VenatorLights9_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -689.9890835416084,
+      -135.78545330052117,
+      800.7410622047073
+    ],
+    "max": [
+      -687.902393537786,
+      122.4966280435391,
+      877.2422393810959
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight23/VenatorLight23_VenatorV3_SmallDoor_WallLight_0/VenatorLight23_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993578,
+      346.5962859889371
+    ],
+    "max": [
+      -688.9362573947815,
+      137.3831782609488,
+      423.3595408363508
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel21/WallPanel21_VenatorV3_WallPanels_0/WallPanel21_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1111.2303223200608,
+      -135.7793497604723,
+      876.4268944211465
+    ],
+    "max": [
+      -1105.4392334041115,
+      122.49663176411035,
+      952.9283168164086
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame2/Small_DoorFrame2_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame2_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      -1134.6018466284022,
+      -135.51308042640375,
+      573.5290497074297
+    ],
+    "max": [
+      -1107.1266044736603,
+      122.49662405394592,
+      801.6703903944508
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel28/WallPanel28_VenatorV3_WallPanels_0/WallPanel28_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -691.6764471775995,
+      -135.7793497604723,
+      876.4268944211467
+    ],
+    "max": [
+      -685.8853582616503,
+      122.49663176411035,
+      952.9283168164088
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight29/VenatorLight29_VenatorV3_SmallDoor_WallLight_0/VenatorLight29_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993567,
+      799.7203746969146
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094868,
+      876.4836295443283
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel19/WallPanel19_VenatorV3_WallPanels_0/WallPanel19_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1111.2303223200608,
+      -135.77934976047231,
+      1027.5110038007795
+    ],
+    "max": [
+      -1105.4392334041115,
+      122.49663176411032,
+      1104.0124261960416
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door/Venator_Door_VenatorV3_SmallDoor_WallLight_0/Venator_Door_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      -667.791811903556,
+      -132.79945327837962,
+      611.7027270289636
+    ],
+    "max": [
+      -663.5159150806197,
+      87.7645016088748,
+      763.4976236487578
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight25/VenatorLight25_VenatorV3_SmallDoor_WallLight_0/VenatorLight25_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993575,
+      497.2068200500016
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094877,
+      573.9700748974153
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights7/VenatorLights7_VenatorV3_SmallDoor_WallLight_0/VenatorLights7_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -689.9890835416084,
+      -135.7854533005211,
+      497.90963192055654
+    ],
+    "max": [
+      -687.902393537786,
+      122.49662804353918,
+      574.4108090969453
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoorFrame1/LargeDoorFrame1_VenatorV3_LargeDoor_0/LargeDoorFrame1_VenatorV3_LargeDoor_0",
+    "points": 4096,
+    "min": [
+      -1159.0382206461811,
+      -135.9203088720833,
+      -200.70679349227453
+    ],
+    "max": [
+      -1107.022903660024,
+      122.39042288898081,
+      224.68407653386038
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part1/L_Door_Part1_VenatorV3_LargeDoor_0/L_Door_Part1_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -1107.115080493581,
+      -128.3704305353788,
+      -233.90021380769295
+    ],
+    "max": [
+      -765.7856886056904,
+      113.6584558630317,
+      -211.96440386066007
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoorFrame2/LargeDoorFrame2_VenatorV3_LargeDoor_0/LargeDoorFrame2_VenatorV3_LargeDoor_0",
+    "points": 4096,
+    "min": [
+      -1110.6383260658374,
+      -135.92030887208335,
+      -248.78251358810613
+    ],
+    "max": [
+      -685.2474560397027,
+      122.39042288898067,
+      -196.76719660194863
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part2/L_Door_Part2_VenatorV3_LargeDoor_0/L_Door_Part2_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -1030.1000840146846,
+      -128.3704305353788,
+      -233.90021380769292
+    ],
+    "max": [
+      -688.7707016119591,
+      113.6584558630317,
+      -211.96440386066004
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight7/VenatorLight7_VenatorV3_SmallDoor_WallLight_0/VenatorLight7_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -335.45700718705905,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -258.6937523396456,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight2/VenatorLight2_VenatorV3_SmallDoor_WallLight_0/VenatorLight2_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -259.99383112945725,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -183.2305762820438,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight1/VenatorLight1_VenatorV3_SmallDoor_WallLight_0/VenatorLight1_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -32.94344305498105,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      43.819811792432404,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight6/VenatorLight6_VenatorV3_SmallDoor_WallLight_0/VenatorLight6_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -411.0789838772412,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -334.3157290298278,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight10/VenatorLight10_VenatorV3_SmallDoor_WallLight_0/VenatorLight10_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      42.045114315901294,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      118.80836916331475,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight4/VenatorLight4_VenatorV3_SmallDoor_WallLight_0/VenatorLight4_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -562.1609306392522,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -485.39767579183876,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight5/VenatorLight5_VenatorV3_SmallDoor_WallLight_0/VenatorLight5_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -486.8854090861881,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -410.12215423877467,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight8/VenatorLight8_VenatorV3_SmallDoor_WallLight_0/VenatorLight8_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -637.4224520887631,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -560.6591972413496,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight9/VenatorLight9_VenatorV3_SmallDoor_WallLight_0/VenatorLight9_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      117.66709100608347,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      194.43034585349693,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight3/VenatorLight3_VenatorV3_SmallDoor_WallLight_0/VenatorLight3_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -184.3718544392751,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -107.60859959186163,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part5/L_Door_Part5_VenatorV3_LargeDoor_0/L_Door_Part5_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      208.17620917420783,
+      -128.37043053537866,
+      -445.83145753148165
+    ],
+    "max": [
+      230.1120191212405,
+      113.65845586303189,
+      -104.5020656435909
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoorFrame4/LargeDoorFrame4_VenatorV3_LargeDoor_0/LargeDoorFrame4_VenatorV3_LargeDoor_0",
+    "points": 4096,
+    "min": [
+      192.97900191549644,
+      -135.9203088720833,
+      -200.70679349227453
+    ],
+    "max": [
+      244.99431890165368,
+      122.3904228889808,
+      224.68407653386038
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part6/L_Door_Part6_VenatorV3_LargeDoor_0/L_Door_Part6_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      208.17620917420783,
+      -128.3704305353788,
+      128.4793581703418
+    ],
+    "max": [
+      230.1120191212405,
+      113.65845586303178,
+      469.80874057306755
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door1/Venator_Door1_VenatorV3_SmallDoor_WallLight_0/Venator_Door1_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      -297.78415997930836,
+      -132.7994532783794,
+      -223.71001052411177
+    ],
+    "max": [
+      -145.9892633595143,
+      87.76450160887498,
+      -219.4341137011754
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoorFrame/LargeDoorFrame_VenatorV3_LargeDoor_0/LargeDoorFrame_VenatorV3_LargeDoor_0",
+    "points": 4096,
+    "min": [
+      -689.2187238959934,
+      -135.9203088720833,
+      -200.70679349227453
+    ],
+    "max": [
+      -637.2034069098362,
+      122.39042288898081,
+      224.68407653386038
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight/VenatorLight_VenatorV3_SmallDoor_WallLight_0/VenatorLight_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -108.56541974516324,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -31.802164897749776,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame/Small_DoorFrame_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      -335.95789421183235,
+      -135.51308042640352,
+      -224.397729382811
+    ],
+    "max": [
+      -107.81655352481131,
+      122.4966240539461,
+      -196.92248722806903
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe/VenatorPipe_VenatorV3_SmallDoor_WallLight_0/VenatorPipe_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      -503.11315581350556,
+      -135.8932731640513,
+      -187.98754862287052
+    ],
+    "max": [
+      -482.3942453654227,
+      122.19392048031592,
+      -167.26859219624887
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part7/L_Door_Part7_VenatorV3_LargeDoor_0/L_Door_Part7_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -674.021516637282,
+      -128.37043053537866,
+      -445.83145753148165
+    ],
+    "max": [
+      -652.0857066902494,
+      113.6584558630319,
+      -104.5020656435909
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoor_End/LargeDoor_End_VenatorV3_LargeDoor_0/LargeDoor_End_VenatorV3_LargeDoor_0",
+    "points": 2136,
+    "min": [
+      1073.993700006406,
+      -135.92030887208333,
+      -200.7067934922745
+    ],
+    "max": [
+      1100.2407450939813,
+      122.3904228889808,
+      224.6840765338604
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part8/L_Door_Part8_VenatorV3_LargeDoor_0/L_Door_Part8_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -674.021516637282,
+      -128.3704305353788,
+      128.4793581703418
+    ],
+    "max": [
+      -652.0857066902494,
+      113.65845586303178,
+      469.80874057306755
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel6/WallPanel6_VenatorV3_WallPanels_0/WallPanel6_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -638.4499765364086,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      -561.9487380553015,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel8/WallPanel8_VenatorV3_WallPanels_0/WallPanel8_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -562.9251762669298,
+      -135.77934976047203,
+      -197.79650882054437
+    ],
+    "max": [
+      -486.4226503867371,
+      122.49663176411059,
+      -194.18400568125168
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights11/VenatorLights11_VenatorV3_SmallDoor_WallLight_0/VenatorLights11_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -411.7031232273848,
+      -135.78545330052103,
+      220.21510958530288
+    ],
+    "max": [
+      -335.20191539863697,
+      122.49662804353923,
+      222.30179958912535
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel7/WallPanel7_VenatorV3_WallPanels_0/WallPanel7_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -487.3658978091348,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      -410.86462867566854,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel34/WallPanel34_VenatorV3_WallPanels_0/WallPanel34_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -562.9251762669298,
+      -135.77934976047212,
+      217.47666511646744
+    ],
+    "max": [
+      -486.4226503867371,
+      122.49663176411049,
+      221.08916825576014
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights13/VenatorLights13_VenatorV3_SmallDoor_WallLight_0/VenatorLights13_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -108.85955123431432,
+      -135.78545330052103,
+      220.21510958530288
+    ],
+    "max": [
+      -32.358370226380735,
+      122.49662804353923,
+      222.30179958912535
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel33/WallPanel33_VenatorV3_WallPanels_0/WallPanel33_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -638.4499765364086,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      -561.9487380553015,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights1/VenatorLights1_VenatorV3_SmallDoor_WallLight_0/VenatorLights1_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -411.7031232273848,
+      -135.78545330052094,
+      -199.00913812437045
+    ],
+    "max": [
+      -335.20191539863697,
+      122.49662804353933,
+      -196.9224787729072
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel36/WallPanel36_VenatorV3_WallPanels_0/WallPanel36_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -487.3658978091348,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      -410.86462867566854,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights/VenatorLights_VenatorV3_SmallDoor_WallLight_0/VenatorLights_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -108.85955123431432,
+      -135.78545330052094,
+      -199.00913812437045
+    ],
+    "max": [
+      -32.358370226380735,
+      122.49662804353933,
+      -196.9224787729072
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight36/VenatorLight36_VenatorV3_SmallDoor_WallLight_0/VenatorLight36_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -764.5181618134196,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -687.7549069660062,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight35/VenatorLight35_VenatorV3_SmallDoor_WallLight_0/VenatorLight35_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -840.3245870223665,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -763.561332174953,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight33/VenatorLight33_VenatorV3_SmallDoor_WallLight_0/VenatorLight33_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -990.8616679656014,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -914.098413118188,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight34/VenatorLight34_VenatorV3_SmallDoor_WallLight_0/VenatorLight34_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -915.6000706347705,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -838.8368157873571,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight40/VenatorLight40_VenatorV3_SmallDoor_WallLight_0/VenatorLight40_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1687.5513631105896,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1610.7881082631761,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel51/WallPanel51_VenatorV3_WallPanels_0/WallPanel51_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1990.7021174821552,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      -1914.2006950868931,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights5/VenatorLights5_VenatorV3_SmallDoor_WallLight_0/VenatorLights5_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -1763.9320065485294,
+      -135.78545330052094,
+      -199.00913812437045
+    ],
+    "max": [
+      -1687.4308293721408,
+      122.49662804353933,
+      -196.9224787729072
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight24/VenatorLight24_VenatorV3_SmallDoor_WallLight_0/VenatorLight24_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1385.0378843449967,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1308.2746294975832,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight41/VenatorLight41_VenatorV3_SmallDoor_WallLight_0/VenatorLight41_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1310.0493080037843,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1233.2860531563708,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight19/VenatorLight19_VenatorV3_SmallDoor_WallLight_0/VenatorLight19_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      395.18098513058743,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      471.94423997800084,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight21/VenatorLight21_VenatorV3_SmallDoor_WallLight_0/VenatorLight21_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      244.64394212801247,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      321.4071969754259,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight11/VenatorLight11_VenatorV3_SmallDoor_WallLight_0/VenatorLight11_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      999.733532648684,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      1076.4967874960976,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight39/VenatorLight39_VenatorV3_SmallDoor_WallLight_0/VenatorLight39_VenatorV3_SmallDoor_WallLight_0",
+    "points": 16,
+    "min": [
+      -1107.4668217509702,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1065.615653072791,
+      122.45223018817853,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight38/VenatorLight38_VenatorV3_SmallDoor_WallLight_0/VenatorLight38_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1066.4816527711316,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -989.7183979237183,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights18/VenatorLights18_VenatorV3_SmallDoor_WallLight_0/VenatorLights18_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -1461.1004624423988,
+      -135.78545330052103,
+      220.21510958530288
+    ],
+    "max": [
+      -1384.59928526601,
+      122.49662804353923,
+      222.30179958912535
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part9/L_Door_Part9_VenatorV3_LargeDoor_0/L_Door_Part9_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -1143.8410133874697,
+      -128.37043053537866,
+      -445.83145753148165
+    ],
+    "max": [
+      -1121.9052034404372,
+      113.65845586303189,
+      -104.5020656435909
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part10/L_Door_Part10_VenatorV3_LargeDoor_0/L_Door_Part10_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -1143.8410133874697,
+      -128.3704305353788,
+      128.4793581703418
+    ],
+    "max": [
+      -1121.9052034404372,
+      113.65845586303178,
+      469.80874057306755
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part11/L_Door_Part11_VenatorV3_LargeDoor_0/L_Door_Part11_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -1355.7629901050445,
+      -128.3704305353789,
+      235.6402578434255
+    ],
+    "max": [
+      -1014.4335982171538,
+      113.6584558630316,
+      257.57606779045835
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/L_Door_Part12/L_Door_Part12_VenatorV3_LargeDoor_0/L_Door_Part12_VenatorV3_LargeDoor_0",
+    "points": 132,
+    "min": [
+      -781.4521744032212,
+      -128.3704305353789,
+      235.64025784342553
+    ],
+    "max": [
+      -440.1227920004955,
+      113.6584558630316,
+      257.5760677904584
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoorFrame3/LargeDoorFrame3_VenatorV3_LargeDoor_0/LargeDoorFrame3_VenatorV3_LargeDoor_0",
+    "points": 4096,
+    "min": [
+      -1110.6383260658374,
+      -135.92030887208344,
+      220.75795806301232
+    ],
+    "max": [
+      -685.2474560397027,
+      122.39042288898057,
+      272.7732750491698
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/pPlane28/pPlane28_Venator_Floor_0/pPlane28_Venator_Floor_0",
+    "points": 4,
+    "min": [
+      -1993.4375995068788,
+      -135.24506946025886,
+      -199.11617400351074
+    ],
+    "max": [
+      1085.2996372905125,
+      -135.24506946025875,
+      222.2611812413834
+    ],
+    "material": "/scene/Materials/Venator_Floor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe3/VenatorPipe3_VenatorV3_SmallDoor_WallLight_0/VenatorPipe3_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      -715.8425207090963,
+      -135.89327316405155,
+      963.6977728579255
+    ],
+    "max": [
+      -695.1235642824747,
+      122.19392048031567,
+      984.4166833060083
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel15/WallPanel15_VenatorV3_WallPanels_0/WallPanel15_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1111.2303223200608,
+      -135.77934976047214,
+      271.31897152144387
+    ],
+    "max": [
+      -1105.4392334041115,
+      122.49663176411048,
+      347.82027130726937
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight42/VenatorLight42_VenatorV3_SmallDoor_WallLight_0/VenatorLight42_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993575,
+      421.58486233014946
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094877,
+      498.34811717756315
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door2/Venator_Door2_VenatorV3_SmallDoor_WallLight_0/Venator_Door2_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      -1133.914127769703,
+      -132.79945327837962,
+      611.7017405718027
+    ],
+    "max": [
+      -1129.6382309467667,
+      87.7645016088748,
+      763.4966371915968
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight22/VenatorLight22_VenatorV3_SmallDoor_WallLight_0/VenatorLight22_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993581,
+      270.97432826908494
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094882,
+      347.7375831164986
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel26/WallPanel26_VenatorV3_WallPanels_0/WallPanel26_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      -692.809747141399,
+      -135.77934603339196,
+      422.2886995659826
+    ],
+    "max": [
+      -686.7716308627845,
+      122.49662782810091,
+      498.8044672653431
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight30/VenatorLight30_VenatorV3_SmallDoor_WallLight_0/VenatorLight30_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993567,
+      875.5268757871816
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094868,
+      952.2901306345952
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel23/WallPanel23_VenatorV3_WallPanels_0/WallPanel23_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -691.6764471775995,
+      -135.77934976047214,
+      271.31897152144404
+    ],
+    "max": [
+      -685.8853582616503,
+      122.49663176411048,
+      347.82027130726954
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel20/WallPanel20_VenatorV3_WallPanels_0/WallPanel20_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -1108.0006450364656,
+      -135.77934976047231,
+      951.9848781915549
+    ],
+    "max": [
+      -1104.388141897173,
+      122.49663176411033,
+      1028.4875266811844
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel16/WallPanel16_VenatorV3_WallPanels_0/WallPanel16_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -1108.0006450364656,
+      -135.77934976047217,
+      346.87707790128906
+    ],
+    "max": [
+      -1104.388141897173,
+      122.49663176411046,
+      423.379603781482
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight31/VenatorLight31_VenatorV3_SmallDoor_WallLight_0/VenatorLight31_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993564,
+      950.8023593995856
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094865,
+      1027.565614246999
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight27/VenatorLight27_VenatorV3_SmallDoor_WallLight_0/VenatorLight27_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993572,
+      648.6352788601207
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094874,
+      725.3985337075344
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel31/WallPanel31_VenatorV3_WallPanels_0/WallPanel31_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -691.6764471775995,
+      -135.77934976047231,
+      1027.5110038007797
+    ],
+    "max": [
+      -685.8853582616503,
+      122.49663176411032,
+      1104.0124261960418
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel29/WallPanel29_VenatorV3_WallPanels_0/WallPanel29_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -692.7275090401138,
+      -135.77934976047231,
+      951.9848781915551
+    ],
+    "max": [
+      -689.1150059008212,
+      122.49663176411033,
+      1028.4875266811846
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight26/VenatorLight26_VenatorV3_SmallDoor_WallLight_0/VenatorLight26_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993572,
+      573.0132831996085
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094874,
+      649.7765380470222
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights19/VenatorLights19_VenatorV3_SmallDoor_WallLight_0/VenatorLights19_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -1109.2132933106218,
+      -135.78545330052117,
+      800.7410622047071
+    ],
+    "max": [
+      -1107.1266339591584,
+      122.4966280435391,
+      877.2422393810957
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoor_End1/LargeDoor_End1_VenatorV3_LargeDoor_0/LargeDoor_End1_VenatorV3_LargeDoor_0",
+    "points": 2136,
+    "min": [
+      -1110.9109676488556,
+      -135.92030887208352,
+      1102.7074950468773
+    ],
+    "max": [
+      -685.5200976227209,
+      122.3904228889805,
+      1128.9545401344526
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel24/WallPanel24_VenatorV3_WallPanels_0/WallPanel24_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -692.7275090401138,
+      -135.77934976047217,
+      346.8770779012892
+    ],
+    "max": [
+      -689.1150059008212,
+      122.49663176411046,
+      423.37960378148216
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe2/VenatorPipe2_VenatorV3_SmallDoor_WallLight_0/VenatorPipe2_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      -1098.1917227794518,
+      -135.89327316405144,
+      361.5748693272096
+    ],
+    "max": [
+      -1077.4727663528301,
+      122.19392048031581,
+      382.2937797752926
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight32/VenatorLight32_VenatorV3_SmallDoor_WallLight_0/VenatorLight32_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1107.569626858386,
+      120.62254488993564,
+      1026.0638808490964
+    ],
+    "max": [
+      -688.9362573947815,
+      137.38317826094865,
+      1102.82713569651
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights4/VenatorLights4_VenatorV3_SmallDoor_WallLight_0/VenatorLights4_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -1109.2132933106218,
+      -135.7854533005211,
+      497.90963192055636
+    ],
+    "max": [
+      -1107.1266339591584,
+      122.49662804353918,
+      574.4108090969451
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame1/Small_DoorFrame1_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame1_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      546.0573559952147,
+      -135.51308042640352,
+      -224.397729382811
+    ],
+    "max": [
+      774.1986966822358,
+      122.4966240539461,
+      -196.92248722806903
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door3/Venator_Door3_VenatorV3_SmallDoor_WallLight_0/Venator_Door3_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      584.2311091980687,
+      -132.7994532783794,
+      -223.71001052411177
+    ],
+    "max": [
+      736.0260058178628,
+      87.76450160887498,
+      -219.4341137011754
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe1/VenatorPipe1_VenatorV3_SmallDoor_WallLight_0/VenatorPipe1_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      14.40713380132989,
+      -135.89327316405138,
+      192.52803825893852
+    ],
+    "max": [
+      35.12604424941271,
+      122.19392048031584,
+      213.24699468556017
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights3/VenatorLights3_VenatorV3_SmallDoor_WallLight_0/VenatorLights3_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      773.1736967244831,
+      -135.78545330052094,
+      -199.00913812437045
+    ],
+    "max": [
+      849.6748125961534,
+      122.49662804353933,
+      -196.9224787729072
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door4/Venator_Door4_VenatorV3_SmallDoor_WallLight_0/Venator_Door4_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      584.2301227409077,
+      -132.7994532783795,
+      242.41236225302518
+    ],
+    "max": [
+      736.0250193607019,
+      87.7645016088749,
+      246.68825907596167
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door5/Venator_Door5_VenatorV3_SmallDoor_WallLight_0/Venator_Door5_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      -297.7851843771293,
+      -132.7994532783795,
+      242.41236225302518
+    ],
+    "max": [
+      -145.99028775733527,
+      87.7645016088749,
+      246.68825907596167
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame4/Small_DoorFrame4_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame4_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      -335.95789421183235,
+      -135.51308042640363,
+      219.90073577991876
+    ],
+    "max": [
+      -107.81655352481128,
+      122.49662405394602,
+      247.37597793466097
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel2/WallPanel2_VenatorV3_WallPanels_0/WallPanel2_VenatorV3_WallPanels_0",
+    "points": 1725,
+    "min": [
+      114.86268720917167,
+      -136.32476644962534,
+      -197.8275140491712
+    ],
+    "max": [
+      196.2933767895605,
+      138.9903251291586,
+      -167.4360370940053
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel12/WallPanel12_VenatorV3_WallPanels_0/WallPanel12_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      395.05115127599356,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      471.55245106181906,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel46/WallPanel46_VenatorV3_WallPanels_0/WallPanel46_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      395.05115127599356,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      471.55245106181906,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel5/WallPanel5_VenatorV3_WallPanels_0/WallPanel5_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -33.57901582986598,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      42.92228395595946,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel42/WallPanel42_VenatorV3_WallPanels_0/WallPanel42_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      319.64146555241933,
+      -135.77934976047212,
+      217.47666511646744
+    ],
+    "max": [
+      396.1440220849713,
+      122.49663176411049,
+      221.08916825576014
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel40/WallPanel40_VenatorV3_WallPanels_0/WallPanel40_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      42.052418761798776,
+      -135.77934603339187,
+      217.39439855968757
+    ],
+    "max": [
+      118.56830907059589,
+      122.49662782810096,
+      223.43251483830218
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights15/VenatorLights15_VenatorV3_SmallDoor_WallLight_0/VenatorLights15_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      470.51041215731084,
+      -135.78545330052103,
+      220.21510958530288
+    ],
+    "max": [
+      547.0116199860587,
+      122.49662804353923,
+      222.30179958912535
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame5/Small_DoorFrame5_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame5_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      546.0573559952147,
+      -135.51308042640363,
+      219.90073577991876
+    ],
+    "max": [
+      774.1986966822358,
+      122.49662405394602,
+      247.37597793466097
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel4/WallPanel4_VenatorV3_WallPanels_0/WallPanel4_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      42.052418761798776,
+      -135.7793460333918,
+      -200.13988204748716
+    ],
+    "max": [
+      118.56830907059589,
+      122.49662782810105,
+      -194.10176576887255
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel38/WallPanel38_VenatorV3_WallPanels_0/WallPanel38_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -33.57901582986598,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      42.92228395595946,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights2/VenatorLights2_VenatorV3_SmallDoor_WallLight_0/VenatorLights2_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      470.51041215731084,
+      -135.78545330052094,
+      -199.00913812437045
+    ],
+    "max": [
+      547.0116199860587,
+      122.49662804353933,
+      -196.9224787729072
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel41/WallPanel41_VenatorV3_WallPanels_0/WallPanel41_VenatorV3_WallPanels_0",
+    "points": 1725,
+    "min": [
+      114.86268720917167,
+      -136.32476644962543,
+      190.72866988482028
+    ],
+    "max": [
+      196.2933767895605,
+      138.99032512915852,
+      221.12014683998623
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel10/WallPanel10_VenatorV3_WallPanels_0/WallPanel10_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      319.64146555241933,
+      -135.77934976047203,
+      -197.79650882054437
+    ],
+    "max": [
+      396.1440220849713,
+      122.49663176411059,
+      -194.18400568125168
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel44/WallPanel44_VenatorV3_WallPanels_0/WallPanel44_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      243.93232619242772,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      320.4336259782532,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel11/WallPanel11_VenatorV3_WallPanels_0/WallPanel11_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      243.93232619242772,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      320.4336259782532,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel50/WallPanel50_VenatorV3_WallPanels_0/WallPanel50_VenatorV3_WallPanels_0",
+    "points": 1725,
+    "min": [
+      996.2021675328622,
+      -136.32476644962543,
+      190.72866988482028
+    ],
+    "max": [
+      1077.632857113251,
+      138.99032512915852,
+      221.12014683998623
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel14/WallPanel14_VenatorV3_WallPanels_0/WallPanel14_VenatorV3_WallPanels_0",
+    "points": 1725,
+    "min": [
+      996.2021675328622,
+      -136.32476644962534,
+      -197.8275140491712
+    ],
+    "max": [
+      1077.632857113251,
+      138.9903251291586,
+      -167.4360370940053
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel9/WallPanel9_VenatorV3_WallPanels_0/WallPanel9_VenatorV3_WallPanels_0",
+    "points": 1729,
+    "min": [
+      845.6974587600945,
+      -136.32476644962534,
+      -197.8275140491712
+    ],
+    "max": [
+      927.1281483404833,
+      138.9903251291586,
+      -167.4360370940053
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel47/WallPanel47_VenatorV3_WallPanels_0/WallPanel47_VenatorV3_WallPanels_0",
+    "points": 1729,
+    "min": [
+      845.6974587600945,
+      -136.32476644962543,
+      190.72866988482028
+    ],
+    "max": [
+      927.1281483404833,
+      138.99032512915852,
+      221.12014683998623
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel49/WallPanel49_VenatorV3_WallPanels_0/WallPanel49_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      923.4604520690291,
+      -135.77934603339187,
+      217.39439855968757
+    ],
+    "max": [
+      999.9763423778262,
+      122.49662782810096,
+      223.43251483830218
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights17/VenatorLights17_VenatorV3_SmallDoor_WallLight_0/VenatorLights17_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      773.1736967244831,
+      -135.78545330052103,
+      220.21510958530288
+    ],
+    "max": [
+      849.6748125961534,
+      122.49662804353923,
+      222.30179958912535
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel13/WallPanel13_VenatorV3_WallPanels_0/WallPanel13_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      923.4604520690291,
+      -135.7793460333918,
+      -200.13988204748716
+    ],
+    "max": [
+      999.9763423778262,
+      122.49662782810105,
+      -194.10176576887255
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/pPlane29/pPlane29_Venator_Floor_0/pPlane29_Venator_Floor_0",
+    "points": 4,
+    "min": [
+      -1109.2279199696632,
+      -135.24506946025906,
+      248.7348129659512
+    ],
+    "max": [
+      -687.8505647247684,
+      -135.24506946025886,
+      1112.832643703905
+    ],
+    "material": "/scene/Materials/Venator_Floor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight20/VenatorLight20_VenatorV3_SmallDoor_WallLight_0/VenatorLight20_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      319.90550151818337,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      396.6687563655968,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight16/VenatorLight16_VenatorV3_SmallDoor_WallLight_0/VenatorLight16_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      622.0725820576482,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      698.8358369050617,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight18/VenatorLight18_VenatorV3_SmallDoor_WallLight_0/VenatorLight18_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      470.9874103395343,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      547.7506651869477,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights20/VenatorLights20_VenatorV3_SmallDoor_WallLight_0/VenatorLights20_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -1763.9320065485294,
+      -135.78545330052103,
+      220.21510958530288
+    ],
+    "max": [
+      -1687.4308293721408,
+      122.49662804353923,
+      222.30179958912535
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe5/VenatorPipe5_VenatorV3_SmallDoor_WallLight_0/VenatorPipe5_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      368.7476561415255,
+      -135.8932731640513,
+      -187.98754862287052
+    ],
+    "max": [
+      389.46656658960836,
+      122.19392048031592,
+      -167.26859219624887
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe4/VenatorPipe4_VenatorV3_SmallDoor_WallLight_0/VenatorPipe4_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      745.7293930365981,
+      -135.89327316405138,
+      192.52803825893852
+    ],
+    "max": [
+      766.4483034846809,
+      122.19392048031584,
+      213.24699468556017
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight17/VenatorLight17_VenatorV3_SmallDoor_WallLight_0/VenatorLight17_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      546.6094060000464,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      623.3726608474599,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight12/VenatorLight12_VenatorV3_SmallDoor_WallLight_0/VenatorLight12_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      924.1114990475118,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      1000.8747538949252,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight15/VenatorLight15_VenatorV3_SmallDoor_WallLight_0/VenatorLight15_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      697.6945397775004,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      774.4577946249138,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight14/VenatorLight14_VenatorV3_SmallDoor_WallLight_0/VenatorLight14_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      773.5009649864472,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      850.2642198338607,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight13/VenatorLight13_VenatorV3_SmallDoor_WallLight_0/VenatorLight13_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      849.1229985876195,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      925.8862534350329,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame6/Small_DoorFrame6_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame6_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      -1688.3600816805645,
+      -135.51308042640363,
+      219.90073577991876
+    ],
+    "max": [
+      -1460.2187409935434,
+      122.49662405394602,
+      247.37597793466097
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door6/Venator_Door6_VenatorV3_SmallDoor_WallLight_0/Venator_Door6_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      -1650.1873149348714,
+      -132.7994532783795,
+      242.41236225302518
+    ],
+    "max": [
+      -1498.3924183150773,
+      87.7645016088749,
+      246.68825907596167
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight43/VenatorLight43_VenatorV3_SmallDoor_WallLight_0/VenatorLight43_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1838.9798219207087,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1762.2165670732952,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight44/VenatorLight44_VenatorV3_SmallDoor_WallLight_0/VenatorLight44_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1234.427274402612,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1157.6640195551986,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight45/VenatorLight45_VenatorV3_SmallDoor_WallLight_0/VenatorLight45_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1536.4661913924756,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1459.7029365450621,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/LargeDoor_End2/LargeDoor_End2_VenatorV3_LargeDoor_0/LargeDoor_End2_VenatorV3_LargeDoor_0",
+    "points": 2136,
+    "min": [
+      -2015.6443073018866,
+      -135.92030887208324,
+      -200.70678637840024
+    ],
+    "max": [
+      -1989.3972622143108,
+      122.3904228889809,
+      224.68408364773472
+    ],
+    "material": "/scene/Materials/VenatorV3_LargeDoor"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel52/WallPanel52_VenatorV3_WallPanels_0/WallPanel52_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -1915.177293848618,
+      -135.77934976047212,
+      217.47666511646744
+    ],
+    "max": [
+      -1838.6746453589888,
+      122.49663176411049,
+      221.08916825576014
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLights21/VenatorLights21_VenatorV3_SmallDoor_WallLight_0/VenatorLights21_VenatorV3_SmallDoor_WallLight_0",
+    "points": 7338,
+    "min": [
+      -1461.1004624423988,
+      -135.78545330052094,
+      -199.00913812437045
+    ],
+    "max": [
+      -1384.59928526601,
+      122.49662804353933,
+      -196.9224787729072
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight46/VenatorLight46_VenatorV3_SmallDoor_WallLight_0/VenatorLight46_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1989.5168269826236,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1912.75357213521,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight47/VenatorLight47_VenatorV3_SmallDoor_WallLight_0/VenatorLight47_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1460.6598420648488,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1383.8965872174354,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel53/WallPanel53_VenatorV3_WallPanels_0/WallPanel53_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -1310.0693709489155,
+      -135.77934976047212,
+      217.47666511646744
+    ],
+    "max": [
+      -1233.5668450687228,
+      122.49663176411049,
+      221.08916825576014
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe6/VenatorPipe6_VenatorV3_SmallDoor_WallLight_0/VenatorPipe6_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      -1871.106374592122,
+      -135.89327316405138,
+      194.36161550682488
+    ],
+    "max": [
+      -1850.387464144039,
+      122.19392048031584,
+      215.08057193344652
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel54/WallPanel54_VenatorV3_WallPanels_0/WallPanel54_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      -1385.4941964921168,
+      -135.77934603339187,
+      217.39439855968757
+    ],
+    "max": [
+      -1308.9784287927564,
+      122.49662782810096,
+      223.43251483830218
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel55/WallPanel55_VenatorV3_WallPanels_0/WallPanel55_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1234.509962593383,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      -1158.0086628075576,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight48/VenatorLight48_VenatorV3_SmallDoor_WallLight_0/VenatorLight48_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1914.2553055331127,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1837.4920506856993,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel56/WallPanel56_VenatorV3_WallPanels_0/WallPanel56_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -1310.0693709489155,
+      -135.77934976047203,
+      -197.79650882054437
+    ],
+    "max": [
+      -1233.5668450687228,
+      122.49663176411059,
+      -194.18400568125168
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel57/WallPanel57_VenatorV3_WallPanels_0/WallPanel57_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1234.509962593383,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      -1158.0086628075576,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Small_DoorFrame7/Small_DoorFrame7_VenatorV3_SmallDoor_WallLight_0/Small_DoorFrame7_VenatorV3_SmallDoor_WallLight_0",
+    "points": 8586,
+    "min": [
+      -1688.3600816805645,
+      -135.51308042640352,
+      -224.397729382811
+    ],
+    "max": [
+      -1460.2187409935434,
+      122.4966240539461,
+      -196.92248722806903
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorPipe7/VenatorPipe7_VenatorV3_SmallDoor_WallLight_0/VenatorPipe7_VenatorV3_SmallDoor_WallLight_0",
+    "points": 210,
+    "min": [
+      -1268.9834710614061,
+      -135.8932731640513,
+      -187.98754862287052
+    ],
+    "max": [
+      -1248.2645606133233,
+      122.19392048031592,
+      -167.26859219624887
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/Venator_Door7/Venator_Door7_VenatorV3_SmallDoor_WallLight_0/Venator_Door7_VenatorV3_SmallDoor_WallLight_0",
+    "points": 1033,
+    "min": [
+      -1650.1864043590306,
+      -132.7994532783794,
+      -223.71001052411177
+    ],
+    "max": [
+      -1498.3915077392364,
+      87.76450160887498,
+      -219.4341137011754
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight49/VenatorLight49_VenatorV3_SmallDoor_WallLight_0/VenatorLight49_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1612.0881491123278,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1535.3248942649143,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel58/WallPanel58_VenatorV3_WallPanels_0/WallPanel58_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1839.6180081025223,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      -1763.1165857072601,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel59/WallPanel59_VenatorV3_WallPanels_0/WallPanel59_VenatorV3_WallPanels_0",
+    "points": 508,
+    "min": [
+      -1915.177293848618,
+      -135.77934976047203,
+      -197.79650882054437
+    ],
+    "max": [
+      -1838.6746453589888,
+      122.49663176411059,
+      -194.18400568125168
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel60/WallPanel60_VenatorV3_WallPanels_0/WallPanel60_VenatorV3_WallPanels_0",
+    "points": 1630,
+    "min": [
+      -1385.4941964921168,
+      -135.7793460333918,
+      -200.13988204748716
+    ],
+    "max": [
+      -1308.9784287927564,
+      122.49662782810105,
+      -194.10176576887255
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/VenatorLight50/VenatorLight50_VenatorV3_SmallDoor_WallLight_0/VenatorLight50_VenatorV3_SmallDoor_WallLight_0",
+    "points": 52,
+    "min": [
+      -1763.1733208304418,
+      120.62254488993582,
+      -197.36549775633853
+    ],
+    "max": [
+      -1686.4100659830283,
+      137.38317826094894,
+      221.26787170726607
+    ],
+    "material": "/scene/Materials/VenatorV3_SmallDoor_WallLight"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel61/WallPanel61_VenatorV3_WallPanels_0/WallPanel61_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1990.7021174821552,
+      -135.77934976047212,
+      218.52770800865179
+    ],
+    "max": [
+      -1914.2006950868931,
+      122.49663176411049,
+      224.31879692460106
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/PreviewSet_fbx/RootNode/VenatorPrefabSet/WallPanel62/WallPanel62_VenatorV3_WallPanels_0/WallPanel62_VenatorV3_WallPanels_0",
+    "points": 1072,
+    "min": [
+      -1839.6180081025223,
+      -135.77934976047203,
+      -201.0261291931495
+    ],
+    "max": [
+      -1763.1165857072601,
+      122.49663176411059,
+      -195.23504027720023
+    ],
+    "material": "/scene/Materials/VenatorV3_WallPanels"
+  }
+]

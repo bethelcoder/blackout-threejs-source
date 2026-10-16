@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PlayerControls } from './systems/playerControls.js';
 import { AIState } from './systems/aiState.js';
+import { SecurityRun } from './systems/securityRun.js';
 import { InteractionSystem } from './systems/interaction.js';
 import { HUD } from './systems/hud.js';
 import { Terminal } from './systems/terminal.js';
@@ -10,6 +11,7 @@ import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
+import { preloadLevel2Models } from './systems/modelCache.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 // ---------- Renderer / scene / camera ----------
@@ -18,6 +20,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.localClippingEnabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -72,6 +75,7 @@ const loadingBarFill = el('loading-bar-fill');
 const loadingLabel = el('loading-label');
 const mainMenu = el('main-menu');
 const pauseMenu = el('pause-menu');
+const loseScreen = el('lose-screen');
 const creditsScreen = el('credits-screen');
 const hudRoot = el('hud');
 const interactPrompt = el('interact-prompt');
@@ -107,6 +111,7 @@ const terminal = new Terminal({
 
 
 function loadPlayerModel() {
+  const modelGeneration = loadGeneration;
   // Clean up the previous model and its animation mixer.
   if (playerMixer) {
     playerMixer.stopAllAction();
@@ -125,6 +130,7 @@ function loadPlayerModel() {
     '/models/player.glb',
 
     (gltf) => {
+      if (modelGeneration !== loadGeneration) return;
       const model = gltf.scene;
 
       model.traverse((object) => {
@@ -316,8 +322,45 @@ let currentLevel = null;
 let currentLevelIndex = 0;
 let gameEnded = false;
 let advanceTimeout = null;
+let levelLoading = false;
+let loadGeneration = 0;
+const securityRun = new SecurityRun({
+  onChange: ({ strikes, exposure }) => {
+    el('security-strikes').textContent = `STRIKES: ${strikes} / 3`;
+    const warning = el('camera-exposure');
+    warning.classList.toggle('hidden', exposure === 0);
+    warning.textContent = `CAMERA EXPOSURE: ${exposure.toFixed(1)} / 3.0 s — find cover!`;
+  },
+  onStrike: (source) => {
+    playerControls.teleport(currentLevel.spawn);
+    previousPlayerPosition.copy(camera.position);
+    aiState.reset();
+    interaction.reset();
+    const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : 'Laser triggered';
+    hud.setObjective(`${reason} — strike ${securityRun.strikes} of 3. Back at the entrance; 3 seconds to recover. ${currentLevel.objective}`);
+  },
+  onLose: (source) => {
+    gameEnded = true;
+    clearTimeout(advanceTimeout);
+    hud.resetLevelComplete();
+    terminal.close();
+    interaction.reset();
+    playerControls.enabled = false;
+    playerControls.unlock();
+    el('lose-reason').textContent = source.endsWith('-pin')
+      ? 'Four incorrect PIN attempts caused your third strike. Check the clues before submitting another code.'
+      : source === 'camera'
+      ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
+      : 'A laser caused your third strike. Jump low beams and duck under high beams.';
+    showOnly(loseScreen);
+    el('btn-retry-level').focus();
+  },
+});
 
 function clearScene() {
+  loadGeneration++;
+  levelLoading = false;
+  loadingScreen.classList.add('hidden');
   clearTimeout(advanceTimeout);
   interaction.reset();
   playerControls.enabled = true;
@@ -329,14 +372,46 @@ function clearScene() {
   }
 }
 
-function loadLevel(index, entry = 'door') {
+async function loadLevel(index, entry = 'door', resetStrikes = false) {
   clearScene();
+  const generation = loadGeneration;
+  const needsLoadingScreen = index === 1;
   gameEnded = false;
+  if (resetStrikes) securityRun.reset();
+  else {
+    securityRun.exposure = 0;
+    securityRun.grace = 0;
+    securityRun.notify();
+  }
   hud.resetLevelComplete();
+
+  if (needsLoadingScreen) {
+    levelLoading = true;
+    playerControls.enabled = false;
+    showOnly();
+    loadingScreen.style.transition = 'none';
+    loadingScreen.style.opacity = '1';
+    loadingScreen.classList.remove('hidden');
+    loadingLabel.textContent = 'Preparing the control room...';
+    loadingBarFill.style.width = '0%';
+    // Paint the transition before any cached geometry is prepared on the main thread.
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    if (generation !== loadGeneration) return;
+    await preloadLevel2Models((finished, total) => {
+      if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
+    });
+    if (generation !== loadGeneration) return;
+    loadingLabel.textContent = 'Setting up the control room...';
+  }
 
   const builder = LEVEL_BUILDERS[index];
   const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding,
+    onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
+    onPinStrike: (source) => securityRun.strike(source),
+    onSecurityHit: () => securityRun.strike('laser'),
     onShock: (position) => playerControls.teleport(position),
+    onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
+    isPlayerSeated: () => playerControls.isSeated,
     onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
     onVentExit: () => loadLevel(1, 'vent') };
   currentLevel = builder(args);
@@ -355,10 +430,43 @@ function loadLevel(index, entry = 'door') {
 
   aiState.reset();
 
+  if (needsLoadingScreen) {
+    await currentLevel.ready;
+    if (generation !== loadGeneration) return;
+    loadingBarFill.style.width = '90%';
+    loadingLabel.textContent = 'Finishing room lighting...';
+    // Upload textures and compile materials behind the transition, before play resumes.
+    const textures = new Set();
+    scene.traverse(object => {
+      if (object.material) {
+        for (const value of Object.values(object.material)) if (value?.isTexture) textures.add(value);
+      }
+    });
+    textures.forEach(texture => renderer.initTexture(texture));
+    try { await renderer.compileAsync(scene, camera); }
+    catch (error) { console.warn('Room lighting preparation will finish on first render.', error); }
+    if (generation !== loadGeneration) return;
+    renderer.render(scene, camera);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    if (generation !== loadGeneration) return;
+    loadingBarFill.style.width = '100%';
+    loadingScreen.classList.add('hidden');
+    levelLoading = false;
+    playerControls.enabled = true;
+    // Keep the existing pointer lock across transitions. If Escape released it,
+    // Resume provides the fresh click the browser requires to capture the mouse.
+    if (playerControls.isLocked) showOnly();
+    else showOnly(pauseMenu);
+  }
+
   loadPlayerModel();
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
+  if (index === 0) {
+    // Let Level 1's first frame appear before starting background model work.
+    setTimeout(() => { if (generation === loadGeneration) void preloadLevel2Models(); }, 500);
+  }
 
   // Show or hide CCTV PiP feed depending on whether this level provides a CCTV camera
   if (currentLevel.cctvCamera && cctvContainer) {
@@ -422,7 +530,7 @@ function advanceLevel() {
 
 // ---------- Menu state machine ----------
 function showOnly(...visibleEls) {
-  [mainMenu, pauseMenu, creditsScreen].forEach((e) => e.classList.add('hidden'));
+  [mainMenu, pauseMenu, creditsScreen, loseScreen].forEach((e) => e.classList.add('hidden'));
   visibleEls.forEach((e) => e?.classList.remove('hidden'));
 }
 
@@ -430,7 +538,7 @@ el('btn-play').addEventListener('click', () => {
   sound.init();
   showOnly();
   hudRoot.classList.remove('hidden');
-  loadLevel(0);
+  loadLevel(0, 'door', true);
   playerControls.lock();
 });
 
@@ -455,10 +563,22 @@ if (btnAudio) {
 el('btn-restart').addEventListener('click', () => {
   showOnly();
   hudRoot.classList.remove('hidden');
-  loadLevel(0);
+  loadLevel(0, 'door', true);
   playerControls.lock();
 });
 el('btn-quit-menu').addEventListener('click', () => {
+  clearScene();
+  hudRoot.classList.add('hidden');
+  if (cctvContainer) cctvContainer.classList.add('hidden');
+  showOnly(mainMenu);
+});
+
+el('btn-retry-level').addEventListener('click', () => {
+  showOnly();
+  loadLevel(currentLevelIndex, 'door', true);
+  playerControls.lock();
+});
+el('btn-lose-menu').addEventListener('click', () => {
   clearScene();
   hudRoot.classList.add('hidden');
   if (cctvContainer) cctvContainer.classList.add('hidden');
@@ -480,10 +600,15 @@ document.addEventListener('security-keypad-close', () => {
 });
 
 playerControls.controls.addEventListener('unlock', () => {
+  if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   showOnly(pauseMenu);
+});
+
+playerControls.controls.addEventListener('lock', () => {
+  if (!levelLoading && mainMenu.classList.contains('hidden')) pauseMenu.classList.add('hidden');
 });
 
 // Auto-advance when a level marks itself complete
@@ -527,7 +652,9 @@ function tick() {
   }
 
 
-  if (playerControls.isLocked) {
+  if (playerControls.isLocked && !levelLoading && !gameEnded) {
+
+    securityRun.update(delta);
 
     playerControls.update(delta);
 

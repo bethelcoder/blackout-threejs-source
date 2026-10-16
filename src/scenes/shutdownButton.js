@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import model from '../assets/models/button/button.json' with { type: 'json' };
+import { loadTexture } from '../systems/modelCache.js';
 
 /** Original Button_ru2 meshes, UVs and PBR textures, facing local +Z. */
 export function buildShutdownButton() {
   const group = new THREE.Group();
   group.name = 'Button_ru2 imported shutdown switch';
-  const loader = new THREE.TextureLoader();
+  const loader = { load: loadTexture };
   const map = loader.load(new URL('../assets/models/button/Scene_-_Root_baseColor.jpg', import.meta.url).href);
   map.colorSpace = THREE.SRGBColorSpace;
   const metalnessMap = loader.load(new URL('../assets/models/button/Scene_-_Root_metallicRoughness_metal.jpg', import.meta.url).href);

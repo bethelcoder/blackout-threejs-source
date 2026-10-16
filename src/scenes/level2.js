@@ -1,10 +1,21 @@
 import * as THREE from 'three';
 import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
 import { sound } from '../systems/audio.js';
-import { buildLaserSecurity } from './laserSecurity.js';
 import { buildLevel2Design } from './design.js';
+import { buildLaserSecurity } from './laserSecurity.js';
+import { buildVenatorRoom } from './venatorRoom.js';
+import { buildTerminalStation } from './terminalStation.js';
+import { buildOfficeChair } from './officeChair.js';
+import { buildServerRacks } from './serverRacks.js';
+import { buildVenatorSmallDoor } from './venatorSmallDoor.js';
 
-export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
+/**
+ * LEVEL 2 — CONTROL
+ * Environment: Main Power-Grid Control Room & Server Banks
+ * Signature Mechanic: Fictional interactive command-line terminal system.
+ * Narrative progression: Restore water infrastructure, alerting the AI.
+ */
+export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecurityHit, onChairSit, isPlayerSeated }) {
   const colliders = [];
   const cleanup = [];
 
@@ -13,10 +24,18 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
     includeLeftCabinets: false,
     includeRightCabinets: false,
     includePlinths: false,
+    includeRightPlinth: false,
     officeFloor: true,
+    officeCeiling: true,
+    backDoorOpening: { width: 1.86, height: 2.78 },
   });
   scene.add(room);
-
+  const originalRoomSurfaces = room.children.filter(object => ['Room wall', 'Room ceiling'].includes(object.name));
+  const originalLightFixtures = [];
+  const venatorRoom = buildVenatorRoom({ scene, onReady: () => {
+    [...originalRoomSurfaces, ...originalLightFixtures].forEach(object => { object.visible = false; });
+  } });
+  cleanup.push(() => venatorRoom.dispose());
   // Alternate-route arrival beside the right-hand server bank.
   const serviceGrilleGeometry = new THREE.BoxGeometry(0.06, 1.1, 1.3);
   const serviceGrilleMaterial = new THREE.MeshStandardMaterial({ color: 0x283235, roughness: 0.85 });
@@ -31,23 +50,59 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
   });
   colliders.push(...wallColliders);
 
-  // Build the new industrial dressing
-  const design = buildLevel2Design({ scene, hud });
-  cleanup.push(() => design.dispose());
+  const design = buildLevel2Design({ scene, hud, includeRightFurniture: false, includeCeiling: false });
   colliders.push(...design.colliders);
+  cleanup.push(() => design.dispose());
 
-  // Pass the design colliders to laser security so beams clip against lockers
-  const laserSecurity = buildLaserSecurity({ 
-    scene, aiState, hud, sound, onHit: onShock,
-    externalOccluders: design.colliders 
-  });
+  const ceilingLights = [];
+  const rackOccluders = [];
+  const laserSecurity = buildLaserSecurity({ scene, aiState, hud, sound, rackOccluders, externalOccluders: design.colliders, includeLeftBank: false, onHit: onSecurityHit ?? onShock, onDisabled: () => {
+    venatorRoom.setLaserActive(false);
+    ceilingLights.forEach(light => light.color.setHex(0xffffff));
+    lightPanelMat.color.setHex(0xebf8ff);
+  } });
   cleanup.push(() => laserSecurity.dispose());
+
+  // Bright server room illumination
+  const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x556677, 1.6);
+  scene.add(hemiLight);
+  cleanup.push(() => scene.remove(hemiLight));
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+  scene.add(ambient);
+  cleanup.push(() => scene.remove(ambient));
+
+  // Overhead ceiling light fixtures
+  const lightPanelGeo = new THREE.BoxGeometry(2.0, 0.08, 0.5);
+  const lightPanelMat = new THREE.MeshBasicMaterial({ color: 0x33ff66 });
+
+  const lightPositions = [
+    [0, 4.0, 4],
+    [0, 4.0, -2],
+  ];
+
+  for (const pos of lightPositions) {
+    const fixture = new THREE.Mesh(lightPanelGeo, lightPanelMat);
+    fixture.position.set(pos[0], pos[1], pos[2]);
+    scene.add(fixture);
+    originalLightFixtures.push(fixture);
+    cleanup.push(() => scene.remove(fixture));
+
+    const pLight = new THREE.PointLight(0x33ff66, 14, 20, 1.0);
+    ceilingLights.push(pLight);
+    pLight.position.set(pos[0], pos[1] - 0.2, pos[2]);
+    scene.add(pLight);
+    cleanup.push(() => scene.remove(pLight));
+  }
 
   // Console green ambient glow
   const consoleLight = new THREE.PointLight(0x2bff8f, 12, 16, 1.0);
   consoleLight.position.set(0, 2.4, -5.0);
   scene.add(consoleLight);
   cleanup.push(() => scene.remove(consoleLight));
+
+  const serverRacks = buildServerRacks({ scene, colliders, rackOccluders, onReady: () => laserSecurity.refreshOccluders() });
+  cleanup.push(() => serverRacks.dispose());
 
   // Terminal console desk
   const consoleDesk = buildProp({
@@ -56,7 +111,8 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
     position: [0, 0.5, -6.0],
   });
   scene.add(consoleDesk);
-  colliders.push(new THREE.Box3().setFromObject(consoleDesk));
+  const originalDeskCollider = new THREE.Box3().setFromObject(consoleDesk);
+  colliders.push(originalDeskCollider);
   cleanup.push(() => scene.remove(consoleDesk));
 
   // Glowing green CRT terminal monitor
@@ -77,6 +133,20 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
   };
   scene.add(screen);
   cleanup.push(() => scene.remove(screen));
+  const terminalStation = buildTerminalStation({
+    scene, colliders,
+    onInteract: screen.userData.onInteract,
+    getLabel: screen.userData.getLabel,
+    onReady: () => {
+      consoleDesk.visible = false;
+      screen.visible = false;
+      screen.userData.interactable = false;
+      originalDeskCollider.makeEmpty();
+    },
+  });
+  cleanup.push(() => terminalStation.dispose());
+  const officeChair = buildOfficeChair({ scene, colliders, hud, onSit: onChairSit, isSeated: isPlayerSeated });
+  cleanup.push(() => officeChair.dispose());
 
   let solved = false;
   terminalUI.onSolved = () => {
@@ -104,19 +174,22 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock }) {
   );
   colliders.push(doorCollider);
   cleanup.push(() => scene.remove(doorMesh));
+  const smallDoor = buildVenatorSmallDoor({ scene, colliders, onReady: () => { doorMesh.visible = false; } });
+  cleanup.push(() => smallDoor.dispose());
 
   function update(delta, camera) {
     laserSecurity.update(delta, camera);
+    smallDoor.update(delta, solved);
     design.update(delta, camera);
-    if (solved && doorMesh.visible) {
+    if (solved) {
       doorMesh.visible = false;
-      doorCollider.min.set(1000, 1000, 1000);
-      doorCollider.max.set(1001, 1001, 1001);
+      doorCollider.makeEmpty();
     }
     if (!terminalUI.open) aiState.decay(3 * delta);
   }
 
   return {
+    ready: Promise.all([venatorRoom.ready, serverRacks.ready, terminalStation.ready, officeChair.ready, smallDoor.ready]),
     colliders,
     serviceSpawn: new THREE.Vector3(5.95, 1.7, 5.8),
     update,

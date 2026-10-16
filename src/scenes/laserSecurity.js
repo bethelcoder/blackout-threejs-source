@@ -3,7 +3,7 @@ import laserBeam from '../assets/models/laser-beam.json' with { type: 'json' };
 import { buildShutdownButton } from './shutdownButton.js';
 
 // Fixed crisscross beams using the imported mesh; no sight/attachment hardware.
-export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, externalOccluders = [] }) {
+export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, onDisabled, rackOccluders = [], externalOccluders = [], includeLeftBank = true }) {
   const group = new THREE.Group();
   group.name = 'AI laser security';
   const beams = new THREE.Group();
@@ -11,8 +11,8 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
   const beamColor = new THREE.Color(...laserBeam.color);
   // Keep the supplied cylinder mesh, but shade it as light scattered in air.
   // Opaque flat-green tubes and solid endpoint balls read as physical rods.
-  const beamMaterial = (opacity, hotCore) => new THREE.ShaderMaterial({
-    uniforms: { beamColor: { value: beamColor }, opacity: { value: opacity }, hotCore: { value: hotCore } },
+  const beamMaterial = (opacity, hotCore, brightness) => new THREE.ShaderMaterial({
+    uniforms: { beamColor: { value: beamColor }, opacity: { value: opacity }, hotCore: { value: hotCore }, brightness: { value: brightness } },
     vertexShader: `
       varying vec3 vNormalView;
       varying vec3 vView;
@@ -27,20 +27,21 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
       uniform vec3 beamColor;
       uniform float opacity;
       uniform float hotCore;
+      uniform float brightness;
       varying vec3 vNormalView;
       varying vec3 vView;
       void main() {
         float facing = abs(dot(normalize(vNormalView), normalize(vView)));
-        float scatter = pow(facing, 1.7);
+        float scatter = pow(facing, 1.1);
         vec3 light = mix(beamColor, vec3(0.8, 1.0, 0.87), hotCore * scatter);
-        gl_FragColor = vec4(light, opacity * scatter);
+        gl_FragColor = vec4(light * brightness, opacity * scatter);
       }
     `,
     transparent: true, side: THREE.FrontSide, blending: THREE.AdditiveBlending,
     depthWrite: false, toneMapped: false,
   });
-  const green = beamMaterial(0.8, 0.65);
-  const glow = beamMaterial(0.12, 0);
+  const green = beamMaterial(1.0, 0.65, 1.6);
+  const glow = beamMaterial(0.36, 0, 1.4);
   const beamGeo = new THREE.BufferGeometry();
   beamGeo.setAttribute('position', new THREE.Float32BufferAttribute(laserBeam.positions, 3));
   // The USD Z-to-Y axis swap reverses winding; restore outward-facing triangles.
@@ -81,7 +82,7 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
     const halo = new THREE.Mesh(beamGeo, glow);
     const dot = new THREE.Mesh(dotGeo, spotMaterial);
     beams.add(core, halo, dot);
-    rays.push({ start: new THREE.Vector3(...start), end: new THREE.Vector3(...end), core, halo, dot });
+    rays.push({ start: new THREE.Vector3(...start), end: new THREE.Vector3(...end), target: new THREE.Vector3(...end), core, halo, dot });
   }
 
   // Right wall, facing the open side aisle between the server bank and wall.
@@ -116,6 +117,7 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
     if (!active) return;
     active = false;
     beams.visible = false;
+    onDisabled?.();
     button.press();
     labelMaterial.color.setHex(0x55ff88);
     sound.playSwitch();
@@ -133,7 +135,7 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
   // Clip visible light to real room surfaces, the server banks, and any
   // external occluders (lockers, workbench, etc.) passed in from the level.
   const occluders = [];
-  for (const x of [-4.8, 4.8]) {
+  for (const x of (includeLeftBank ? [-4.8] : [])) {
     for (let i = -2; i <= 2; i++) {
       occluders.push(new THREE.Box3(
         new THREE.Vector3(x - 0.45, 0, i * 2.2 - 0.35),
@@ -146,13 +148,14 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
   }
   function positionBeams() {
     for (const beam of rays) {
+      beam.end.copy(beam.target);
       direction.subVectors(beam.end, beam.start);
       let length = direction.length();
       direction.normalize();
       surfaceNormal.set(-1, 0, 0);
       ray.set(beam.start, direction);
-      for (const box of occluders) {
-        if (ray.intersectBox(box, hitPoint)) {
+      for (const box of [...occluders, ...rackOccluders]) {
+        if (!box.containsPoint(beam.start) && ray.intersectBox(box, hitPoint)) {
           const distance = hitPoint.distanceTo(beam.start);
           if (distance < length) {
             length = distance;
@@ -165,7 +168,7 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
         }
       }
       beam.end.copy(beam.start).addScaledVector(direction, length);
-      for (const [mesh, radius] of [[beam.core, 0.0028], [beam.halo, 0.018]]) {
+      for (const [mesh, radius] of [[beam.core, 0.0028], [beam.halo, 0.03]]) {
         mesh.position.copy(beam.start).add(beam.end).multiplyScalar(0.5);
         mesh.quaternion.setFromUnitVectors(up, direction);
         mesh.scale.set(radius, length, radius);
@@ -176,6 +179,7 @@ export function buildLaserSecurity({ scene, aiState, hud, sound, onHit, external
   }
   positionBeams();
   return {
+    refreshOccluders: positionBeams,
     isActive: () => active,
     update(delta, camera) {
       if (!active || !camera) return;

@@ -2,8 +2,12 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildLaserSecurity } from '../src/scenes/laserSecurity.js';
 import { buildLevel2 } from '../src/scenes/level2.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-const ctx = new Proxy({}, { get: (_, key) => key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
+// This test exercises gameplay while the decorative room model is still loading.
+GLTFLoader.prototype.loadAsync = () => new Promise(() => {});
+
+const ctx = new Proxy({}, { get: (_, key) => key === 'measureText' ? text => ({ width: text.length * 8 }) : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
 globalThis.document = {
   createElement: () => ({ getContext: () => ctx }),
   createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, set src(value) {} }),
@@ -85,7 +89,10 @@ terminal.userData.onInteract();
 terminalUI.onSolved();
 assert.equal(opens, 0, 'Terminal locked while lasers active');
 assert.equal(complete, 0, 'Completion blocked while lasers active');
+const ceilingLights = scene.children.filter(object => object.isPointLight && object.color.getHex() === 0x33ff66);
+assert.equal(ceilingLights.length, 2, 'Ceiling lighting starts green');
 scene.getObjectByName('Laser shutdown button').userData.onInteract();
+assert.ok(ceilingLights.every(light => light.color.getHex() === 0xffffff), 'Button restores white ceiling illumination');
 terminal.userData.onInteract();
 assert.equal(opens, 1);
 terminalUI.onSolved();

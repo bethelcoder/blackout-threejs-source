@@ -1,0 +1,32 @@
+[
+  {
+    "path": "/scene/Meshes/Sketchfab_model/Collada_visual_scene_group/Part2/defaultMaterial/defaultMaterial",
+    "points": 24628,
+    "min": [
+      -100.0,
+      -77.36140182901634,
+      -66.200104757154
+    ],
+    "max": [
+      100.0,
+      77.36140182901634,
+      66.200104757154
+    ],
+    "material": "/scene/Materials/Part2"
+  },
+  {
+    "path": "/scene/Meshes/Sketchfab_model/Collada_visual_scene_group/Part1/defaultMaterial/defaultMaterial",
+    "points": 10497,
+    "min": [
+      -95.19540071487427,
+      -69.36440100500876,
+      -50.286003999039934
+    ],
+    "max": [
+      93.04519891738892,
+      64.82530456051295,
+      52.32340380787766
+    ],
+    "material": "/scene/Materials/Part1"
+  }
+]

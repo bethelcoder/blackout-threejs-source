@@ -1,0 +1,17 @@
+[
+  {
+    "path": "/scene/Meshes/Sketchfab_model/Collada_visual_scene_group/main_terminal/defaultMaterial/defaultMaterial",
+    "points": 1874,
+    "min": [
+      -78.28021070354498,
+      -1.3686946810448046e-05,
+      -156.5603915455613
+    ],
+    "max": [
+      234.8406370875564,
+      299.99999257367483,
+      313.12085592759587
+    ],
+    "material": "/scene/Materials/Computer_desk_design_1"
+  }
+]

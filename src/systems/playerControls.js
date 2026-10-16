@@ -24,6 +24,7 @@ export class PlayerControls {
     this.fallSpeed = 0;
     this.grounded = true;
     this.jumpQueued = false;
+    this.seated = null;
     this.height = PLAYER_HEIGHT;
     camera.userData.playerHeight = this.height;
 
@@ -51,6 +52,8 @@ export class PlayerControls {
   }
 
   setColliders(boxes, walkableSurfaces = []) {
+    if (this.seated) this.cameraMode = this.seated.cameraMode;
+    this.seated = null;
     this.height = PLAYER_HEIGHT;
     this.camera.userData.playerHeight = this.height;
     this.colliders = boxes;
@@ -68,6 +71,13 @@ export class PlayerControls {
 
   _onKey(e, isDown) {
     sound.resume();
+    if (this.seated) {
+      if (e.code === 'Space' && isDown && !e.repeat && this.isLocked) {
+        e.preventDefault();
+        this.stand();
+      }
+      return;
+    }
     switch (e.code) {
       case 'KeyW': case 'ArrowUp': this.move.forward = isDown; break;
       case 'KeyS': case 'ArrowDown': this.move.back = isDown; break;
@@ -98,10 +108,47 @@ export class PlayerControls {
 
   unlock() { this.controls.unlock(); }
   get isLocked() { return this.controls.isLocked; }
+  get isSeated() { return this.seated !== null; }
 
- 
-update(delta) {
-  if (!this.enabled || !this.controls.isLocked) return;
+  sit(position, target, onStand) {
+    if (this.seated || !this.grounded || !this.enabled || !this.isLocked) return false;
+    const exit = this.camera.position.clone();
+    exit.y += PLAYER_HEIGHT - this.height;
+    this.seated = { exit, cameraMode: this.cameraMode, onStand };
+    this.cameraMode = 'first';
+    this.height = position.y;
+    this.camera.userData.playerHeight = this.height;
+    this.camera.position.copy(position);
+    this.camera.lookAt(target);
+    this.velocity.set(0, 0, 0);
+    this.fallSpeed = 0;
+    this.jumpQueued = false;
+    for (const key in this.move) this.move[key] = false;
+    return true;
+  }
+
+  stand() {
+    if (!this.seated) return false;
+    const seat = this.seated;
+    const origin = this.camera.position;
+    const options = [seat.exit,
+      new THREE.Vector3(origin.x + 1.2, PLAYER_HEIGHT, origin.z),
+      new THREE.Vector3(origin.x - 1.2, PLAYER_HEIGHT, origin.z),
+      new THREE.Vector3(origin.x, PLAYER_HEIGHT, origin.z + 1.2),
+      new THREE.Vector3(origin.x, PLAYER_HEIGHT, origin.z - 1.2)];
+    const oldHeight = this.height;
+    this.height = PLAYER_HEIGHT;
+    const exit = options.find(position => !this._collides(position));
+    this.height = oldHeight;
+    if (!exit) return false;
+    this.teleport(exit);
+    seat.onStand?.();
+    return true;
+  }
+
+
+  update(delta) {
+  if (!this.enabled || !this.controls.isLocked || this.seated) return;
 
   // Cooldowns for crate movement and impact sounds
   this.crateSoundCooldown = Math.max(
@@ -123,7 +170,7 @@ update(delta) {
     else this.camera.position.copy(standing);
   }
 
-  // Keep the rest of your existing update(delta) code unchanged...
+
 
     this.camera.userData.playerHeight = this.height;
     const crouched = this.height < PLAYER_HEIGHT;
@@ -187,6 +234,8 @@ update(delta) {
   }
 
   teleport(position) {
+    if (this.seated) this.cameraMode = this.seated.cameraMode;
+    this.seated = null;
     this.height = PLAYER_HEIGHT;
     this.camera.userData.playerHeight = this.height;
     this.camera.position.copy(position);
@@ -275,7 +324,7 @@ _tryPush(axis, distance) {
         sound.playCrateImpact();
         this.crateImpactCooldown = 0.35;
       }
-    
+
       // Restore the crate if its new position is obstructed.
       mesh.position[axis] = oldPosition;
       mesh.updateMatrixWorld(true);
@@ -287,7 +336,7 @@ _tryPush(axis, distance) {
       sound.playCrateMove();
       this.crateSoundCooldown = 0.24;
     }
-    
+
     return true;
   }
 
