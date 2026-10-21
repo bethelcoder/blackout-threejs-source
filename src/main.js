@@ -790,7 +790,14 @@ function tick() {
 
   // Render secondary CCTV Camera PiP view if active.
   if (currentLevel?.cctvCamera && cctvRenderer) {
-    cctvRenderer.render(scene, currentLevel.cctvCamera);
+    // CCTV sees the character even when the first-person view hides their body.
+    const wasVisible = playerModel?.visible;
+    if (playerModel) playerModel.visible = true;
+    try {
+      cctvRenderer.render(scene, currentLevel.cctvCamera);
+    } finally {
+      if (playerModel) playerModel.visible = wasVisible;
+    }
   }
 
   requestAnimationFrame(tick);
