@@ -187,7 +187,7 @@ function loadPlayerModel() {
   activeAction = null;
 
   gltfLoader.load(
-    '/models/player.glb',
+    './models/player.glb',
 
     (gltf) => {
       if (modelGeneration !== loadGeneration) return;
@@ -231,12 +231,12 @@ function loadPlayerModel() {
       playerMixer = mixer;
 
       const animations = {
-        idle: '/models/animations/idle.fbx',
-        walk: '/models/animations/walking.fbx',
-        run: '/models/animations/running.fbx',
-        jump: '/models/animations/jumping-up.fbx',
-        crouchIdle: '/models/animations/crouching-idle.fbx',
-        crouchWalk: 'models/animations/crouched-walking.fbx',
+        idle: './models/animations/idle.fbx',
+        walk: './models/animations/walking.fbx',
+        run: './models/animations/running.fbx',
+        jump: './models/animations/jumping-up.fbx',
+        crouchIdle: './models/animations/crouching-idle.fbx',
+        crouchWalk: './models/animations/crouched-walking.fbx',
       };
 
       const boneNames = new Set();
