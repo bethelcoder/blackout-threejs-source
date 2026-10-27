@@ -155,6 +155,13 @@ function loadPlayerModel() {
 
       playerModel = model;
 
+      // The clips rotate the armature -90 degrees, which leaves every skinned
+      // mesh's bounding volume lying on the floor while the body renders upright.
+      // Frustum culling then hides parts individually (the head most visibly).
+      model.traverse((object) => {
+        if (object.isMesh) object.frustumCulled = false;
+      });
+
       model.scale.set(1.2, 1.2, 1.2);
       model.position.copy(camera.position);
       model.position.y = 0;
@@ -173,7 +180,7 @@ function loadPlayerModel() {
         run: '/models/animations/running.fbx',
         jump: '/models/animations/jumping-up.fbx',
         crouchIdle: '/models/animations/crouching-idle.fbx',
-        crouchWalk: 'models/animations/crouched-walking.fbx',
+        crouchWalk: '/models/animations/crouched-walking.fbx',
       };
 
       const boneNames = new Set();
@@ -190,6 +197,9 @@ function loadPlayerModel() {
             // Ignore animations belonging to a model that was replaced.
             if (playerModel !== model) return;
 
+            console.log('Loaded animation:', name, path);
+            console.log('Animation clips:', fbx.animations.map(clip => clip.name));
+
             const sourceClip = fbx.animations[0];
 
             if (!sourceClip) {
@@ -197,53 +207,29 @@ function loadPlayerModel() {
               return;
             }
 
-            // Keep the working fix: exclude Armature and Hips tracks.
+            // Every Mixamo clip rotates its Armature node -90 degrees about X and
+            // authors the bone rotations in that space, so the Armature track must be
+            // kept; dropping it tips the whole character onto the floor.
+            const validTracks = sourceClip.tracks
+              .filter((track) => boneNames.has(track.name.split('.')[0]))
+              .map((track) => {
+                if (track.name !== 'Hips.position') return track;
 
-            if (name === 'crouchIdle') {
-              console.log(
-                'Crouch idle tracks:',
-                sourceClip.tracks.map((track) => track.name)
-              );
-            }
+                // The clips travel through world space while the game drives movement,
+                // so pin the hips' horizontal components to the first keyframe.
+                // In that -90 degree armature space, local X/Y are horizontal and
+                // local Z is height, which must stay for crouching and jumping.
+                const values = track.values;
+                const startX = values[0];
+                const startY = values[1];
 
-            console.log(
-              'Crouch foot position tracks:',
-              sourceClip.tracks
-                .filter((track) =>
-                  /Foot|Toe/i.test(track.name) &&
-                  /\.position$/.test(track.name)
-                )
-                .map((track) => track.name)
-            );
+                for (let i = 0; i < values.length; i += 3) {
+                  values[i] = startX;
+                  values[i + 1] = startY;
+                }
 
-            const validTracks = sourceClip.tracks.filter((track) => {
-              const parts = track.name.split('.');
-              const nodeName = parts[0];
-              const property = parts[1];
-
-              const isCrouchAnimation =
-                name === 'crouchIdle' || name === 'crouchWalk';
-
-              const isVerticalPositionTrack =
-                property === 'position' &&
-                isCrouchAnimation;
-
-
-              const isHipsTrack = nodeName === 'Hips';
-
-              // Keep the existing Hips exclusion for other animations,
-              // but allow Hips rotation during crouching.
-              return (
-                boneNames.has(nodeName) &&
-                nodeName !== 'Armature' &&
-                nodeName !== 'Hips' &&
-                !isVerticalPositionTrack
-              );
-
-            });
-
-
-
+                return track;
+              });
 
             if (validTracks.length === 0) {
               console.error(`No compatible tracks found for ${name}`);
@@ -745,7 +731,13 @@ function tick() {
       .addScaledVector(horizontalDirection, -1.8)
       .add(new THREE.Vector3(0, 0.5, 0));
 
-    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+    // Snap on the frame the view changes, otherwise the camera flies in from
+    // wherever it was last left (the origin on the first switch).
+    if (previousCameraMode === "third") {
+      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+    } else {
+      thirdPersonCamera.position.copy(thirdPersonPosition);
+    }
 
     // Preserve the existing limited mouse-look angle.
     const horizontalAngle = Math.atan2(direction.x, direction.z);
