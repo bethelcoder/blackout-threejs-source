@@ -797,9 +797,13 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-document.addEventListener('security-keypad-close', () => {
+document.addEventListener('security-keypad-close', (event) => {
+  if (levelLoading || gameEnded) return;
   if (mainMenu.classList.contains('hidden') && creditsScreen.classList.contains('hidden')) {
     showOnly(pauseMenu);
+    // The keypad's Continue click/Enter supplies the gesture needed to
+    // recapture the mouse. Keep Resume visible if capture is declined.
+    if (event.detail?.resume) playerControls.lock();
   }
 });
 
