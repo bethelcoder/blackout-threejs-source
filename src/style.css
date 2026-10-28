@@ -1027,10 +1027,6 @@ html, body {
 .wiring-panel small { color: #8ca5a0; }
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 
-#shock-flash {
-  position: absolute; inset: 0; opacity: 0;
-  background: radial-gradient(ellipse, transparent 35%, rgba(100, 200, 255, 0.8));
-}
 #hazard-status {
   position: absolute; top: 100px; right: 18px;
   width: 260px; max-width: calc(100vw - 36px);
@@ -1128,12 +1124,6 @@ html, body {
 #cctv-canvas {
   width: 240px; height: 135px;
   display: block;
-}
-.cctv-scanlines {
-  position: absolute; top: 20px; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
 }
 
 #level-banner {
