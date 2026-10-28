@@ -9,6 +9,7 @@ import { buildMaintenanceVent } from './maintenanceVent.js';
 import { buildNoticeBoard } from './noticeBoard.js';
 import { buildSecurityKeypad } from './securityKeypad.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
+import { buildBackroomProps } from './backroomProps.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 
 /**
@@ -285,6 +286,11 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(crate2, crate3);
   colliders.push(new THREE.Box3().setFromObject(crate2), new THREE.Box3().setFromObject(crate3));
   cleanup.push(() => scene.remove(crate2, crate3));
+
+  // Backroom furnishings: shelves, tables, cupboards, and scattered documents
+  const backroomProps = buildBackroomProps({ scene, colliders });
+  scene.add(backroomProps.group);
+  cleanup.push(() => backroomProps.dispose());
 
   // 1. Clock Hint Poster (Right wall gap)
 

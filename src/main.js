@@ -81,6 +81,9 @@ const hudRoot = el('hud');
 const interactPrompt = el('interact-prompt');
 const terminalOverlay = el('terminal');
 const btnAudio = el('btn-audio');
+const guidanceModal = el('guidance-modal');
+const controlsModal = el('controls-modal');
+const backgroundMusic = el('backgroundMusic');
 
 const hud = new HUD();
 
@@ -109,6 +112,109 @@ const terminal = new Terminal({
   inputEl: el('terminal-input'),
 });
 
+
+let backpackModelTemplate = null;
+
+function attachBackpackToCharacter(characterModel) {
+  let targetBone = null;
+  characterModel.traverse((child) => {
+    if (child.isBone && (child.name === 'Spine2' || child.name === 'Spine1')) {
+      if (!targetBone || child.name === 'Spine2') {
+        targetBone = child;
+      }
+    }
+  });
+
+  const wrapperGroup = new THREE.Group();
+  wrapperGroup.name = 'WornBackpack';
+
+  const applyBackpackModel = (gltfScene) => {
+    const model = gltfScene.clone(true);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const targetHeight = 0.35; // Calibrated tactical gear proportions (~0.42m world height)
+    const scaleFactor = targetHeight / (size.y || 1);
+    model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+    // Center model at volumetric origin (centered horizontally, vertically, and in depth)
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    model.position.set(
+      -center.x * scaleFactor,
+      -center.y * scaleFactor,
+      -center.z * scaleFactor
+    );
+
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material) {
+          const oldMat = child.material;
+          child.material = new THREE.MeshStandardMaterial({
+            map: oldMat.map,
+            color: oldMat.color || 0xffffff,
+            roughness: 0.75,
+            metalness: 0.1,
+          });
+        }
+      }
+    });
+
+    wrapperGroup.add(model);
+  };
+
+  if (backpackModelTemplate) {
+    applyBackpackModel(backpackModelTemplate);
+  } else {
+    gltfLoader.load(
+      '/models/backpack_photogrammetry.glb',
+      (gltf) => {
+        backpackModelTemplate = gltf.scene;
+        applyBackpackModel(backpackModelTemplate);
+      },
+      undefined,
+      (err) => {
+        console.warn('Failed to load backpack asset, using procedural fallback', err);
+        const bagMat = new THREE.MeshStandardMaterial({ color: 0x33281e, roughness: 0.75, metalness: 0.1 });
+        const mainBag = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.34, 0.14), bagMat);
+        mainBag.castShadow = true;
+        wrapperGroup.add(mainBag);
+
+        const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.15, 0.08), bagMat);
+        pocket.position.set(0, -0.05, -0.10);
+        pocket.castShadow = true;
+        wrapperGroup.add(pocket);
+      }
+    );
+  }
+
+  if (targetBone) {
+    // Calibrated position & orientation for the operative's thoracic spine:
+    // Spine2 is upper chest/shoulder-blade level (world Y ~ 1.67m).
+    // Offsetting local Y by -0.075 places center at ~1.58m:
+    // Top sits at ~1.79m (under collar/shoulder blades, well below ponytail).
+    // Bottom sits at ~1.37m (cleanly above waist belt at 1.25m).
+    if (targetBone.name === 'Spine2') {
+      wrapperGroup.position.set(0, -0.075, -0.085);
+      wrapperGroup.rotation.set(0.08, Math.PI, 0);
+    } else {
+      // Fallback for Spine1 (mid-spine, world Y ~ 1.48m)
+      wrapperGroup.position.set(0, 0.085, -0.085);
+      wrapperGroup.rotation.set(0.08, Math.PI, 0);
+    }
+    targetBone.add(wrapperGroup);
+  } else {
+    // Fallback if armature not found
+    wrapperGroup.position.set(0, 1.31, -0.10);
+    wrapperGroup.rotation.set(0.08, Math.PI, 0);
+    characterModel.add(wrapperGroup);
+  }
+
+  return wrapperGroup;
+}
 
 function loadPlayerModel() {
   const modelGeneration = loadGeneration;
@@ -159,7 +265,10 @@ function loadPlayerModel() {
       model.position.copy(camera.position);
       model.position.y = 0;
       model.rotation.y = 0;
-      model.visible = false;
+      model.visible = playerControls.cameraMode === "third";
+
+      // Attach worn backpack so character wears it in 3rd person
+      attachBackpackToCharacter(model);
 
       scene.add(model);
 
@@ -464,8 +573,17 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
   if (index === 0) {
-    // Let Level 1's first frame appear before starting background model work.
-    setTimeout(() => { if (generation === loadGeneration) void preloadLevel2Models(); }, 500);
+    // Defer Level 2 background model caching until Level 1 has stabilized and player is playing
+    const deferPreload = () => {
+      if (generation === loadGeneration && !gameEnded) {
+        void preloadLevel2Models();
+      }
+    };
+    if (window.requestIdleCallback) {
+      setTimeout(() => window.requestIdleCallback(deferPreload, { timeout: 10000 }), 6000);
+    } else {
+      setTimeout(deferPreload, 8000);
+    }
   }
 
   // Show or hide CCTV PiP feed depending on whether this level provides a CCTV camera
@@ -530,25 +648,111 @@ function advanceLevel() {
 
 // ---------- Menu state machine ----------
 function showOnly(...visibleEls) {
-  [mainMenu, pauseMenu, creditsScreen, loseScreen].forEach((e) => e.classList.add('hidden'));
+  [mainMenu, pauseMenu, creditsScreen, loseScreen, guidanceModal, controlsModal].forEach((e) => e?.classList.add('hidden'));
   visibleEls.forEach((e) => e?.classList.remove('hidden'));
 }
 
-el('btn-play').addEventListener('click', () => {
+function pauseSplineViewer() {
+  const spline = document.querySelector('spline-viewer');
+  if (spline) {
+    spline.style.display = 'none';
+    spline.style.visibility = 'hidden';
+    try { spline.stop?.(); } catch (_) {}
+  }
+}
+
+function resumeSplineViewer() {
+  const spline = document.querySelector('spline-viewer');
+  if (spline) {
+    spline.style.display = 'block';
+    spline.style.visibility = 'visible';
+    try { spline.play?.(); } catch (_) {}
+  }
+}
+
+function startFacilityGame() {
+  if (backgroundMusic) {
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
+  }
+  pauseSplineViewer();
   sound.init();
   showOnly();
   hudRoot.classList.remove('hidden');
   loadLevel(0, 'door', true);
   playerControls.lock();
+}
+
+// Start game triggers: Click on Infiltrate opens the tactical guidance screen
+el('btn-play')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showOnly(guidanceModal);
 });
 
-el('btn-credits').addEventListener('click', () => {
+// Guidance modal action triggers
+el('btn-start-infiltration')?.addEventListener('click', () => {
+  startFacilityGame();
+});
+
+el('btn-guidance-close')?.addEventListener('click', () => {
+  if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
+    guidanceModal?.classList.add('hidden');
+    playerControls.lock();
+  } else {
+    showOnly(mainMenu);
+  }
+});
+
+// Menu sound effects on hover
+document.querySelectorAll('.game-menu-btn, .btn-guidance-start').forEach((btn) => {
+  btn.addEventListener('mouseenter', () => {
+    sound.playKeypadBeep();
+  });
+});
+
+// Background music auto-start on user gesture
+const tryPlayMusic = () => {
+  if (backgroundMusic && backgroundMusic.paused && !mainMenu.classList.contains('hidden')) {
+    backgroundMusic.volume = 0.4;
+    backgroundMusic.play().catch(() => {});
+  }
+};
+window.addEventListener('click', tryPlayMusic, { once: true });
+window.addEventListener('keydown', tryPlayMusic, { once: true });
+
+// Navigation Bar & Modal Listeners
+el('nav-mission')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showOnly(guidanceModal);
+});
+
+el('nav-controls')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showOnly(controlsModal);
+});
+
+el('btn-controls-close')?.addEventListener('click', () => {
+  if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
+    controlsModal?.classList.add('hidden');
+    playerControls.lock();
+  } else {
+    showOnly(mainMenu);
+  }
+});
+
+el('nav-credits')?.addEventListener('click', (e) => {
+  e.preventDefault();
   renderCredits(el('credits-list'));
   showOnly(creditsScreen);
 });
-el('btn-credits-close').addEventListener('click', () => showOnly(mainMenu));
 
-el('btn-resume').addEventListener('click', () => {
+el('btn-credits')?.addEventListener('click', () => {
+  renderCredits(el('credits-list'));
+  showOnly(creditsScreen);
+});
+el('btn-credits-close')?.addEventListener('click', () => showOnly(mainMenu));
+
+el('btn-resume')?.addEventListener('click', () => {
   showOnly();
   playerControls.lock();
 });
@@ -560,33 +764,80 @@ if (btnAudio) {
   });
 }
 
-el('btn-restart').addEventListener('click', () => {
-  showOnly();
-  hudRoot.classList.remove('hidden');
-  loadLevel(0, 'door', true);
-  playerControls.lock();
+el('btn-restart')?.addEventListener('click', () => {
+  startFacilityGame();
 });
-el('btn-quit-menu').addEventListener('click', () => {
+
+el('btn-quit-menu')?.addEventListener('click', () => {
   clearScene();
   hudRoot.classList.add('hidden');
   if (cctvContainer) cctvContainer.classList.add('hidden');
+  resumeSplineViewer();
   showOnly(mainMenu);
+  if (backgroundMusic) {
+    backgroundMusic.currentTime = 0;
+    backgroundMusic.play().catch(() => {});
+  }
 });
 
-el('btn-retry-level').addEventListener('click', () => {
+el('btn-retry-level')?.addEventListener('click', () => {
   showOnly();
   loadLevel(currentLevelIndex, 'door', true);
   playerControls.lock();
 });
-el('btn-lose-menu').addEventListener('click', () => {
+el('btn-lose-menu')?.addEventListener('click', () => {
   clearScene();
   hudRoot.classList.add('hidden');
   if (cctvContainer) cctvContainer.classList.add('hidden');
+  resumeSplineViewer();
   showOnly(mainMenu);
+  if (backgroundMusic) {
+    backgroundMusic.currentTime = 0;
+    backgroundMusic.play().catch(() => {});
+  }
 });
 
 document.addEventListener('keydown', (e) => {
+  // If on main menu, Enter opens guidance modal
+  if (!mainMenu.classList.contains('hidden') && e.code === 'Enter') {
+    showOnly(guidanceModal);
+    return;
+  }
+  // If guidance modal open, Enter commences infiltration
+  if (guidanceModal && !guidanceModal.classList.contains('hidden') && e.code === 'Enter') {
+    startFacilityGame();
+    return;
+  }
+  // If Lose screen is showing, pressing [R] or Enter restarts the level immediately
+  if (loseScreen && !loseScreen.classList.contains('hidden') && (e.code === 'KeyR' || e.code === 'Enter')) {
+    showOnly();
+    loadLevel(currentLevelIndex, 'door', true);
+    playerControls.lock();
+    return;
+  }
   if (e.code !== 'Escape') return;
+  if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
+    if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
+      guidanceModal.classList.add('hidden');
+      playerControls.lock();
+    } else {
+      showOnly(mainMenu);
+    }
+    return;
+  }
+  if (controlsModal && !controlsModal.classList.contains('hidden')) {
+    if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
+      controlsModal.classList.add('hidden');
+      playerControls.lock();
+    } else {
+      showOnly(mainMenu);
+    }
+    return;
+  }
+  if (creditsScreen && !creditsScreen.classList.contains('hidden')) {
+    showOnly(mainMenu);
+    return;
+  }
   if (terminal.open) return;
   if (playerControls.isLocked) {
     playerControls.unlock();
@@ -604,6 +855,8 @@ playerControls.controls.addEventListener('unlock', () => {
   if (document.getElementById('security-keypad-overlay')) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
+  if (guidanceModal && !guidanceModal.classList.contains('hidden')) return;
+  if (controlsModal && !controlsModal.classList.contains('hidden')) return;
   showOnly(pauseMenu);
 });
 
@@ -621,6 +874,17 @@ setInterval(() => {
 
 // ---------- Loading sequence ----------
 function bootSequence() {
+  // Pre-load and cache the backpack model during boot sequence
+  // so that character spawn into 3D gameplay has zero GLTF parsing stutter.
+  gltfLoader.load(
+    '/models/backpack_photogrammetry.glb',
+    (gltf) => {
+      backpackModelTemplate = gltf.scene;
+    },
+    undefined,
+    (err) => console.warn('Early backpack pre-cache failed:', err)
+  );
+
   let progress = 0;
   const iv = setInterval(() => {
     progress += 8 + Math.random() * 12;
@@ -645,6 +909,16 @@ bootSequence();
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
 function tick() {
+  requestAnimationFrame(tick);
+
+  // If on the landing page menu or initial boot loader, pause Three.js rendering
+  // to eliminate GPU/CPU contention with the interactive Spline robot viewer and landing audio.
+  const isLandingMenu = !mainMenu.classList.contains('hidden');
+  const isInitialBoot = !currentLevel && loadingScreen && !loadingScreen.classList.contains('hidden');
+  if (isLandingMenu || isInitialBoot) {
+    return;
+  }
+
   const delta = Math.min(clock.getDelta(), 0.05);
 
   if (playerMixer) {
@@ -790,10 +1064,23 @@ function tick() {
 
   // Render secondary CCTV Camera PiP view if active.
   if (currentLevel?.cctvCamera && cctvRenderer) {
-    cctvRenderer.render(scene, currentLevel.cctvCamera);
+    // CCTV sees the character even when the first-person view hides their body.
+    const wasVisible = playerModel?.visible;
+    if (playerModel) playerModel.visible = true;
+    try {
+      cctvRenderer.render(scene, currentLevel.cctvCamera);
+    } finally {
+      if (playerModel) playerModel.visible = wasVisible;
+    }
   }
-
-  requestAnimationFrame(tick);
 }
 
 tick();
+
+// Window bindings for debug and cinematic trailer captures
+window.loadLevel = loadLevel;
+window.playerControls = playerControls;
+window.toggleCamera = () => {
+  playerControls.cameraMode = playerControls.cameraMode === "first" ? "third" : "first";
+  if (playerModel) playerModel.visible = playerControls.cameraMode === "third";
+};
