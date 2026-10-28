@@ -170,7 +170,7 @@ function attachBackpackToCharacter(characterModel) {
     applyBackpackModel(backpackModelTemplate);
   } else {
     gltfLoader.load(
-      '/models/backpack_photogrammetry.glb',
+      './models/backpack_photogrammetry.glb',
       (gltf) => {
         backpackModelTemplate = gltf.scene;
         applyBackpackModel(backpackModelTemplate);
@@ -233,7 +233,7 @@ function loadPlayerModel() {
   activeAction = null;
 
   gltfLoader.load(
-    '/models/player.glb',
+    './models/player.glb',
 
     (gltf) => {
       if (modelGeneration !== loadGeneration) return;
@@ -277,11 +277,11 @@ function loadPlayerModel() {
       playerMixer = mixer;
 
       const animations = {
-        idle: '/models/animations/idle.fbx',
-        walk: '/models/animations/walking.fbx',
-        run: '/models/animations/running.fbx',
-        jump: '/models/animations/jumping-up.fbx',
-        crouchIdle: '/models/animations/crouching-idle.fbx',
+        idle: './models/animations/idle.fbx',
+        walk: './models/animations/walking.fbx',
+        run: './models/animations/running.fbx',
+        jump: './models/animations/jumping-up.fbx',
+        crouchIdle: './models/animations/crouching-idle.fbx',
         crouchWalk: 'models/animations/crouched-walking.fbx',
       };
 
@@ -445,7 +445,7 @@ const securityRun = new SecurityRun({
     previousPlayerPosition.copy(camera.position);
     aiState.reset();
     interaction.reset();
-    const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : 'Laser triggered';
+    const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : source === 'surge' ? 'Core shockwave hit you' : 'Laser triggered';
     hud.setObjective(`${reason} — strike ${securityRun.strikes} of 3. Back at the entrance; 3 seconds to recover. ${currentLevel.objective}`);
   },
   onLose: (source) => {
@@ -460,7 +460,7 @@ const securityRun = new SecurityRun({
       ? 'Four incorrect PIN attempts caused your third strike. Check the clues before submitting another code.'
       : source === 'camera'
       ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
-      : 'A laser caused your third strike. Jump low beams and duck under high beams.';
+      : source === 'surge' ? 'The core shockwaves caused your third strike. Jump the ring or run through the safe gap.' : 'A laser caused your third strike. Jump low beams and duck under high beams.';
     showOnly(loseScreen);
     el('btn-retry-level').focus();
   },
@@ -518,6 +518,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
+    onSurgeHit: () => securityRun.strike('surge'),
     onShock: (position) => playerControls.teleport(position),
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
@@ -679,7 +680,7 @@ function startFacilityGame() {
   sound.init();
   showOnly();
   hudRoot.classList.remove('hidden');
-  loadLevel(0, 'door', true);
+  loadLevel(import.meta.env.DEV ? Number(new URLSearchParams(location.search).get('level') ?? 0) : 0, 'door', true);
   playerControls.lock();
 }
 
@@ -877,7 +878,7 @@ function bootSequence() {
   // Pre-load and cache the backpack model during boot sequence
   // so that character spawn into 3D gameplay has zero GLTF parsing stutter.
   gltfLoader.load(
-    '/models/backpack_photogrammetry.glb',
+    './models/backpack_photogrammetry.glb',
     (gltf) => {
       backpackModelTemplate = gltf.scene;
     },
