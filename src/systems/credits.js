@@ -4,6 +4,11 @@
 // licence where one applies."
 
 export const CREDITS = [
+  { what: 'door door metal (converted and scaled from USDZ)', from: 'ahmagh2e - https://sketchfab.com/3d-models/door-door-metal-b21ec273c1a342568ab9f9ac14291c5b', licence: 'CC BY 4.0' },
+  { what: 'Metal Door 2 (converted and scaled from USDZ)', from: 'tboiston - https://sketchfab.com/3d-models/metal-door-2-4da6b538427244aaababe36d3e228a40', licence: 'CC BY 4.0' },
+  { what: 'Metal Storage Cabinet (converted and scaled from USDZ)', from: 'jimbogies - https://sketchfab.com/3d-models/metal-storage-cabinet-4d49691a269745cabe0e1d5c1c3bef9b', licence: 'CC BY 4.0' },
+  { what: 'Electric Box (converted and scaled from USDZ)', from: 'Payam Tavakoli - https://sketchfab.com/3d-models/electric-box-fe0c923107b545dfac7e65062701feef', licence: 'CC BY 4.0' },
+  { what: 'Light Switch (converted and scaled from USDZ)', from: 'Avot - https://sketchfab.com/3d-models/light-switch-808c3de4dd874fc1b67ff15cd2645555', licence: 'CC BY 4.0' },
   { what: 'Rusty Metal 04 - maintenance structures (1K colour, OpenGL normal, roughness)', from: 'Poly Haven - https://polyhaven.com/a/rusty_metal_04', licence: 'CC0' },
   { what: 'Three.js 3D WebGL Library', from: 'threejs.org', licence: 'MIT' },
   { what: 'PointerLockControls', from: 'three/examples/jsm/controls/PointerLockControls.js', licence: 'MIT' },

@@ -13,6 +13,11 @@ import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
 import { preloadLevel2Models } from './systems/modelCache.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { inventory } from './systems/inventory.js';
+import { PickupSystem } from './systems/pickupSystem.js';
+import { EquipmentSystem } from './systems/equipment.js';
+import { Viewmodel } from './systems/viewmodel.js';
+import { BackpackUI } from './systems/backpackUI.js';
 
 // ---------- Renderer / scene / camera ----------
 const canvas = document.getElementById('app');
@@ -79,6 +84,8 @@ const loseScreen = el('lose-screen');
 const creditsScreen = el('credits-screen');
 const hudRoot = el('hud');
 const interactPrompt = el('interact-prompt');
+const pickupPrompt = el('pickup-prompt');
+const hudToast = el('hud-toast');
 const terminalOverlay = el('terminal');
 const btnAudio = el('btn-audio');
 const guidanceModal = el('guidance-modal');
@@ -99,19 +106,40 @@ let previousPlayerPosition = new THREE.Vector3();
 
 let previousCameraMode = "first";
 
-
-
 // ---------- Systems ----------
 const playerControls = new PlayerControls(camera, renderer.domElement);
 const interaction = new InteractionSystem(camera, scene, interactPrompt,
   () => playerControls.isLocked && playerControls.enabled);
+const equipment = new EquipmentSystem(camera, flashlight);
+const viewmodel = new Viewmodel(camera, flashlight);
+equipment.setViewmodel(viewmodel);
+
+const pickupSystem = new PickupSystem(
+  () => (playerControls.cameraMode === "third" ? thirdPersonCamera : camera),
+  scene,
+  pickupPrompt,
+  hudToast
+);
+
+const backpackUI = new BackpackUI({
+  overlayEl: el('backpack-overlay'),
+  slotsContainerEl: el('backpack-slots'),
+  docReaderEl: el('doc-reader'),
+  docContentEl: el('doc-content'),
+  equipment,
+  playerControls,
+});
+
+if (el('btn-close-doc')) {
+  el('btn-close-doc').addEventListener('click', () => backpackUI.closeDocReader());
+}
+
 const aiState = new AIState((state) => hud.setAIStatus(state));
 const terminal = new Terminal({
   overlayEl: terminalOverlay,
   outputEl: el('terminal-output'),
   inputEl: el('terminal-input'),
 });
-
 
 let backpackModelTemplate = null;
 
@@ -170,7 +198,7 @@ function attachBackpackToCharacter(characterModel) {
     applyBackpackModel(backpackModelTemplate);
   } else {
     gltfLoader.load(
-      '/models/backpack_photogrammetry.glb',
+      './models/backpack_photogrammetry.glb',
       (gltf) => {
         backpackModelTemplate = gltf.scene;
         applyBackpackModel(backpackModelTemplate);
@@ -233,7 +261,7 @@ function loadPlayerModel() {
   activeAction = null;
 
   gltfLoader.load(
-    '/models/player.glb',
+    './models/player.glb', // CHANGED: was '/models/player.glb' (absolute path 404s when hosted in a subfolder)
 
     (gltf) => {
       if (modelGeneration !== loadGeneration) return;
@@ -260,6 +288,7 @@ function loadPlayerModel() {
 
 
       playerModel = model;
+      model.userData.ignoreInteraction = true;
 
       model.scale.set(1.2, 1.2, 1.2);
       model.position.copy(camera.position);
@@ -270,19 +299,21 @@ function loadPlayerModel() {
       // Attach worn backpack so character wears it in 3rd person
       attachBackpackToCharacter(model);
 
+
       scene.add(model);
 
       // One mixer controls all animations for this character.
       const mixer = new THREE.AnimationMixer(model);
       playerMixer = mixer;
 
+      // CHANGED: all paths are now relative ('./models/...') so they work when hosted in a subfolder
       const animations = {
-        idle: '/models/animations/idle.fbx',
-        walk: '/models/animations/walking.fbx',
-        run: '/models/animations/running.fbx',
-        jump: '/models/animations/jumping-up.fbx',
-        crouchIdle: '/models/animations/crouching-idle.fbx',
-        crouchWalk: 'models/animations/crouched-walking.fbx',
+        idle: './models/animations/idle.fbx',
+        walk: './models/animations/walking.fbx',
+        run: './models/animations/running.fbx',
+        jump: './models/animations/jumping-up.fbx',
+        crouchIdle: './models/animations/crouching-idle.fbx',
+        crouchWalk: './models/animations/crouched-walking.fbx',
       };
 
       const boneNames = new Set();
@@ -445,7 +476,11 @@ const securityRun = new SecurityRun({
     previousPlayerPosition.copy(camera.position);
     aiState.reset();
     interaction.reset();
-    const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : 'Laser triggered';
+    // CHANGED: added the 'surge' case for the Level 3 core shockwaves
+    const reason = source.endsWith('-pin') ? 'Four incorrect PINs'
+      : source === 'camera' ? 'Camera detected you'
+      : source === 'surge' ? 'Core shockwave hit you'
+      : 'Laser triggered';
     hud.setObjective(`${reason} — strike ${securityRun.strikes} of 3. Back at the entrance; 3 seconds to recover. ${currentLevel.objective}`);
   },
   onLose: (source) => {
@@ -456,10 +491,13 @@ const securityRun = new SecurityRun({
     interaction.reset();
     playerControls.enabled = false;
     playerControls.unlock();
+    // CHANGED: added the 'surge' case for the Level 3 core shockwaves
     el('lose-reason').textContent = source.endsWith('-pin')
       ? 'Four incorrect PIN attempts caused your third strike. Check the clues before submitting another code.'
       : source === 'camera'
       ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
+      : source === 'surge'
+      ? 'The core\'s shockwaves caused your third strike. Jump the ring or run through the safe gap.'
       : 'A laser caused your third strike. Jump low beams and duck under high beams.';
     showOnly(loseScreen);
     el('btn-retry-level').focus();
@@ -518,6 +556,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
+    onSurgeHit: () => securityRun.strike('surge'), // CHANGED: new callback used by Level 3's shockwaves
     onShock: (position) => playerControls.teleport(position),
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
@@ -594,6 +633,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 }
 
+
 function playEnding() {
   gameEnded = true;
   terminal.close();
@@ -647,6 +687,7 @@ function advanceLevel() {
 }
 
 // ---------- Menu state machine ----------
+
 function showOnly(...visibleEls) {
   [mainMenu, pauseMenu, creditsScreen, loseScreen, guidanceModal, controlsModal].forEach((e) => e?.classList.add('hidden'));
   visibleEls.forEach((e) => e?.classList.remove('hidden'));
@@ -679,12 +720,25 @@ function startFacilityGame() {
   sound.init();
   showOnly();
   hudRoot.classList.remove('hidden');
-  loadLevel(0, 'door', true);
+  inventory.clear();
+  equipment.equipTool('torch');
+
+  // CHANGED: dev-only shortcut. Open http://localhost:5173/?level=2 to start on Level 3.
+  // import.meta.env.DEV is false in production builds, so this is ignored once deployed.
+  const startLevel = import.meta.env.DEV
+    ? Number(new URLSearchParams(location.search).get('level') ?? 0)
+    : 0;
+  loadLevel(startLevel, 'door', true);
+
   playerControls.lock();
 }
 
-// Start game triggers: Click on Infiltrate opens the tactical guidance screen
+// Start game triggers: Click opens the tactical guidance screen
 el('btn-play')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showOnly(guidanceModal);
+});
+el('btn-hero-play')?.addEventListener('click', (e) => {
   e.preventDefault();
   showOnly(guidanceModal);
 });
@@ -703,11 +757,20 @@ el('btn-guidance-close')?.addEventListener('click', () => {
   }
 });
 
-// Menu sound effects on hover
+// Real video game UI hover sound effects
 document.querySelectorAll('.game-menu-btn, .btn-guidance-start').forEach((btn) => {
   btn.addEventListener('mouseenter', () => {
     sound.playKeypadBeep();
   });
+});
+
+// Navigation Bar & Modal Listeners
+el('nav-home')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  guidanceModal?.classList.add('hidden');
+  controlsModal?.classList.add('hidden');
+  creditsScreen?.classList.add('hidden');
+  showOnly(mainMenu);
 });
 
 // Background music auto-start on user gesture
@@ -723,6 +786,18 @@ window.addEventListener('keydown', tryPlayMusic, { once: true });
 // Navigation Bar & Modal Listeners
 el('nav-mission')?.addEventListener('click', (e) => {
   e.preventDefault();
+  showOnly(guidanceModal);
+});
+
+el('btn-hero-brief')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showOnly(guidanceModal);
+});
+
+el('objective-panel')?.addEventListener('click', () => {
+  if (playerControls.isLocked) {
+    playerControls.unlock();
+  }
   showOnly(guidanceModal);
 });
 
@@ -803,11 +878,6 @@ document.addEventListener('keydown', (e) => {
     showOnly(guidanceModal);
     return;
   }
-  // If guidance modal open, Enter commences infiltration
-  if (guidanceModal && !guidanceModal.classList.contains('hidden') && e.code === 'Enter') {
-    startFacilityGame();
-    return;
-  }
   // If Lose screen is showing, pressing [R] or Enter restarts the level immediately
   if (loseScreen && !loseScreen.classList.contains('hidden') && (e.code === 'KeyR' || e.code === 'Enter')) {
     showOnly();
@@ -815,10 +885,26 @@ document.addEventListener('keydown', (e) => {
     playerControls.lock();
     return;
   }
+  // If Guidance modal is showing, pressing [Enter] commences infiltration
+  if (guidanceModal && !guidanceModal.classList.contains('hidden') && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
+    startFacilityGame();
+    return;
+  }
+  // In-game: Press [H] to toggle Guidance & Riddle modal
+  if (e.code === 'KeyH' && !e.repeat) {
+    if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
+      guidanceModal.classList.add('hidden');
+      if (currentLevel) playerControls.lock();
+    } else if (playerControls.isLocked) {
+      playerControls.unlock();
+      showOnly(guidanceModal);
+    }
+    return;
+  }
   if (e.code !== 'Escape') return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
+    guidanceModal.classList.add('hidden');
     if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
-      guidanceModal.classList.add('hidden');
       playerControls.lock();
     } else {
       showOnly(mainMenu);
@@ -826,8 +912,8 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (controlsModal && !controlsModal.classList.contains('hidden')) {
+    controlsModal.classList.add('hidden');
     if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
-      controlsModal.classList.add('hidden');
       playerControls.lock();
     } else {
       showOnly(mainMenu);
@@ -839,23 +925,34 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (terminal.open) return;
+  if (backpackUI.isOpen) return;
   if (playerControls.isLocked) {
     playerControls.unlock();
   }
 });
 
-document.addEventListener('security-keypad-close', () => {
+function resumeAfterPanel(event) {
+  if (levelLoading || gameEnded) return;
   if (mainMenu.classList.contains('hidden') && creditsScreen.classList.contains('hidden')) {
     showOnly(pauseMenu);
+    // The keypad's Continue click/Enter supplies the gesture needed to
+    // recapture the mouse. Keep Resume visible if capture is declined.
+    if (event.detail?.resume) playerControls.lock();
   }
-});
+}
+document.addEventListener('security-keypad-close', resumeAfterPanel);
+document.addEventListener('wiring-panel-close', resumeAfterPanel);
 
 playerControls.controls.addEventListener('unlock', () => {
   if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
+  if (document.getElementById('wiring-panel-overlay')) return;
+  if (backpackUI.isOpen) return;
+  if (terminal.open) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) return;
+  if (loseScreen && !loseScreen.classList.contains('hidden')) return;
   if (controlsModal && !controlsModal.classList.contains('hidden')) return;
   showOnly(pauseMenu);
 });
@@ -877,7 +974,7 @@ function bootSequence() {
   // Pre-load and cache the backpack model during boot sequence
   // so that character spawn into 3D gameplay has zero GLTF parsing stutter.
   gltfLoader.load(
-    '/models/backpack_photogrammetry.glb',
+    './models/backpack_photogrammetry.glb',
     (gltf) => {
       backpackModelTemplate = gltf.scene;
     },
@@ -904,6 +1001,7 @@ function bootSequence() {
   }, 100);
 }
 bootSequence();
+
 
 
 // ---------- Game loop ----------
@@ -959,6 +1057,7 @@ function tick() {
 
 
     interaction.update(delta);
+    pickupSystem.update(delta);
 
     currentLevel?.update?.(delta, camera);
 
@@ -1051,8 +1150,14 @@ function tick() {
     thirdPersonCamera.lookAt(lookTarget);
     }
 
-
-
+  // Animate viewmodel sway & breathing in first person mode
+  const isMoving =
+    playerControls.move.forward ||
+    playerControls.move.back ||
+    playerControls.move.left ||
+    playerControls.move.right;
+  const isFirstPerson = playerControls.cameraMode !== "third";
+  viewmodel.update(delta, playerControls.isLocked && isMoving, playerControls.move.sprint, isFirstPerson);
 
   previousCameraMode = playerControls.cameraMode;
 
@@ -1063,7 +1168,9 @@ function tick() {
   renderer.render(scene, activeCamera);
 
   // Render secondary CCTV Camera PiP view if active.
-  if (currentLevel?.cctvCamera && cctvRenderer) {
+  const cctvEnabled = !!currentLevel?.cctvCamera && currentLevel.cctvEnabled !== false;
+  cctvContainer?.classList.toggle('hidden', !cctvEnabled);
+  if (cctvEnabled && cctvRenderer) {
     // CCTV sees the character even when the first-person view hides their body.
     const wasVisible = playerModel?.visible;
     if (playerModel) playerModel.visible = true;

@@ -16,7 +16,9 @@
   <canvas id="app"></canvas>
 
   <!-- Background Music Audio Element -->
-  <audio id="backgroundMusic" src="/star.mp3" loop></audio>
+  <audio id="backgroundMusic" src="./star.mp3" loop></audio>
+
+
 
   <!-- Loading screen -->
   <div id="loading-screen">
@@ -35,7 +37,7 @@
     <div class="hazard-tape top-hazard"></div>
     <div class="hazard-tape bottom-hazard"></div>
 
-    <img class="img-gradient" src="/gradient.png" alt="gradient" />
+    <img class="img-gradient" src="./gradient.png" alt="gradient" />
     <div class="layer-blur"></div>
 
     <div class="landing-container">
@@ -117,8 +119,8 @@
               <span class="tel-val warn">ACTIVE (LIVE WATER)</span>
             </div>
             <div class="telemetry-row">
-              <span class="tel-label">SECURITY PROTOCOL:</span>
-              <span class="tel-val cyan">LASER BEAMS &bull; CCTV</span>
+              <span class="tel-label">OPERATIVE GEAR:</span>
+              <span class="tel-val cyan">FIELD BACKPACK + TORCH</span>
             </div>
           </div>
         </div>
@@ -199,7 +201,8 @@
         <div class="guidance-card hazard-card">
           <div class="card-pill hazard-pill">⚠ AI SECURITY THREAT // 3-STRIKE PROTOCOL</div>
           <div class="hazard-desc">
-            The facility AI triggers a permanent lockdown after <strong>3 Strikes</strong>:
+            Start with your torch. Find the electric box on the entrance wall and press <strong>E</strong>. Connect two numbered cables to each socket so their sum equals its target, then test the circuit. Use the light switch on the right wall once repaired. CCTV activates after the lights warm up.
+            <br>The facility AI triggers a permanent lockdown after <strong>3 Strikes</strong>:
             <br>&bull; <strong>Camera Exposure</strong>: Being spotted in the CCTV cone for &ge; 3.0 seconds causes a strike.
             <br>&bull; <strong>Keypad / Clock Errors</strong>: 4 incorrect PIN attempts trigger a strike.
             <br>&bull; <strong>Security Lasers</strong>: Tripping security beams in Level 2 triggers a strike.
@@ -252,6 +255,9 @@
         <div class="ctrl-row"><kbd>C / CTRL</kbd><span>Duck &amp; Crouch Crawl</span></div>
         <div class="ctrl-row"><kbd>V</kbd><span>Toggle 1st / 3rd Person View</span></div>
         <div class="ctrl-row"><kbd>E</kbd><span>Interact &amp; Access Terminals</span></div>
+        <div class="ctrl-row"><kbd>F</kbd><span>Pick up Tools, Books &amp; Torch</span></div>
+        <div class="ctrl-row"><kbd>B</kbd><span>Open Field Backpack</span></div>
+        <div class="ctrl-row"><kbd>H</kbd><span>Review Guidance &amp; Riddle</span></div>
         <div class="ctrl-row"><kbd>ESC</kbd><span>Pause / Close Menus</span></div>
       </div>
       <button id="btn-controls-close" class="modal-close-btn">CLOSE GUIDE</button>
@@ -294,7 +300,6 @@
   <div id="hud" class="hidden">
     <div id="shock-flash" aria-hidden="true"></div>
     <div id="hazard-status" class="hidden" role="status" aria-live="polite"></div>
-    <div id="tool-inventory" class="hidden" role="status"></div>
     <aside id="controls-guide" aria-label="Game controls">
       <div class="controls-label">CONTROLS</div>
       <div class="controls-list">
@@ -305,11 +310,17 @@
         <span><kbd>C / Ctrl</kbd> Duck (hold)</span>
         <span><kbd>V</kbd> Switch view</span>
         <span><kbd>E</kbd> Interact</span>
+        <span><kbd>F</kbd> Pick up</span>
+        <span><kbd>B</kbd> Backpack</span>
+        <span><kbd>H</kbd> Guidance</span>
         <span><kbd>Esc</kbd> Pause</span>
       </div>
     </aside>
     <div id="crosshair"></div>
     <div id="interact-prompt" class="hidden">[E] Interact</div>
+    <div id="pickup-prompt" class="hidden">[F] Pick up</div>
+    <div id="hud-toast" class="hidden"></div>
+
 
     <!-- AI Security Status Panel -->
     <div id="ai-status-panel">
@@ -335,9 +346,32 @@
     </div>
 
     <!-- Mission Objective Panel -->
-    <div id="objective-panel">
-      <div class="objective-label">OBJECTIVE</div>
+    <div id="objective-panel" title="Click or press [H] to review Guidance &amp; Riddle">
+      <div class="objective-label">OBJECTIVE &bull; [H] GUIDANCE</div>
       <div id="objective-text">Explore the maintenance area.</div>
+      <div class="inventory-hint">[B] Backpack &middot; [F] Pick up &middot; [H] Mission Riddle</div>
+    </div>
+  </div>
+
+  <!-- Backpack UI Overlay -->
+  <div id="backpack-overlay" class="overlay hidden">
+    <div class="backpack-panel">
+      <div class="backpack-header">
+        <h2>🎒 FIELD BACKPACK</h2>
+        <span class="backpack-hint">Click item to use / inspect / toggle torch &middot; Press [B] or [ESC] to close</span>
+      </div>
+      <div id="backpack-slots" class="backpack-slots-grid">
+        <!-- Populated dynamically from src/systems/inventory.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Reader Overlay -->
+  <div id="doc-reader" class="overlay hidden">
+    <div class="doc-reader-panel">
+      <div class="doc-title">DOCUMENT</div>
+      <pre id="doc-content" class="doc-content-text"></pre>
+      <button id="btn-close-doc" class="doc-close-btn">CLOSE [ESC]</button>
     </div>
   </div>
 
