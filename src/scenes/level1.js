@@ -10,7 +10,7 @@ import { buildNoticeBoard } from './noticeBoard.js';
 import { buildSecurityKeypad } from './securityKeypad.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
-import { createLightShaft } from '../shaders/lightShaft.js';
+import { createVentHaze } from '../shaders/ventHaze.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -243,7 +243,8 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   for (let row = 0; row <= 10; row++) {
     ceilingDetail('Ceiling grid cross rail', 0, 6.735, -10 + row * 2, 14, 0.025, 0.018, trimMat);
   }
-  for (const [x, z] of [[-1.5, -5], [4.5, 1], [-4.5, 7]]) {
+  const ventSpots = [[-1.5, -5], [4.5, 1], [-4.5, 7]];
+  for (const [x, z] of ventSpots) {
     ceilingDetail('Inset ventilation frame', x, 6.705, z, 0.78, 0.035, 0.95, trimMat);
     ceilingDetail('Dark ventilation opening', x, 6.68, z, 0.69, 0.02, 0.86, ventMat);
     for (let slat = 0; slat < 9; slat++) {
@@ -276,16 +277,17 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     diffuserMat.dispose();
   });
 
-  // Dusty beam under the lit diffuser at column 3 / row 6 (x = -3.5, z = 3).
-  const lightShaft = createLightShaft({
-    position: new THREE.Vector3(-3.5, 6.86, 3),
-    height: 6.84,
-    topRadius: 0.45,
-    bottomRadius: 1.35,
-    intensity: 1.0,
+  // Faint displaced air under each ceiling vent, so the grilles read as working
+  // extractors rather than decoration.
+  const ventHazes = ventSpots.map(([x, z], index) => {
+    const haze = createVentHaze({
+      position: new THREE.Vector3(x, 6.64, z),
+      seed: index * 13.7,
+    });
+    scene.add(haze.group);
+    cleanup.push(() => haze.dispose());
+    return haze;
   });
-  scene.add(lightShaft.group);
-  cleanup.push(() => lightShaft.dispose());
 
   // Clutter props / crates using new buildProp format
   const cardboardBoxes = buildCardboardBoxes();
@@ -431,7 +433,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
 
     if (sparks.userData.update) sparks.userData.update(delta);
 
-    lightShaft.update(delta);
+    for (const haze of ventHazes) haze.update(delta);
 
     securitySweep.update(delta);
     const cameraSeesPlayer = securitySweep.sees(camera.position);

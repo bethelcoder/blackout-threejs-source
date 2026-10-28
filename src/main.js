@@ -12,6 +12,8 @@ import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
 import { preloadLevel2Models } from './systems/modelCache.js';
+import { createShockOverlay } from './shaders/shockOverlay.js';
+import { createCctvFeed } from './shaders/cctvFeed.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 // ---------- Renderer / scene / camera ----------
@@ -30,14 +32,21 @@ renderer.toneMappingExposure = 1.35;
 const cctvCanvas = document.getElementById('cctv-canvas');
 const cctvContainer = document.getElementById('cctv-container');
 let cctvRenderer = null;
+let cctvFeed = null;
 if (cctvCanvas) {
   cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: true });
   cctvRenderer.setSize(240, 135);
   cctvRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  cctvRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  cctvRenderer.toneMappingExposure = 1.35;
+  cctvFeed = createCctvFeed({ width: 240, height: 135 });
 }
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x1a2634, 0.005);
+
+// Full-screen electrical hit feedback, drawn over whichever camera is active.
+const shockOverlay = createShockOverlay();
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
 const PLAYER_HEIGHT = 1.7;
@@ -395,7 +404,10 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
-    onShock: (position) => playerControls.teleport(position),
+    onShock: (position) => {
+      playerControls.teleport(position);
+      shockOverlay.trigger();
+    },
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
     onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
@@ -780,13 +792,16 @@ function tick() {
   // Render primary camera view.
   renderer.render(scene, activeCamera);
 
+  shockOverlay.update(delta);
+  shockOverlay.render(renderer);
+
   // Render secondary CCTV Camera PiP view if active.
   if (currentLevel?.cctvCamera && cctvRenderer) {
     // CCTV sees the character even when the first-person view hides their body.
     const wasVisible = playerModel?.visible;
     if (playerModel) playerModel.visible = true;
     try {
-      cctvRenderer.render(scene, currentLevel.cctvCamera);
+      cctvFeed.render(cctvRenderer, scene, currentLevel.cctvCamera, delta);
     } finally {
       if (playerModel) playerModel.visible = wasVisible;
     }
