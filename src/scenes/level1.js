@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createClockPuzzle } from '../riddles/clockPuzzle.js';
-import { buildRoom, buildHazardStrip, buildProp } from './roomBuilder.js';
+import { buildRoom, buildHazardStrip, buildProp, buildItemPickupProp } from './roomBuilder.js';
 import { createSparkParticles } from '../systems/particles.js';
 import { sound } from '../systems/audio.js';
 import { buildMaintenanceWalkway } from './maintenanceWalkway.js';
@@ -37,6 +37,39 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(ventRoute.group);
   colliders.push(...ventRoute.colliders);
   cleanup.push(() => ventRoute.dispose());
+
+  // In-World Pickup Items for backpack testing (tools, books, torch, keycard)
+  const itemPickups = [
+    { itemId: 'technical_guide', pos: [-1.8, 0.45, 6.2], rot: [0, 0.3, 0] },
+    { itemId: 'maintenance_manual', pos: [-2.2, 0.45, 4.5], rot: [0, -0.2, 0] },
+    { itemId: 'insulated_wrench', pos: [1.8, 0.45, 6.0], rot: [0, 0.8, 0] },
+    { itemId: 'multimeter', pos: [2.2, 0.45, 4.2], rot: [0, -0.5, 0] },
+    { itemId: 'torch', pos: [1.5, 0.45, 4.8], rot: [0, 0.1, 0] },
+    { itemId: 'access_card', pos: [-1.5, 0.45, 2.5], rot: [0, 0.6, 0] },
+  ];
+
+  const benchMat = new THREE.MeshStandardMaterial({ color: 0x222a33, roughness: 0.7, metalness: 0.6 });
+  const benchTopMat = new THREE.MeshStandardMaterial({ color: 0x364350, roughness: 0.5, metalness: 0.8 });
+
+  for (const item of itemPickups) {
+    const stand = new THREE.Group();
+    stand.position.set(item.pos[0], 0, item.pos[2]);
+    const standBody = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.42, 12), benchMat);
+    standBody.position.y = 0.21;
+    standBody.castShadow = true;
+    standBody.receiveShadow = true;
+    const standTop = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.04, 12), benchTopMat);
+    standTop.position.y = 0.43;
+    standTop.castShadow = true;
+    standTop.receiveShadow = true;
+    stand.add(standBody, standTop);
+    scene.add(stand);
+    cleanup.push(() => scene.remove(stand));
+
+    const prop = buildItemPickupProp({ itemId: item.itemId, position: [item.pos[0], 0.45, item.pos[2]], rotation: item.rot });
+    scene.add(prop);
+    cleanup.push(() => scene.remove(prop));
+  }
 
 
  // Sci-fi cargo crate
@@ -408,6 +441,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   let warnTimer = 0;
 
   function update(delta, camera) {
+
     ventRoute.update(delta, camera);
     if (doorsOpen) {
       doorHinges[0].rotation.y = THREE.MathUtils.damp(doorHinges[0].rotation.y, -1.4, 6, delta);
@@ -442,8 +476,9 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     update,
     dispose: () => cleanup.forEach((fn) => fn()),
     spawn: new THREE.Vector3(0, 1.7, 7.5),
-    title: 'LEVEL 1 â€” INFILTRATION',
+    title: 'LEVEL 1 — INFILTRATION',
     subtitle: 'Find a way past the perimeter security.',
-    objective: 'Explore the substation for access credentials.',
+    objective: 'Backpack equipped [B]. Collect maintenance tools, books, and credentials [F].',
   };
 }
+
