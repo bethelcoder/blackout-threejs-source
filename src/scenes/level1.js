@@ -10,6 +10,7 @@ import { buildNoticeBoard } from './noticeBoard.js';
 import { buildSecurityKeypad } from './securityKeypad.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
+import { createLightShaft } from '../shaders/lightShaft.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -275,6 +276,17 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     diffuserMat.dispose();
   });
 
+  // Dusty beam under the lit diffuser at column 3 / row 6 (x = -3.5, z = 3).
+  const lightShaft = createLightShaft({
+    position: new THREE.Vector3(-3.5, 6.86, 3),
+    height: 6.84,
+    topRadius: 0.45,
+    bottomRadius: 1.35,
+    intensity: 1.0,
+  });
+  scene.add(lightShaft.group);
+  cleanup.push(() => lightShaft.dispose());
+
   // Clutter props / crates using new buildProp format
   const cardboardBoxes = buildCardboardBoxes();
   scene.add(cardboardBoxes.group);
@@ -418,6 +430,8 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     clockPuzzle.update(delta);
 
     if (sparks.userData.update) sparks.userData.update(delta);
+
+    lightShaft.update(delta);
 
     securitySweep.update(delta);
     const cameraSeesPlayer = securitySweep.sees(camera.position);
