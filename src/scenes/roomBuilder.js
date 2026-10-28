@@ -748,7 +748,7 @@ export function buildBackpackProp({ position = [0, 0, 0], rotation = [0, 0, 0], 
 
   const loader = new GLTFLoader();
   loader.load(
-    '/models/backpack_photogrammetry.glb',
+    './models/backpack_photogrammetry.glb',
     (gltf) => {
       const model = gltf.scene;
       const box = new THREE.Box3().setFromObject(model);
@@ -958,4 +958,4 @@ export function buildItemPickupProp({ itemId, position = [0, 0, 0], rotation = [
   }
 
   return group;
-}
+}

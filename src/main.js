@@ -187,7 +187,7 @@ function loadPlayerModel() {
   activeAction = null;
 
   gltfLoader.load(
-    '/models/player.glb',
+    './models/player.glb', // CHANGED: was '/models/player.glb' (absolute path 404s when hosted in a subfolder)
 
     (gltf) => {
       if (modelGeneration !== loadGeneration) return;
@@ -230,13 +230,14 @@ function loadPlayerModel() {
       const mixer = new THREE.AnimationMixer(model);
       playerMixer = mixer;
 
+      // CHANGED: all paths are now relative ('./models/...') so they work when hosted in a subfolder
       const animations = {
-        idle: '/models/animations/idle.fbx',
-        walk: '/models/animations/walking.fbx',
-        run: '/models/animations/running.fbx',
-        jump: '/models/animations/jumping-up.fbx',
-        crouchIdle: '/models/animations/crouching-idle.fbx',
-        crouchWalk: 'models/animations/crouched-walking.fbx',
+        idle: './models/animations/idle.fbx',
+        walk: './models/animations/walking.fbx',
+        run: './models/animations/running.fbx',
+        jump: './models/animations/jumping-up.fbx',
+        crouchIdle: './models/animations/crouching-idle.fbx',
+        crouchWalk: './models/animations/crouched-walking.fbx',
       };
 
       const boneNames = new Set();
@@ -399,7 +400,11 @@ const securityRun = new SecurityRun({
     previousPlayerPosition.copy(camera.position);
     aiState.reset();
     interaction.reset();
-    const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : 'Laser triggered';
+    // CHANGED: added the 'surge' case for the Level 3 core shockwaves
+    const reason = source.endsWith('-pin') ? 'Four incorrect PINs'
+      : source === 'camera' ? 'Camera detected you'
+      : source === 'surge' ? 'Core shockwave hit you'
+      : 'Laser triggered';
     hud.setObjective(`${reason} — strike ${securityRun.strikes} of 3. Back at the entrance; 3 seconds to recover. ${currentLevel.objective}`);
   },
   onLose: (source) => {
@@ -410,10 +415,13 @@ const securityRun = new SecurityRun({
     interaction.reset();
     playerControls.enabled = false;
     playerControls.unlock();
+    // CHANGED: added the 'surge' case for the Level 3 core shockwaves
     el('lose-reason').textContent = source.endsWith('-pin')
       ? 'Four incorrect PIN attempts caused your third strike. Check the clues before submitting another code.'
       : source === 'camera'
       ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
+      : source === 'surge'
+      ? 'The core\'s shockwaves caused your third strike. Jump the ring or run through the safe gap.'
       : 'A laser caused your third strike. Jump low beams and duck under high beams.';
     showOnly(loseScreen);
     el('btn-retry-level').focus();
@@ -472,6 +480,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
+    onSurgeHit: () => securityRun.strike('surge'), // CHANGED: new callback used by Level 3's shockwaves
     onShock: (position) => playerControls.teleport(position),
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
@@ -611,7 +620,14 @@ function startFacilityGame() {
   showOnly();
   hudRoot.classList.remove('hidden');
   inventory.clear();
-  loadLevel(0, 'door', true);
+
+  // CHANGED: dev-only shortcut. Open http://localhost:5173/?level=2 to start on Level 3.
+  // import.meta.env.DEV is false in production builds, so this is ignored once deployed.
+  const startLevel = import.meta.env.DEV
+    ? Number(new URLSearchParams(location.search).get('level') ?? 0)
+    : 0;
+  loadLevel(startLevel, 'door', true);
+
   playerControls.lock();
 }
 
