@@ -25,7 +25,7 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   // The open stair frame leaves the toolbox accessible from the room.
   const toolbox = new THREE.Group();
   toolbox.name = 'Under-stair toolbox';
-  toolbox.position.set(5.55, 0.35, 1.8);
+  toolbox.position.set(5.55, 0, 1.8);
   toolbox.rotation.y = -Math.PI / 2;
   group.add(toolbox);
   box(toolbox, 'Tool chest base', 0, 0.05, 0, 1.5, 0.1, 0.8, toolboxPaint, true);
@@ -45,15 +45,11 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   for (const x of [-0.2, 0.2]) box(lidHinge, 'Carry handle mount', x, 0.165, 0.4, 0.045, 0.12, 0.065);
   for (const x of [-0.52, 0.52]) box(lidHinge, 'Toolbox latch', x, 0, 0.825, 0.065, 0.14, 0.035);
 
-  const inventory = document.getElementById('tool-inventory');
-  inventory.textContent = 'TOOL: None';
-  inventory.classList.remove('hidden');
   let heldTool = null;
   let toolboxOpen = false;
   const tools = [];
   const toolsExposed = () => toolboxOpen && lidHinge.rotation.x < -1.1;
   function refreshTools() {
-    inventory.textContent = `TOOL: ${heldTool ?? 'None'}`;
     for (const tool of tools) {
       tool.visible = toolsExposed() && heldTool !== tool.name;
       tool.userData.interactable = tool.visible;
@@ -234,7 +230,6 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
       schedule.dispose();
       unitBox.dispose();
       for (const material of [metal, black, toolboxPaint, handle, blueGrip]) material.dispose();
-      inventory.classList.add('hidden');
     },
   };
 }

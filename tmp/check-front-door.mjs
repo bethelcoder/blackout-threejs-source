@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { buildFrontDoor } from '../src/scenes/frontDoor.js';
+globalThis.self = globalThis;
+globalThis.createImageBitmap = async () => ({ width: 1024, height: 1024, close() {} });
+const bytes = fs.readFileSync('public/models/front-door.glb');
+const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+const original = GLTFLoader.prototype.loadAsync;
+GLTFLoader.prototype.loadAsync = async () => ({ scene: gltf.scene.clone(true) });
+try {
+  const door = buildFrontDoor();
+  await door.ready;
+  let meshes = 0;
+  door.group.traverse(object => { if (object.isMesh) meshes++; });
+  assert.equal(meshes, 2, 'Both imported door components retained');
+  assert.ok(Math.abs(door.collider.min.y) < 0.000001, 'Door rests on floor');
+  assert.ok(Math.abs(door.collider.max.y - 2.65) < 0.000001);
+  assert.ok(door.collider.max.z < 10 && door.collider.min.z > 9.7, 'Door sits inside front wall without clipping');
+  assert.ok(door.collider.max.x < 1.9, 'Leaves room for the electric box');
+  assert.equal(door.collider.containsPoint(new THREE.Vector3(0, 1.7, 7.5)), false, 'Spawn remains clear');
+  const scene = new THREE.Scene(); scene.add(door.group); scene.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, 1.7, 8), new THREE.Vector3(0, 0, 1), 0, 3);
+  assert.ok(ray.intersectObject(door.group, true).length > 0, 'Front door visible from room interior');
+  door.dispose(); assert.equal(scene.children.length, 0);
+  const cancelled = buildFrontDoor(); cancelled.dispose(); await cancelled.ready;
+  assert.equal(cancelled.group.children.length, 1, 'Cancelled loading cannot restore imported geometry');
+  console.log('Front door checks passed: supplied model, floor/wall fit, electric-box and spawn clearance, interior visibility and cleanup.');
+} finally { GLTFLoader.prototype.loadAsync = original; }

@@ -284,7 +284,7 @@ export function createClockPuzzle({
         <div style="font-size: 38px; font-weight: bold; letter-spacing: 8px; font-family: monospace; text-shadow: 0 0 10px #2bff6f;">0451</div>
       </div>
       <div style="font-size: 13px; color: #555; text-align: center; border-top: 1px dashed #999; padding-top: 12px;">
-        Enter this code into the security keypad beside the exit double doors.
+        Enter this code into the security keypad beside the storage room door.
       </div>
     `;
 
@@ -315,9 +315,9 @@ export function createClockPuzzle({
       keyGroup.position.y -= 5.0 * delta;
       keyGroup.rotation.y += 6.0 * delta;
       
-      // Changed to 1.0 so it hits the stand, not the absolute floor
-      if (keyGroup.position.y <= 0.35) {
-        keyGroup.position.y = 0.35; 
+      // The wall plinth is gone: let the released key land on the room floor.
+      if (keyGroup.position.y <= 0.025) {
+        keyGroup.position.y = 0.025;
         keyGroup.rotation.set(Math.PI / 2, 0, Math.PI / 4);
         keyDropping = false;
 

@@ -316,7 +316,7 @@ export function buildSecurityKeypad({
 
   group.userData.onInteract = () => {
     if (unlocked) {
-      if (hud) hud.setObjective('Access already granted. Push the double doors to enter Level 2.');
+      if (hud) hud.setObjective('Access already granted. Open the storage room door to enter Level 2.');
       return;
     }
 
@@ -714,13 +714,13 @@ export function buildSecurityKeypad({
         onSuccess?.();
 
         if (hud) {
-          hud.setObjective('Access granted! Level 2 double doors unlocked.');
+          hud.setObjective('Access granted! Storage room door unlocked.');
         }
 
         // Returning to pointer lock needs a fresh player gesture. A timer
         // cannot reliably capture the mouse after the PIN modal released it.
         enterText.innerText = 'CONTINUE';
-        hint.innerText = 'Access granted. Click CONTINUE or press Enter to return, then push the double doors.';
+        hint.innerText = 'Access granted. Click CONTINUE or press Enter to return, then open the storage room door.';
       } else {
         // Access Denied!
         wrongAttempts++;

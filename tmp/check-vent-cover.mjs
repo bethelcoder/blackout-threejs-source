@@ -34,7 +34,6 @@ for (let i = 0; i < 30; i++) route.update(1 / 60);
 const screwdriver = route.group.getObjectByName('Screwdriver');
 assert.ok(screwdriver.visible);
 screwdriver.userData.onInteract();
-assert.match(inventory.textContent, /Screwdriver/);
 vent.userData.onHold(4);
 for (let i = 0; i < 30; i++) route.update(1 / 60);
 assert.ok(hinge.rotation.y < -1.2, 'Screwdriver still opens imported vent');

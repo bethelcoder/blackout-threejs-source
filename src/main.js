@@ -721,6 +721,7 @@ function startFacilityGame() {
   showOnly();
   hudRoot.classList.remove('hidden');
   inventory.clear();
+  equipment.equipTool('torch');
 
   // CHANGED: dev-only shortcut. Open http://localhost:5173/?level=2 to start on Level 3.
   // import.meta.env.DEV is false in production builds, so this is ignored once deployed.
@@ -930,7 +931,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-document.addEventListener('security-keypad-close', (event) => {
+function resumeAfterPanel(event) {
   if (levelLoading || gameEnded) return;
   if (mainMenu.classList.contains('hidden') && creditsScreen.classList.contains('hidden')) {
     showOnly(pauseMenu);
@@ -938,11 +939,14 @@ document.addEventListener('security-keypad-close', (event) => {
     // recapture the mouse. Keep Resume visible if capture is declined.
     if (event.detail?.resume) playerControls.lock();
   }
-});
+}
+document.addEventListener('security-keypad-close', resumeAfterPanel);
+document.addEventListener('wiring-panel-close', resumeAfterPanel);
 
 playerControls.controls.addEventListener('unlock', () => {
   if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
+  if (document.getElementById('wiring-panel-overlay')) return;
   if (backpackUI.isOpen) return;
   if (terminal.open) return;
   if (!mainMenu.classList.contains('hidden')) return;
@@ -1164,7 +1168,9 @@ function tick() {
   renderer.render(scene, activeCamera);
 
   // Render secondary CCTV Camera PiP view if active.
-  if (currentLevel?.cctvCamera && cctvRenderer) {
+  const cctvEnabled = !!currentLevel?.cctvCamera && currentLevel.cctvEnabled !== false;
+  cctvContainer?.classList.toggle('hidden', !cctvEnabled);
+  if (cctvEnabled && cctvRenderer) {
     // CCTV sees the character even when the first-person view hides their body.
     const wasVisible = playerModel?.visible;
     if (playerModel) playerModel.visible = true;

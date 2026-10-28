@@ -223,7 +223,8 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
       if (sideIdx === 1 && z > 6.0 && z < 8.5) return;
 
       const rackGroup = new THREE.Group();
-      rackGroup.position.set(xPos, 0.35, z);
+      const rackFloor = includePlinths && (sideIdx === 0 || includeRightPlinth) ? 0.35 : 0;
+      rackGroup.position.set(xPos, rackFloor, z);
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 3.2, 1.1), rackMat);
       body.position.y = 1.6;
@@ -242,7 +243,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
 
       group.add(rackGroup);
       const rackBox = new THREE.Box3().setFromCenterAndSize(
-        new THREE.Vector3(xPos, 1.95, z),
+        new THREE.Vector3(xPos, rackFloor + 1.6, z),
         new THREE.Vector3(1.1, 3.2, 1.1)
       );
       colliders.push(rackBox);
