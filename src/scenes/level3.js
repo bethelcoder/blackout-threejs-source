@@ -4,6 +4,7 @@ import { createElectricCorruptionMaterial } from '../shaders/electricCorruption.
 import { createShockwaveFloorMaterial, MAX_WAVES } from '../shaders/shockwaveFloor.js';
 import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
 import { createSparkParticles } from '../systems/particles.js';
+import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 import { sound } from '../systems/audio.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
@@ -151,6 +152,28 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   add(panel);
   const sparks = add(createSparkParticles({ origin: [0, 2.2, -6.5], color: 0xff5f4f, count: 100 }));
 
+  // ---------- Ceiling CCTV ----------
+  // Priority is being seen, not being caught: the cone only feeds suspicion,
+  // which already drives the corrupted panel's intensity. The shockwaves stay
+  // the single source of strikes so the room doesn't punish twice for one move.
+  const cctvView = createRoomSecurityView({
+    position: new THREE.Vector3(0, 4.85, -6.55),
+    target: new THREE.Vector3(0, 0.6, 2.5),
+    fov: 50,
+    far: 24,
+  });
+  const securityCamera = buildSecurityCamera();
+  securityCamera.group.position.copy(cctvView.position);
+  securityCamera.group.lookAt(0, 0.6, 2.5);
+  add(securityCamera.group);
+
+  const cameraStatus = new THREE.PointLight(0xff3322, 0.5, 1.6);
+  cameraStatus.position.copy(cctvView.position);
+  add(cameraStatus);
+
+  const securitySweep = createSecuritySweep(cctvView, securityCamera.group, colliders);
+  add(securitySweep.group);
+
   // ---------- Puzzle data (shuffled every run) ----------
   const loads = shuffle([34, 58, 91]);
   const loadById = Object.fromEntries(BREAKER_SPOTS.map((s, i) => [s.id, loads[i]]));
@@ -256,6 +279,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   let chargeSounded = false;
   let dissolve = 0;
   let ended = false;
+  let cctvWarnTimer = 0;
 
   function applyPhase() {
     waveMat.uniforms.uGapWidth.value = PHASES[phaseIndex()].gap;
@@ -378,6 +402,19 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
       b.pivot.rotation.x += (b.leverTarget - b.pivot.rotation.x) * lerpK(delta, 10);
     }
 
+    // CCTV pressure: no strike, just suspicion (and the audio state that follows).
+    securitySweep.update(delta);
+    if (!finished && securitySweep.sees(camera.position)) {
+      aiState.raise(14 * delta);
+      cctvWarnTimer += delta;
+      if (cctvWarnTimer > 1.1) {
+        sound.playDetectionWarning(aiState.suspicion / 100);
+        cctvWarnTimer = 0;
+      }
+    } else {
+      cctvWarnTimer = 0;
+    }
+
     sparks.userData.update(delta);
     aiState.decay(2 * delta);
   }
@@ -389,6 +426,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
   return {
     colliders,
+    cctvCamera: cctvView,
     update,
     dispose,
     spawn: new THREE.Vector3(0, 1.7, 5.5),
