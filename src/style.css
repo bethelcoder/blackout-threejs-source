@@ -99,6 +99,898 @@ html, body {
 .credits-list li { padding: 10px 0; border-bottom: 1px dashed #223140; }
 .credits-list b { color: #cfe8ff; }
 
+
+/* ---------- Real Video Game Title Screen & Shaders ---------- */
+.landing-page {
+  position: fixed;
+  inset: 0;
+  background: #04070a;
+  overflow: hidden;
+  z-index: 40;
+  font-family: 'Rajdhani', sans-serif;
+  color: #cfe8ff;
+  user-select: none;
+}
+
+/* CRT Scanlines Shader Overlay */
+.crt-scanlines {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%);
+  background-size: 100% 4px;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+/* CRT Vignette Shader Overlay */
+.crt-vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 45%, rgba(2, 4, 7, 0.88) 100%);
+  z-index: 81;
+  pointer-events: none;
+}
+
+/* Industrial Hazard Caution Tape Borders */
+.hazard-tape {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: repeating-linear-gradient(
+    -45deg,
+    #f1c40f 0,
+    #f1c40f 14px,
+    #0c0f14 14px,
+    #0c0f14 28px
+  );
+  z-index: 90;
+  box-shadow: 0 0 12px rgba(241, 196, 15, 0.4);
+}
+.top-hazard { top: 0; }
+.bottom-hazard { bottom: 0; }
+
+.img-gradient {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0.4;
+  z-index: 1;
+  pointer-events: none;
+  max-height: 85vh;
+}
+
+.layer-blur {
+  height: 0;
+  width: 32rem;
+  position: absolute;
+  top: 25%;
+  right: 5%;
+  box-shadow: 0 0 700px 30px rgba(255, 30, 30, 0.35);
+  transform: rotate(-30deg);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.landing-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  padding: 22px 3rem 22px 3.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Top Telemetry Status Header */
+.game-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(10, 16, 24, 0.88);
+  border: 1px solid #233446;
+  border-left: 4px solid #ff3333;
+  border-right: 4px solid #f1c40f;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.top-status-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: #e3edf7;
+}
+
+.status-warning-icon {
+  color: #f1c40f;
+  font-size: 1.1rem;
+  animation: recBlink 1.4s infinite;
+}
+
+.top-meta-tags {
+  display: flex;
+  gap: 12px;
+}
+
+.meta-pill {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  background: #111a24;
+  border: 1px solid #283d52;
+  color: #79a3c2;
+}
+
+.meta-pill.alert {
+  border-color: #ff3333;
+  color: #ff5252;
+  background: rgba(255, 30, 30, 0.12);
+}
+
+.meta-pill.safe {
+  border-color: #2ecc71;
+  color: #52ff9a;
+  background: rgba(46, 204, 113, 0.1);
+}
+
+/* Main Two-Column Layout */
+.game-layout-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 3.5rem;
+  padding: 1.2rem 0;
+  z-index: 10;
+}
+
+/* Left Industrial Bulkhead Console */
+.game-console-panel {
+  width: 480px;
+  max-width: 46vw;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  z-index: 20;
+}
+
+/* Danger High Voltage Placard */
+.danger-placard {
+  background: #0d1117;
+  border: 2px solid #e74c3c;
+  box-shadow: 0 0 18px rgba(231, 76, 60, 0.45);
+  margin-bottom: 1rem;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.danger-header-stripe {
+  background: #c0392b;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  color: #ffffff;
+  font-size: 1.05rem;
+  text-shadow: 0 0 8px #000;
+}
+
+.danger-icon {
+  color: #f1c40f;
+  text-shadow: 0 0 6px rgba(241, 196, 15, 0.8);
+}
+
+.danger-subtext {
+  padding: 5px 10px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #f1c40f;
+  background: #090c10;
+}
+
+/* Main Game Title Branding */
+.game-title-group {
+  margin-bottom: 0.8rem;
+}
+
+.game-title {
+  margin: 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 4.5rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #ff2a2a;
+  line-height: 1;
+  text-shadow: 0 0 25px rgba(255, 42, 42, 0.85), 0 0 50px rgba(255, 0, 0, 0.45);
+}
+
+.game-subtitle {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.28em;
+  color: #729cb8;
+  margin-top: 6px;
+}
+
+.sub-accent {
+  color: #4fd1ff;
+  font-weight: bold;
+}
+
+.game-mission-tag {
+  margin: 0.8rem 0 1.5rem;
+  padding: 7px 12px;
+  background: rgba(255, 40, 40, 0.1);
+  border: 1px solid rgba(255, 50, 50, 0.35);
+  border-left: 3px solid #ff3333;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: #ffd6d6;
+}
+
+.tag-flash {
+  color: #f1c40f;
+  margin-right: 6px;
+}
+
+/* Vertical Action Menu Stack */
+.game-menu-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 1.4rem;
+}
+
+.game-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: linear-gradient(90deg, rgba(14, 24, 36, 0.95), rgba(8, 14, 20, 0.92));
+  border: 1px solid #233a4e;
+  border-left: 4px solid #35536e;
+  color: #cfe8ff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+
+.game-menu-btn:hover {
+  background: linear-gradient(90deg, rgba(28, 50, 72, 0.98), rgba(12, 22, 34, 0.95));
+  border-color: #4fd1ff;
+  border-left: 4px solid #4fd1ff;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(79, 209, 255, 0.35);
+  transform: translateX(6px);
+}
+
+.game-menu-btn.primary-start {
+  background: linear-gradient(90deg, rgba(180, 25, 25, 0.95), rgba(75, 10, 10, 0.92));
+  border: 1px solid #ff4444;
+  border-left: 5px solid #ffea00;
+  box-shadow: 0 0 25px rgba(255, 34, 34, 0.45);
+  color: #ffffff;
+}
+
+.game-menu-btn.primary-start:hover {
+  background: linear-gradient(90deg, rgba(220, 35, 35, 1), rgba(110, 15, 15, 0.95));
+  border-color: #ffffff;
+  border-left: 5px solid #ffffff;
+  box-shadow: 0 0 35px rgba(255, 50, 50, 0.8);
+  transform: translateX(8px);
+}
+
+.menu-arrow {
+  color: #ff3333;
+  margin-right: 12px;
+  font-size: 0.85rem;
+  transition: transform 0.2s ease;
+}
+
+.game-menu-btn:hover .menu-arrow {
+  transform: translateX(4px);
+  color: #4fd1ff;
+}
+
+.menu-shortcut {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  color: #6d8eab;
+  letter-spacing: 0.1em;
+}
+
+/* Bottom SCADA Telemetry Box */
+.game-telemetry-box {
+  background: rgba(8, 13, 18, 0.88);
+  border: 1px solid #1a2a38;
+  padding: 8px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.telemetry-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 3px 0;
+}
+
+.tel-label { color: #5a778e; }
+.tel-val.alert { color: #ff3b3b; font-weight: bold; }
+.tel-val.warn { color: #f1c40f; }
+.tel-val.cyan { color: #4fd1ff; }
+
+/* Right 3D Sentinel Drone Surveillance Chamber */
+.sentinel-chamber {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: auto;
+  height: 100%;
+}
+
+.hud-target-frame {
+  position: relative;
+  width: 95%;
+  height: 78vh;
+  border: 1px solid rgba(79, 209, 255, 0.22);
+  background: radial-gradient(circle at center, rgba(12, 22, 34, 0.35) 0%, rgba(3, 7, 12, 0.88) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  pointer-events: auto;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.85);
+}
+
+.bracket {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ff3333;
+  z-index: 10;
+  pointer-events: none;
+}
+.top-left { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+.top-right { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+.bottom-left { bottom: 8px; left: 8px; border-right: none; border-top: none; }
+.bottom-right { bottom: 8px; right: 8px; border-left: none; border-top: none; }
+
+.target-status-bar {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  color: #ff4d4d;
+  background: rgba(20, 10, 10, 0.65);
+  border-bottom: 1px solid rgba(255, 50, 50, 0.25);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.pulse-rec-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff3333;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ff3333;
+  animation: recBlink 1.2s infinite;
+}
+
+@keyframes recBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.target-sub-coords {
+  padding: 4px 16px;
+  display: flex;
+  gap: 16px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  color: #4fd1ff;
+  letter-spacing: 0.12em;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* The interactive Spline 3D Canvas element */
+.robot-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 5;
+}
+
+.target-bottom-warning {
+  padding: 8px 16px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  color: #f1c40f;
+  background: rgba(15, 12, 5, 0.75);
+  border-top: 1px solid rgba(241, 196, 15, 0.3);
+  z-index: 10;
+  pointer-events: none;
+}
+
+@media (max-width: 1024px) {
+  .game-layout-row {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .game-console-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+  .sentinel-chamber {
+    width: 100%;
+    height: 45vh;
+  }
+}
+
+
+/* ---------- Audio Telemetry Modal ---------- */
+#musicPopup {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 12, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(10px);
+}
+
+.music-popup-box {
+  background: linear-gradient(180deg, rgba(16, 26, 36, 0.98), rgba(8, 14, 20, 0.98));
+  border: 1px solid #ff3333;
+  box-shadow: 0 0 45px rgba(255, 51, 51, 0.35);
+  padding: 2.5rem 3rem;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 90vw;
+  width: 440px;
+}
+
+.music-popup-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.25em;
+  color: #ffd24f;
+  margin-bottom: 0.8rem;
+}
+
+.music-popup-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.8rem;
+  line-height: 1.4;
+}
+
+.music-popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+}
+
+.btn-popup-yes {
+  background: #ff3333;
+  color: #ffffff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.75rem 2.2rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 15px rgba(255, 51, 51, 0.5);
+}
+
+.btn-popup-yes:hover {
+  background: #ffffff;
+  color: #05070a;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.8);
+}
+
+.btn-popup-no {
+  background: transparent;
+  color: #8da6ba;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.75rem 2.2rem;
+  border: 1px solid #354a5c;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.btn-popup-no:hover {
+  border-color: #8da6ba;
+  color: #ffffff;
+}
+
+/* ---------- Intro Video Screen ---------- */
+.skip-intro-btn {
+  position: absolute;
+  top: 2rem;
+  right: 2.5rem;
+  background: rgba(5, 7, 10, 0.75);
+  border: 1px solid #4fd1ff;
+  color: #4fd1ff;
+  padding: 0.8rem 1.8rem;
+  border-radius: 50px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  z-index: 10001;
+  transition: all 0.2s ease;
+}
+
+.skip-intro-btn:hover {
+  background: #4fd1ff;
+  color: #05070a;
+  box-shadow: 0 0 20px rgba(79, 209, 255, 0.7);
+}
+
+/* ---------- Mission Briefing Modal ---------- */
+/* ---------- Level 1 Tactical Guidance Directive Modal ---------- */
+.guidance-panel {
+  width: 760px;
+  max-width: 94vw;
+  background: linear-gradient(180deg, rgba(14, 22, 32, 0.98), rgba(6, 10, 16, 0.98));
+  border: 1px solid #4fd1ff;
+  box-shadow: 0 0 50px rgba(79, 209, 255, 0.28), inset 0 0 30px rgba(79, 209, 255, 0.05);
+  padding: 2.2rem 2.4rem;
+  border-radius: 8px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.guidance-header {
+  border-bottom: 1px solid rgba(79, 209, 255, 0.2);
+  padding-bottom: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.guidance-badge-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.guidance-pill-tag {
+  background: rgba(79, 209, 255, 0.15);
+  color: #4fd1ff;
+  border: 1px solid #4fd1ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 3px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.guidance-meta {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.82rem;
+  color: #8aa8bc;
+  letter-spacing: 0.12em;
+}
+
+.guidance-title {
+  font-family: 'Orbitron', sans-serif;
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 15px rgba(79, 209, 255, 0.4);
+}
+
+.guidance-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.guidance-card {
+  background: rgba(18, 30, 44, 0.55);
+  border: 1px solid #233b4d;
+  padding: 1.3rem 1.5rem;
+  border-radius: 6px;
+  position: relative;
+}
+
+.card-pill {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 2px;
+  margin-bottom: 0.6rem;
+}
+
+.alert-pill {
+  background: rgba(255, 170, 0, 0.15);
+  color: #ffa52b;
+  border: 1px solid #ffa52b;
+}
+
+.riddle-pill {
+  background: rgba(79, 209, 255, 0.15);
+  color: #39eaff;
+  border: 1px solid #39eaff;
+}
+
+.hazard-pill {
+  background: rgba(255, 51, 51, 0.2);
+  color: #ff4d4d;
+  border: 1px solid #ff4d4d;
+}
+
+.objective-quote {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.22rem;
+  font-weight: 800;
+  color: #ffa52b;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 10px rgba(255, 165, 43, 0.4);
+}
+
+.objective-explanation {
+  font-size: 0.95rem;
+  color: #b5ccdc;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.guidance-card.riddle-card {
+  border-color: rgba(57, 234, 255, 0.45);
+  background: rgba(8, 28, 44, 0.6);
+  box-shadow: 0 0 25px rgba(57, 234, 255, 0.1);
+}
+
+.riddle-quote {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #39eaff;
+  margin-bottom: 0.8rem;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 12px rgba(57, 234, 255, 0.6);
+}
+
+.riddle-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.riddle-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+  color: #c9e0f0;
+  line-height: 1.45;
+}
+
+.riddle-glyph {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.guidance-card.hazard-card {
+  border: 1px dashed rgba(255, 77, 77, 0.6);
+  background: rgba(45, 12, 14, 0.5);
+}
+
+.hazard-desc {
+  font-size: 0.95rem;
+  color: #ffb8b8;
+  line-height: 1.5;
+}
+
+.guidance-steps-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
+}
+
+.guide-step {
+  background: rgba(14, 23, 33, 0.85);
+  border: 1px solid #233b4d;
+  padding: 0.9rem 0.8rem;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.step-badge {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #39eaff;
+  color: #05070a;
+  font-weight: 900;
+  font-size: 0.8rem;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.guide-step strong {
+  display: block;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.78rem;
+  color: #cfe8ff;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.guide-step p {
+  font-size: 0.76rem;
+  color: #7da5bf;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.guidance-footer {
+  display: flex;
+  gap: 1.2rem;
+}
+
+.btn-guidance-start {
+  flex: 2;
+  padding: 1.1rem;
+  background: linear-gradient(135deg, #ffa52b, #ff3b3b);
+  border: none;
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 0 25px rgba(255, 165, 43, 0.5);
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.btn-guidance-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 35px rgba(255, 165, 43, 0.8);
+  filter: brightness(1.15);
+}
+
+.btn-guidance-close {
+  flex: 1;
+  padding: 1.1rem;
+  background: transparent;
+  border: 1px solid #7da5bf;
+  color: #7da5bf;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-guidance-close:hover {
+  border-color: #fff;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+
+/* ---------- Field Controls Modal ---------- */
+.controls-panel {
+  width: 620px;
+  max-width: 92vw;
+  background: linear-gradient(180deg, rgba(14, 22, 32, 0.97), rgba(8, 12, 18, 0.97));
+  border: 1px solid #ff3333;
+  box-shadow: 0 0 45px rgba(255, 51, 51, 0.25);
+  padding: 2.5rem;
+  border-radius: 8px;
+}
+
+.controls-panel h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: #ff3333;
+  font-size: 1.4rem;
+  letter-spacing: 0.12em;
+  margin: 0 0 1.5rem;
+  border-bottom: 1px solid #3d2020;
+  padding-bottom: 0.8rem;
+}
+
+.controls-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ctrl-row kbd {
+  min-width: 72px;
+  padding: 0.4rem 0.6rem;
+  background: #111a24;
+  border: 1px solid #2f4559;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  color: #4fd1ff;
+  text-align: center;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.ctrl-row span {
+  font-size: 1.05rem;
+  color: #cfe8ff;
+  font-weight: 500;
+}
+
+
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 

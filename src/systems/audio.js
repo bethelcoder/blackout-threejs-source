@@ -22,11 +22,13 @@ class SoundEngine {
       this.ctx = new AudioCtx();
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+      this.masterGain.gain.exponentialRampToValueAtTime(0.7, this.ctx.currentTime + 0.35);
       this.masterGain.connect(this.ctx.destination);
 
       this.ambientGain = this.ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+      this.ambientGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+      this.ambientGain.gain.exponentialRampToValueAtTime(0.25, this.ctx.currentTime + 1.2);
       this.ambientGain.connect(this.masterGain);
 
       this._startAmbientDrone();
