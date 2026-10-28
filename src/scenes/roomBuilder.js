@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ---------------------------------------------------------------------------
 // TEXTURE HELPERS
@@ -222,7 +223,8 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
       if (sideIdx === 1 && z > 6.0 && z < 8.5) return;
 
       const rackGroup = new THREE.Group();
-      rackGroup.position.set(xPos, 0.35, z);
+      const rackFloor = includePlinths && (sideIdx === 0 || includeRightPlinth) ? 0.35 : 0;
+      rackGroup.position.set(xPos, rackFloor, z);
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 3.2, 1.1), rackMat);
       body.position.y = 1.6;
@@ -241,7 +243,7 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
 
       group.add(rackGroup);
       const rackBox = new THREE.Box3().setFromCenterAndSize(
-        new THREE.Vector3(xPos, 1.95, z),
+        new THREE.Vector3(xPos, rackFloor + 1.6, z),
         new THREE.Vector3(1.1, 3.2, 1.1)
       );
       colliders.push(rackBox);
@@ -730,4 +732,231 @@ export function buildProp({ geometry, material, position = [0, 0, 0], rotation =
   mesh.castShadow = castShadow;
   mesh.receiveShadow = true;
   return mesh;
+}
+// ---------------------------------------------------------------------------
+// 3D BACKPACK PROP (Photogrammetry GLB with procedural fallback)
+// ---------------------------------------------------------------------------
+export function buildBackpackProp({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, isPickup = false } = {}) {
+  const wrapperGroup = new THREE.Group();
+  wrapperGroup.position.set(...position);
+  wrapperGroup.rotation.set(...rotation);
+
+  if (isPickup) {
+    wrapperGroup.userData.pickupable = true;
+    wrapperGroup.userData.itemId = 'backpack';
+    wrapperGroup.userData.label = 'Field Backpack';
+  }
+
+  const loader = new GLTFLoader();
+  loader.load(
+    './models/backpack_photogrammetry.glb',
+    (gltf) => {
+      const model = gltf.scene;
+      const box = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const targetHeight = 0.52 * scale;
+      const scaleFactor = targetHeight / (size.y || 1);
+      model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+      // Re-center model inside wrapper group
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      model.position.set(-center.x * scaleFactor, -box.min.y * scaleFactor, -center.z * scaleFactor);
+
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (isPickup) {
+            child.userData.pickupable = true;
+            child.userData.itemId = 'backpack';
+          }
+          if (child.material && (child.material.type === 'MeshBasicMaterial' || child.material.isMeshBasicMaterial)) {
+            const oldMat = child.material;
+            child.material = new THREE.MeshStandardMaterial({
+              map: oldMat.map,
+              color: oldMat.color || 0xffffff,
+              roughness: 0.7,
+              metalness: 0.1,
+            });
+          }
+        }
+      });
+
+      wrapperGroup.add(model);
+    },
+    undefined,
+    () => {
+      // Procedural photogrammetry backpack fallback
+      const bagMat = new THREE.MeshStandardMaterial({ color: 0x47392b, roughness: 0.7, metalness: 0.15 });
+      const strapMat = new THREE.MeshStandardMaterial({ color: 0x1f1812, roughness: 0.5 });
+
+      // Main compartment
+      const mainBag = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.46 * scale, 0.22 * scale), bagMat);
+      mainBag.position.y = 0.23 * scale;
+      mainBag.castShadow = true;
+      wrapperGroup.add(mainBag);
+
+      // Front pocket
+      const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.25 * scale, 0.22 * scale, 0.08 * scale), bagMat);
+      pocket.position.set(0, 0.18 * scale, 0.14 * scale);
+      pocket.castShadow = true;
+      wrapperGroup.add(pocket);
+
+      // Top handle
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.06 * scale, 0.015 * scale, 6, 12, Math.PI), strapMat);
+      handle.position.set(0, 0.46 * scale, 0);
+      handle.rotation.x = Math.PI / 2;
+      wrapperGroup.add(handle);
+
+      if (isPickup) {
+        mainBag.userData.pickupable = true;
+        mainBag.userData.itemId = 'backpack';
+        pocket.userData.pickupable = true;
+        pocket.userData.itemId = 'backpack';
+      }
+    }
+  );
+
+  return wrapperGroup;
+}
+
+// ---------------------------------------------------------------------------
+// IN-WORLD PICKUP ITEMS (Torch, Books, Tools, Cards)
+// ---------------------------------------------------------------------------
+export function buildItemPickupProp({ itemId, position = [0, 0, 0], rotation = [0, 0, 0] }) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  group.rotation.set(...rotation);
+
+  group.userData.pickupable = true;
+  group.userData.itemId = itemId;
+
+  if (itemId === 'torch') {
+    group.userData.label = 'Inspection Torch';
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.024, 0.024, 0.18, 12),
+      new THREE.MeshStandardMaterial({ color: 0x1c232a, metalness: 0.85, roughness: 0.2 })
+    );
+    body.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+
+    const head = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.038, 0.024, 0.06, 12),
+      new THREE.MeshStandardMaterial({ color: 0x3d4855, metalness: 0.9, roughness: 0.2 })
+    );
+    head.position.z = 0.11;
+    head.rotation.x = Math.PI / 2;
+    head.castShadow = true;
+
+    const lens = new THREE.Mesh(
+      new THREE.CircleGeometry(0.034, 12),
+      new THREE.MeshBasicMaterial({ color: 0xebf8ff })
+    );
+    lens.position.z = 0.141;
+
+    group.add(body, head, lens);
+    body.userData.pickupable = true;
+    body.userData.itemId = itemId;
+    head.userData.pickupable = true;
+    head.userData.itemId = itemId;
+  } else if (itemId === 'technical_guide' || itemId === 'maintenance_manual') {
+    const isManual = itemId === 'maintenance_manual';
+    group.userData.label = isManual ? 'Substation Manual Vol. 2' : 'Technician Logbook';
+
+    const coverColor = isManual ? 0xd47a24 : 0x1d374a;
+    const book = new THREE.Mesh(
+      new THREE.BoxGeometry(0.26, 0.035, 0.34),
+      new THREE.MeshStandardMaterial({ color: coverColor, roughness: 0.6 })
+    );
+    book.position.y = 0.0175;
+    book.castShadow = true;
+
+    const pages = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.026, 0.32),
+      new THREE.MeshStandardMaterial({ color: 0xf0e5cb, roughness: 0.4 })
+    );
+    pages.position.set(0.01, 0.0175, 0);
+
+    const stripe = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.26, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })
+    );
+    stripe.rotation.x = -Math.PI / 2;
+    stripe.position.set(0, 0.036, 0.02);
+
+    group.add(book, pages, stripe);
+    book.userData.pickupable = true;
+    book.userData.itemId = itemId;
+  } else if (itemId === 'insulated_wrench') {
+    group.userData.label = 'Insulated Wrench';
+
+    const handle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.016, 0.016, 0.22, 10),
+      new THREE.MeshStandardMaterial({ color: 0xd63031, roughness: 0.5, metalness: 0.1 })
+    );
+    handle.rotation.x = Math.PI / 2;
+    handle.castShadow = true;
+
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.055, 0.02, 0.065),
+      new THREE.MeshStandardMaterial({ color: 0x747d8c, metalness: 0.9, roughness: 0.2 })
+    );
+    head.position.z = 0.13;
+    head.castShadow = true;
+
+    group.add(handle, head);
+    handle.userData.pickupable = true;
+    handle.userData.itemId = itemId;
+    head.userData.pickupable = true;
+    head.userData.itemId = itemId;
+  } else if (itemId === 'multimeter') {
+    group.userData.label = 'Digital Multimeter';
+
+    const caseMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.035, 0.20),
+      new THREE.MeshStandardMaterial({ color: 0xf1c40f, roughness: 0.5 })
+    );
+    caseMesh.position.y = 0.0175;
+    caseMesh.castShadow = true;
+
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x223528, roughness: 0.1 })
+    );
+    screen.rotation.x = -Math.PI / 2;
+    screen.position.set(0, 0.036, 0.04);
+
+    const dial = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.022, 0.022, 0.008, 12),
+      new THREE.MeshStandardMaterial({ color: 0x1e272e, roughness: 0.3 })
+    );
+    dial.position.set(0, 0.037, -0.03);
+
+    group.add(caseMesh, screen, dial);
+    caseMesh.userData.pickupable = true;
+    caseMesh.userData.itemId = itemId;
+  } else if (itemId === 'access_card') {
+    group.userData.label = 'Security Access Card';
+    const card = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.005, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x1e90ff, roughness: 0.3, metalness: 0.4 })
+    );
+    card.position.y = 0.003;
+    card.castShadow = true;
+
+    const chip = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.03, 0.025),
+      new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.1 })
+    );
+    chip.rotation.x = -Math.PI / 2;
+    chip.position.set(-0.025, 0.006, 0);
+
+    group.add(card, chip);
+    card.userData.pickupable = true;
+    card.userData.itemId = itemId;
+  }
+
+  return group;
 }

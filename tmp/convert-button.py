@@ -14,10 +14,9 @@ for prim in stage.Traverse():
     normalMode = mesh.GetNormalsInterpolation()
     normalTransform = transform.GetInverse().GetTranspose()
     uvPrimvars = [p for p in UsdGeom.PrimvarsAPI(prim).GetPrimvars() if str(p.GetTypeName()).startswith('texCoord2')]
-    assert uvPrimvars, f'Missing UVs on {prim.GetPath()}'
-    uvPrimvar = uvPrimvars[0]
-    uvs = uvPrimvar.ComputeFlattened()
-    uvMode = uvPrimvar.GetInterpolation()
+    uvPrimvar = uvPrimvars[0] if uvPrimvars else None
+    uvs = uvPrimvar.ComputeFlattened() if uvPrimvar else [(0, 0)]
+    uvMode = uvPrimvar.GetInterpolation() if uvPrimvar else 'constant'
     indices = mesh.GetFaceVertexIndicesAttr().Get()
     positions, outNormals, outUvs = [], [], []
     offset = 0
