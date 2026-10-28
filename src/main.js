@@ -214,6 +214,7 @@ function loadPlayerModel() {
 
 
       playerModel = model;
+      model.userData.ignoreInteraction = true;
 
       model.scale.set(1.2, 1.2, 1.2);
       model.position.copy(camera.position);
@@ -899,7 +900,7 @@ function tick() {
 
 
     interaction.update(delta);
-    pickupSystem.update();
+    pickupSystem.update(delta);
 
     currentLevel?.update?.(delta, camera);
 

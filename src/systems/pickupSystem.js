@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { InteractionTarget } from './interactionTarget.js';
 import { inventory, ITEM_DEFS } from './inventory.js';
 import { sound } from './audio.js';
 
@@ -13,11 +13,11 @@ export class PickupSystem {
     this.scene = scene;
     this.promptEl = promptEl;
     this.toastEl = toastEl;
-    this.raycaster = new THREE.Raycaster();
-    this.raycaster.far = 3.8; // Pickup range
+    this.targeting = new InteractionTarget();
 
     this.currentTarget = null;
     this.toastTimer = null;
+    this.scanDelay = 0;
 
     document.addEventListener('keydown', (e) => {
       if (e.code === 'KeyF' && this.currentTarget) {
@@ -26,25 +26,15 @@ export class PickupSystem {
     });
   }
 
-  update() {
+  update(delta = 0) {
+    this.scanDelay -= delta;
+    if (this.scanDelay > 0) return;
+    this.scanDelay = 0.08;
     const camera = this.getCamera();
     if (!camera) return;
 
-    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-    let foundTarget = null;
-    for (const hit of intersects) {
-      let obj = hit.object;
-      while (obj && obj !== this.scene) {
-        if (obj.userData?.pickupable && obj.userData?.itemId) {
-          foundTarget = obj;
-          break;
-        }
-        obj = obj.parent;
-      }
-      if (foundTarget) break;
-    }
+    const foundTarget = this.targeting.find(camera, this.scene, 3.8,
+      object => object.userData?.pickupable && object.userData?.itemId);
 
     if (foundTarget) {
       this.currentTarget = foundTarget;
