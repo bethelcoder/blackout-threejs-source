@@ -12,7 +12,7 @@ export class EquipmentSystem {
     this.viewmodel = null;
     this.equippedTool = 'torch'; // Torch equipped in hand by default
     this.torchOn = true;
-    this.torchIntensity = 8;
+    this.torchIntensity = 3.5;
   }
 
   setViewmodel(viewmodel) {

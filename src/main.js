@@ -64,7 +64,8 @@ const MIN_CAMERA_PITCH = -0.08;
 const MAX_CAMERA_PITCH = 0.15;
 
 // Player flashlight / headlamp
-const flashlight = new THREE.SpotLight(0xffffff, 8, 28, Math.PI / 4, 0.4, 1.0);
+// Short, soft-edged beam for finding nearby controls in an unlit room.
+const flashlight = new THREE.SpotLight(0xfff1db, 3.5, 7, Math.PI / 7, 0.75, 1.5);
 flashlight.position.set(0, 0, 0);
 camera.add(flashlight);
 const flashlightTarget = new THREE.Object3D();
