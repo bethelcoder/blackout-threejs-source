@@ -1,25 +1,42 @@
 import * as THREE from 'three';
 import { buildRoom, buildProp } from './roomBuilder.js';
-import { createElectricCorruptionMaterial } from '../shaders/electricCorruption.js';
+import { buildCoreHologramScreen } from './coreHologramScreen.js';
 import { createShockwaveFloorMaterial, MAX_WAVES } from '../shaders/shockwaveFloor.js';
 import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
-import { createSparkParticles } from '../systems/particles.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 import { buildCoreRoomProps } from './coreRoomProps.js';
 import { sound } from '../systems/audio.js';
+import { buildCoreBase } from './coreBase.js';
+import { applyCoreWalls } from './coreWalls.js';
+import { buildCoreCeiling } from './coreCeiling.js';
+import { buildCoreLamps } from './coreLamps.js';
+import { buildCorePillars } from './corePillars.js';
+import { buildRightSupercomputer } from './rightSupercomputer.js';
+import { buildLeftWorkstation } from './leftWorkstation.js';
+import { buildCoreCrates } from './coreCrates.js';
+import { buildEarthHologram } from './earthHologram.js';
+import { buildCoreFurnishings } from './coreFurnishings.js';
+import { buildCoreChair } from './coreChair.js';
+import { buildCoreToolboxes } from './coreToolboxes.js';
+import { buildCoreExtinguisher } from './coreExtinguisher.js';
+import { buildCoreFirstAid } from './coreFirstAid.js';
+import { buildCoreDisplayTerminal } from './coreDisplayTerminal.js';
+import { buildCoreBot } from './coreBot.js';
+import { createRobotRepair } from '../systems/robotRepair.js';
+import { createCircuitPuzzle } from '../systems/circuitPuzzle.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
-const WAVE_THICKNESS = 0.7;
+const WAVE_THICKNESS = 0.5;
 const WAVE_START_RADIUS = 1.7;   // just outside the pedestal
 const WAVE_END_RADIUS = 10.2;    // past the room corners (~9.9)
-const CHARGE_TIME = 0.9;         // telegraph before each surge
-const JUMP_CLEARANCE = 0.35;     // feet must be this high to clear a wave (jump peaks ~1.0 m)
+const CHARGE_TIME = 1.6;         // telegraph before each surge
+const JUMP_CLEARANCE = 0.22;     // feet must be this high to clear a wave (jump peaks ~1.0 m)
 
 // Index = number of feeders already isolated.
 const PHASES = [
-  { interval: 4.2, speed: 3.2, burst: 1, gap: 1.6 },
-  { interval: 3.5, speed: 3.9, burst: 1, gap: 1.3 },
-  { interval: 3.2, speed: 4.5, burst: 2, gap: 1.1 },
+  { interval: 6.5, speed: 2.5, burst: 1, gap: 2.1 },
+  { interval: 6.0, speed: 2.7, burst: 1, gap: 2.0 },
+  { interval: 5.5, speed: 2.9, burst: 1, gap: 1.9 },
 ];
 
 const BREAKER_SPOTS = [
@@ -78,11 +95,58 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const add = (obj) => { scene.add(obj); roots.push(obj); return obj; };
 
   // ---------- Room ----------
-  const { group: room, colliders: wallColliders } = buildRoom({
-    width: 14, depth: 14, height: 5.5, wallColor: 0x8a5c56, industrialFinishes: true,
+  const { group: room, colliders: wallColliders, floor } = buildRoom({
+    width: 14, depth: 14, height: 5.5, wallColor: 0x5a3e3e,
+    officeFloor: true,
+    officeCeiling: true,
+    includeLeftCabinets: false,
+    includeRightCabinets: false,
+    includePlinths: false,
   });
+  floor.name = 'Level 3 office floor';
+  applyCoreWalls(room);
   add(room);
   colliders.push(...wallColliders);
+  const ceiling = buildCoreCeiling(room);
+  scene.add(ceiling.group);
+  const ceilingLamps = buildCoreLamps();
+  scene.add(ceilingLamps.group);
+  const cornerPillars = buildCorePillars();
+  scene.add(cornerPillars.group);
+  colliders.push(...cornerPillars.colliders);
+  const rightSupercomputer = buildRightSupercomputer();
+  scene.add(rightSupercomputer.group);
+  colliders.push(rightSupercomputer.collider);
+  const leftWorkstation = buildLeftWorkstation();
+  scene.add(leftWorkstation.group);
+  colliders.push(leftWorkstation.collider);
+  const woodenCrates = buildCoreCrates();
+  scene.add(woodenCrates.group);
+  colliders.push(woodenCrates.collider);
+  const earthHologram = buildEarthHologram();
+  scene.add(earthHologram.group);
+  colliders.push(earthHologram.collider);
+  const furnishings = buildCoreFurnishings();
+  scene.add(furnishings.group);
+  colliders.push(...furnishings.colliders);
+  const workstationChair = buildCoreChair();
+  scene.add(workstationChair.group);
+  colliders.push(workstationChair.collider);
+  const toolboxes = buildCoreToolboxes();
+  scene.add(toolboxes.group);
+  colliders.push(toolboxes.collider);
+  const extinguisher = buildCoreExtinguisher();
+  scene.add(extinguisher.group);
+  colliders.push(extinguisher.collider);
+  const firstAid = buildCoreFirstAid();
+  scene.add(firstAid.group);
+  colliders.push(firstAid.collider);
+  const displayTerminal = buildCoreDisplayTerminal();
+  scene.add(displayTerminal.group);
+  colliders.push(displayTerminal.collider);
+  const deskBot = buildCoreBot();
+  scene.add(deskBot.group);
+  colliders.push(deskBot.collider);
 
   // ---------- Lighting (one shadow caster, tight shadow frustum) ----------
   add(new THREE.HemisphereLight(0xffcccc, 0x664444, 0.6));
@@ -102,12 +166,8 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   // scale and dissolve as one unit; coreGroup sits on the pedestal under `core`.
   const core = add(new THREE.Group());
 
-  const pedestal = buildProp({
-    geometry: new THREE.CylinderGeometry(1.2, 1.5, 1.2, 24),
-    material: new THREE.MeshStandardMaterial({ color: 0x2c3540, metalness: 0.7, roughness: 0.3 }),
-    position: [0, 0.6, 0],
-  });
-  core.add(pedestal);
+  const pedestal = buildCoreBase();
+  core.add(pedestal.group);
 
   const hazardRing = new THREE.Mesh(
     new THREE.RingGeometry(1.6, 2.0, 48),
@@ -136,26 +196,24 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   coreGroup.add(coreLight);
 
   core.updateMatrixWorld(true);
-  colliders.push(new THREE.Box3().setFromObject(pedestal));
+  colliders.push(pedestal.collider);
 
   // ---------- Shockwave floor (shader-driven, one draw call) ----------
   const waveMat = createShockwaveFloorMaterial();
+  waveMat.uniforms.uThickness.value = WAVE_THICKNESS;
   const waveFloor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), waveMat);
   waveFloor.rotation.x = -Math.PI / 2;
   waveFloor.position.y = 0.03;
   waveFloor.renderOrder = 1;
   add(waveFloor);
 
-  // ---------- Corrupted wall panel + sparks ----------
-  const corruptionMat = createElectricCorruptionMaterial();
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(5, 3.5), corruptionMat);
-  panel.position.set(0, 2.4, -6.85);
-  add(panel);
-  const sparks = add(createSparkParticles({ origin: [0, 2.2, -6.5], color: 0xff5f4f, count: 100 }));
+  // ---------- Floating wall telemetry ----------
+  const hologramScreen = buildCoreHologramScreen();
+  add(hologramScreen.group);
 
   // ---------- Ceiling CCTV ----------
   // Priority is being seen, not being caught: the cone only feeds suspicion,
-  // which already drives the corrupted panel's intensity. The shockwaves stay
+  // without adding another damage source. The shockwaves stay
   // the single source of strikes so the room doesn't punish twice for one move.
   const cctvView = createRoomSecurityView({
     position: new THREE.Vector3(0, 4.85, -6.55),
@@ -182,6 +240,43 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
   let progress = 0;
   let finished = false;
+  let wavesDisabled = false;
+  const recoveredClue = () => hud.setObjective('ROBOT RECORD: the hologram circuit starts at 3V and must finish at 5V. Route through all three relays: R1 boosts +3V, R2 drains 2V, R3 boosts +1V. A connected wire alone is not enough.');
+  const robotRepair = createRobotRepair({ onSolved: () => {
+    recoveredClue();
+    sound.playAccessGranted();
+  } });
+  const coreOverride = createCircuitPuzzle({ onSolved: () => {
+    if (wavesDisabled && robotRepair.solved && !finished) beginIsolation();
+  } });
+  Object.assign(deskBot.group.userData, {
+    interactable: true,
+    label: 'Repair robot',
+    getLabel: () => !wavesDisabled ? 'Robot unsafe - disable shockwave feeders first' : robotRepair.solved ? 'Replay robot maintenance clue' : 'Repair robot',
+    onInteract: () => {
+      if (!wavesDisabled) { hud.setObjective('Disable the shockwaves first: isolate the three feeders from highest load to lowest. Check the maintenance schedule.'); return; }
+      if (robotRepair.solved) recoveredClue(); else robotRepair.open();
+    },
+  });
+  const openCircuit = () => {
+    if (finished) return;
+    if (!wavesDisabled) { hud.setObjective('Circuit locked. Disable the shockwaves using the three feeders first.'); return; }
+    if (!robotRepair.solved) { hud.setObjective('Repair the robot beside the desk to restore circuit access and recover the routing clue.'); return; }
+    coreOverride.open();
+  };
+  Object.assign(hologramScreen.group.userData, {
+    interactable: true,
+    label: 'Connect hologram shutdown circuit',
+    reach: 3.5,
+    onInteract: openCircuit,
+  });
+  Object.assign(displayTerminal.group.userData, {
+    interactable: true,
+    label: 'Read circuit access status',
+    onInteract: () => hud.setObjective(robotRepair.solved
+      ? 'Circuit access restored. Use the large wall hologram to connect the shutdown route through all three relays at 5V.'
+      : 'Repair the robot beside this desk after disabling the shockwave feeders. It can restore access to the wall hologram circuit.'),
+  });
   const phaseIndex = () => Math.min(progress, PHASES.length - 1);
 
   // ---------- Breakers ----------
@@ -339,23 +434,25 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const deskTopMat = new THREE.MeshStandardMaterial({ color: 0x7b8794, metalness: 0.1, roughness: 0.55 });
   const hintDesk = new THREE.Group();
   hintDesk.name = 'Maintenance desk';
-  hintDesk.position.set(4.95, 0, 4.0);
+  // Sized to the briefing-station trim in coreFurnishings: 1.0 m wide, 0.9 m top,
+  // so the side rails clear the tabletop and the light bar sits on its back edge.
+  hintDesk.position.set(5.0, 0, 4.0);
   hintDesk.add(buildProp({
-    geometry: new THREE.BoxGeometry(1.15, 0.06, 0.65),
+    geometry: new THREE.BoxGeometry(1.0, 0.06, 0.65),
     material: deskTopMat,
-    position: [0, 0.75, 0],
+    position: [0, 0.87, 0],
   }));
-  for (const x of [-0.5, 0.5]) {
+  for (const x of [-0.455, 0.455]) {
     hintDesk.add(buildProp({
-      geometry: new THREE.BoxGeometry(0.09, 0.72, 0.58),
+      geometry: new THREE.BoxGeometry(0.09, 0.84, 0.58),
       material: deskFrameMat,
-      position: [x, 0.36, 0],
+      position: [x, 0.42, 0],
     }));
   }
   hintDesk.add(buildProp({
-    geometry: new THREE.BoxGeometry(0.95, 0.05, 0.5),
+    geometry: new THREE.BoxGeometry(0.85, 0.05, 0.5),
     material: deskFrameMat,
-    position: [0, 0.18, 0],
+    position: [0, 0.22, 0],
   }));
   add(hintDesk);
   hintDesk.updateMatrixWorld(true);
@@ -365,7 +462,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     new THREE.BoxGeometry(0.5, 0.08, 0.35),   // thicker than before so the crosshair can hit it
     new THREE.MeshStandardMaterial({ color: 0xe8d9a0, roughness: 0.4 })
   );
-  hintProp.position.set(4.95, 0.82, 4.0);
+  hintProp.position.set(4.82, 0.94, 4.08);
   Object.assign(hintProp.userData, {
     interactable: true,
     label: 'Read maintenance schedule',
@@ -395,7 +492,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   let t = 0;
   let spin = 0;
   let charge = 0;
-  let timeToNext = 3.5;      // grace before the first surge
+  let timeToNext = 8;      // grace before the first surge
   let secondIn = -1;
   let chargeSounded = false;
   let dissolve = 0;
@@ -416,7 +513,16 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
       feeders[id].setLive(false);
       progress++;
       sound.playAccessGranted();
-      if (progress === correctOrder.length) { beginIsolation(); return; }
+      if (progress === correctOrder.length) {
+        wavesDisabled = true;
+        waves.forEach(w => { w.active = false; });
+        waveMat.uniforms.uRadius.value.fill(-10);
+        waveMat.uniforms.uCharge.value = 0;
+        secondIn = -1;
+        charge = 0;
+        hud.setObjective('Shockwaves disabled. The room is safe. Repair the robot beside the left desk to recover the core override clue.');
+        return;
+      }
       applyPhase();
       hud.setObjective(`Feeder ${id} isolated (${progress}/${correctOrder.length}). The core is escalating — keep moving!`);
     } else {
@@ -443,11 +549,13 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const lerpK = (delta, rate) => 1 - Math.exp(-delta * rate);   // frame-rate independent smoothing
 
   function update(delta, camera) {
+    earthHologram.update(delta);
+    if (robotRepair.isOpen || coreOverride.isOpen) return;
     t += delta;
     const phase = PHASES[phaseIndex()];
 
     // --- Surge scheduler: charge (telegraph) -> fire ---
-    if (!finished) {
+    if (!finished && !wavesDisabled) {
       timeToNext -= delta;
       charge = timeToNext < CHARGE_TIME ? 1 - Math.max(timeToNext, 0) / CHARGE_TIME : 0;
       if (charge > 0 && !chargeSounded) { chargeSounded = true; sound.playDetectionWarning(0.35); }
@@ -515,10 +623,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     const agitationTarget = finished ? 0.2 : 0.3 + progress * 0.3 + charge * 0.5;
     orbU.uAgitation.value += (agitationTarget - orbU.uAgitation.value) * lerpK(delta, 6);
 
-    const cu = corruptionMat.uniforms;
-    cu.uTime.value = t;
-    const corruptTarget = Math.min(1, 0.35 + progress * 0.2 + aiState.suspicion / 150 + charge * 0.2);
-    cu.uIntensity.value += (corruptTarget - cu.uIntensity.value) * lerpK(delta, 5);
+    hologramScreen.update(t, progress, charge);
 
     // --- Breaker levers ease toward their target ---
     for (const b of Object.values(breakers)) {
@@ -538,24 +643,42 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
       cctvWarnTimer = 0;
     }
 
-    sparks.userData.update(delta);
     aiState.decay(2 * delta);
   }
 
   function dispose() {
     roomProps.dispose();
+    robotRepair.dispose();
+    coreOverride.dispose();
+    deskBot.dispose();
+    displayTerminal.dispose();
+    firstAid.dispose();
+    extinguisher.dispose();
+    toolboxes.dispose();
+    workstationChair.dispose();
+    furnishings.dispose();
+    earthHologram.dispose();
+    woodenCrates.dispose();
+    leftWorkstation.dispose();
+    rightSupercomputer.dispose();
+    cornerPillars.dispose();
+    ceilingLamps.dispose();
+    ceiling.dispose();
+    pedestal.dispose();
     for (const obj of roots) { scene.remove(obj); disposeTree(obj); }
     roots.length = 0;
   }
 
   return {
+    ready: Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready]),
     colliders,
+    get panelOpen() { return robotRepair.isOpen || coreOverride.isOpen; },
     cctvCamera: cctvView,
     update,
     dispose,
     spawn: new THREE.Vector3(0, 1.7, 5.5),
     title: 'LEVEL 3 — THE CORE',
     subtitle: 'Isolate the AI without cutting the stabilized municipal grid.',
-    objective: 'Read the maintenance schedule (south-east corner), isolate the feeders in order, and jump the core\'s shockwaves!',
+    objective: 'Disable shockwaves: read the maintenance schedule and isolate feeders from highest load to lowest. Then repair the robot and solve the circuit on the large wall hologram.',
   };
 }

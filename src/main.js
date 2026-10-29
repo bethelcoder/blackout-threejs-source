@@ -21,12 +21,13 @@ import { PickupSystem } from './systems/pickupSystem.js';
 import { EquipmentSystem } from './systems/equipment.js';
 import { Viewmodel } from './systems/viewmodel.js';
 import { BackpackUI } from './systems/backpackUI.js';
+import { RenderQuality } from './systems/renderQuality.js';
 
 // ---------- Renderer / scene / camera ----------
 const canvas = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderQuality = new RenderQuality(renderer);
+renderQuality.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.localClippingEnabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -40,7 +41,7 @@ const cctvContainer = document.getElementById('cctv-container');
 let cctvRenderer = null;
 let cctvFeed = null;
 if (cctvCanvas) {
-  cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: true });
+  cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: false });
   cctvRenderer.setSize(240, 135);
   cctvRenderer.outputColorSpace = THREE.SRGBColorSpace;
   cctvRenderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -64,7 +65,8 @@ const MIN_CAMERA_PITCH = -0.08;
 const MAX_CAMERA_PITCH = 0.15;
 
 // Player flashlight / headlamp
-const flashlight = new THREE.SpotLight(0xffffff, 8, 28, Math.PI / 4, 0.4, 1.0);
+// Short, soft-edged beam for finding nearby controls in an unlit room.
+const flashlight = new THREE.SpotLight(0xfff1db, 3.5, 7, Math.PI / 7, 0.75, 1.5);
 flashlight.position.set(0, 0, 0);
 camera.add(flashlight);
 const flashlightTarget = new THREE.Object3D();
@@ -80,7 +82,7 @@ window.addEventListener('resize', () => {
   thirdPersonCamera.aspect = window.innerWidth / window.innerHeight;
   thirdPersonCamera.updateProjectionMatrix();
 
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderQuality.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
 });
 
 // ---------- UI elements ----------
@@ -461,6 +463,58 @@ function playPlayerAnimation(name) {
 
 
 // ---------- Level manager ----------
+// Designated interior room boundary constraints (prevents cameras from escaping into the void)
+const LEVEL_BOUNDS = [
+  // Level 1: width 14 (±7), depth 20 (±10), height 6.8
+  { minX: -6.70, maxX: 6.70, minZ: -9.70, maxZ: 9.70, minY: 0.35, maxY: 6.50 },
+  // Level 2: width 14 (±7), depth 16 (±8), height 4.2
+  { minX: -6.70, maxX: 6.70, minZ: -7.70, maxZ: 7.70, minY: 0.35, maxY: 3.90 },
+  // Level 3: width 14 (±7), depth 14 (±7), height 5.5
+  { minX: -6.70, maxX: 6.70, minZ: -6.70, maxZ: 6.70, minY: 0.35, maxY: 5.20 },
+];
+
+function snapThirdPersonCamera() {
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const horizontalDirection = direction.clone();
+  horizontalDirection.y = 0;
+  horizontalDirection.normalize();
+
+  const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
+  const desiredTarget = camera.position.clone()
+    .addScaledVector(horizontalDirection, -1.8)
+    .add(new THREE.Vector3(0, 0.45, 0));
+
+  const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+  const desiredDist = toCameraVec.length();
+  const rayDir = toCameraVec.clone().normalize();
+
+  let safeDistance = desiredDist;
+  const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+  const hitPoint = new THREE.Vector3();
+
+  if (currentLevel?.colliders) {
+    for (const box of currentLevel.colliders) {
+      if (!box || box.isEmpty()) continue;
+      if (cameraRay.intersectBox(box, hitPoint)) {
+        const hitDist = cameraAnchor.distanceTo(hitPoint);
+        if (hitDist < safeDistance) safeDistance = hitDist;
+      }
+    }
+  }
+
+  const buffer = Math.min(0.20, safeDistance * 0.4);
+  const finalDist = safeDistance < desiredDist ? Math.max(0.05, safeDistance - buffer) : desiredDist;
+  const targetPos = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+  const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+  targetPos.x = THREE.MathUtils.clamp(targetPos.x, bounds.minX, bounds.maxX);
+  targetPos.y = THREE.MathUtils.clamp(targetPos.y, bounds.minY, bounds.maxY);
+  targetPos.z = THREE.MathUtils.clamp(targetPos.z, bounds.minZ, bounds.maxZ);
+
+  thirdPersonCamera.position.copy(targetPos);
+}
+
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
 let currentLevel = null;
 let currentLevelIndex = 0;
@@ -478,6 +532,7 @@ const securityRun = new SecurityRun({
   onStrike: (source) => {
     playerControls.teleport(currentLevel.spawn);
     previousPlayerPosition.copy(camera.position);
+    snapThirdPersonCamera();
     aiState.reset();
     interaction.reset();
     // CHANGED: added the 'surge' case for the Level 3 core shockwaves
@@ -515,6 +570,7 @@ function clearScene() {
   clearTimeout(advanceTimeout);
   interaction.reset();
   playerControls.enabled = true;
+  terminal.close();
   currentLevel?.dispose?.();
   // Remove everything except camera and its attached components
   for (let i = scene.children.length - 1; i >= 0; i--) {
@@ -526,7 +582,8 @@ function clearScene() {
 async function loadLevel(index, entry = 'door', resetStrikes = false) {
   clearScene();
   const generation = loadGeneration;
-  const needsLoadingScreen = index === 1;
+  const needsLoadingScreen = index === 1 || index === 2;
+  const roomName = index === 2 ? 'AI core' : 'control room';
   gameEnded = false;
   if (resetStrikes) securityRun.reset();
   else {
@@ -543,16 +600,18 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     loadingScreen.style.transition = 'none';
     loadingScreen.style.opacity = '1';
     loadingScreen.classList.remove('hidden');
-    loadingLabel.textContent = 'Preparing the control room...';
+    loadingLabel.textContent = `Preparing the ${roomName}...`;
     loadingBarFill.style.width = '0%';
     // Paint the transition before any cached geometry is prepared on the main thread.
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     if (generation !== loadGeneration) return;
-    await preloadLevel2Models((finished, total) => {
-      if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
-    });
+    if (index === 1) {
+      await preloadLevel2Models((finished, total) => {
+        if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
+      });
+    }
     if (generation !== loadGeneration) return;
-    loadingLabel.textContent = 'Setting up the control room...';
+    loadingLabel.textContent = `Setting up the ${roomName}...`;
   }
 
   const builder = LEVEL_BUILDERS[index];
@@ -563,6 +622,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onSurgeHit: () => securityRun.strike('surge'), // CHANGED: new callback used by Level 3's shockwaves
     onShock: (position) => {
       playerControls.teleport(position);
+      snapThirdPersonCamera();
       shockOverlay.trigger();
     },
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
@@ -582,6 +642,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   previousPlayerPosition.copy(camera.position);
+  snapThirdPersonCamera();
 
   aiState.reset();
 
@@ -931,7 +992,7 @@ document.addEventListener('keydown', (e) => {
     showOnly(mainMenu);
     return;
   }
-  if (terminal.open) return;
+  if (terminal.open || currentLevel?.panelOpen) return;
   if (backpackUI.isOpen) return;
   if (playerControls.isLocked) {
     playerControls.unlock();
@@ -949,13 +1010,14 @@ function resumeAfterPanel(event) {
 }
 document.addEventListener('security-keypad-close', resumeAfterPanel);
 document.addEventListener('wiring-panel-close', resumeAfterPanel);
+document.addEventListener('robot-repair-close', resumeAfterPanel);
 
 playerControls.controls.addEventListener('unlock', () => {
   if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
   if (document.getElementById('wiring-panel-overlay')) return;
   if (backpackUI.isOpen) return;
-  if (terminal.open) return;
+  if (terminal.open || currentLevel?.panelOpen) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) return;
@@ -1013,6 +1075,7 @@ bootSequence();
 
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
+let cctvRefreshIn = 0;
 function tick() {
   requestAnimationFrame(tick);
 
@@ -1020,11 +1083,16 @@ function tick() {
   // to eliminate GPU/CPU contention with the interactive Spline robot viewer and landing audio.
   const isLandingMenu = !mainMenu.classList.contains('hidden');
   const isInitialBoot = !currentLevel && loadingScreen && !loadingScreen.classList.contains('hidden');
-  if (isLandingMenu || isInitialBoot) {
+  if (isLandingMenu || isInitialBoot || levelLoading) {
+    clock.getDelta();
+    renderQuality.reset();
     return;
   }
 
-  const delta = Math.min(clock.getDelta(), 0.05);
+  const frameSeconds = clock.getDelta();
+  const delta = Math.min(frameSeconds, 0.05);
+  if (playerControls.isLocked && !document.hidden) renderQuality.update(frameSeconds);
+  else renderQuality.reset();
 
   if (playerMixer) {
     playerMixer.update(delta);
@@ -1111,7 +1179,7 @@ function tick() {
 
 
 
-    // Make the third-person camera follow behind the player.
+    // Make the third-person camera follow behind the player with spring-arm obstacle avoidance.
     const direction = new THREE.Vector3();
     camera.getWorldDirection(direction);
 
@@ -1120,17 +1188,65 @@ function tick() {
     horizontalDirection.y = 0;
     horizontalDirection.normalize();
 
-    // Follow the physical eye height; PlayerControls applies crouch once.
-    const thirdPersonPosition = camera.position.clone()
-      .addScaledVector(horizontalDirection, -1.8)
-      .add(new THREE.Vector3(0, 0.5, 0));
+    // The anchor point on the player (head/chest level)
+    const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
 
-    // Snap on the frame the view changes, otherwise the camera flies in from
-    // wherever it was last left (the origin on the first switch).
-    if (previousCameraMode === "third") {
-      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
-    } else {
+    // Desired camera target in open space (1.8m back, 0.45m up)
+    const desiredTarget = camera.position.clone()
+      .addScaledVector(horizontalDirection, -1.8)
+      .add(new THREE.Vector3(0, 0.45, 0));
+
+    // Vector from anchor to desired camera position
+    const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+    const desiredDist = toCameraVec.length();
+    const rayDir = toCameraVec.clone().normalize();
+
+    // Check collision against all level colliders (walls, cupboards, shelves, server racks)
+    let safeDistance = desiredDist;
+    const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+    const hitPoint = new THREE.Vector3();
+
+    if (currentLevel?.colliders) {
+      for (const box of currentLevel.colliders) {
+        if (!box || box.isEmpty()) continue;
+        if (cameraRay.intersectBox(box, hitPoint)) {
+          const hitDist = cameraAnchor.distanceTo(hitPoint);
+          if (hitDist < safeDistance) {
+            safeDistance = hitDist;
+          }
+        }
+      }
+    }
+
+    // Maintain a safe buffer in front of any hit surface so camera near plane never clips into obstacles
+    let finalDist = desiredDist;
+    if (safeDistance < desiredDist) {
+      const buffer = Math.min(0.20, safeDistance * 0.4);
+      finalDist = Math.max(0.05, safeDistance - buffer);
+    }
+    const thirdPersonPosition = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+    // Hard clamp within designated room space for the active level
+    const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+    thirdPersonPosition.x = THREE.MathUtils.clamp(thirdPersonPosition.x, bounds.minX, bounds.maxX);
+    thirdPersonPosition.y = THREE.MathUtils.clamp(thirdPersonPosition.y, bounds.minY, bounds.maxY);
+    thirdPersonPosition.z = THREE.MathUtils.clamp(thirdPersonPosition.z, bounds.minZ, bounds.maxZ);
+
+    if (playerControls.cameraMode === "third" && previousCameraMode === "first") {
       thirdPersonCamera.position.copy(thirdPersonPosition);
+    } else {
+      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
+    }
+
+    // Hard clamp thirdPersonCamera.position after lerping so it can NEVER leave designated room space
+    thirdPersonCamera.position.x = THREE.MathUtils.clamp(thirdPersonCamera.position.x, bounds.minX, bounds.maxX);
+    thirdPersonCamera.position.y = THREE.MathUtils.clamp(thirdPersonCamera.position.y, bounds.minY, bounds.maxY);
+    thirdPersonCamera.position.z = THREE.MathUtils.clamp(thirdPersonCamera.position.z, bounds.minZ, bounds.maxZ);
+
+    // If camera is squeezed very close to player against a wall, hide player model so it doesn't obstruct view
+    // When in first-person mode, player model must remain hidden to avoid first-person clipping
+    if (playerModel) {
+      playerModel.visible = playerControls.cameraMode === "third" && finalDist > 0.45;
     }
 
     // Preserve the existing limited mouse-look angle.
@@ -1159,9 +1275,27 @@ function tick() {
       camera.position.z
     ).addScaledVector(lookDirection, 5);
 
-
     thirdPersonCamera.lookAt(lookTarget);
-    }
+  }
+
+  // Ensure first-person camera / player position stays within interior level bounds
+  const currentBounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+  const clampedX = THREE.MathUtils.clamp(camera.position.x, currentBounds.minX, currentBounds.maxX);
+  const clampedY = THREE.MathUtils.clamp(camera.position.y, currentBounds.minY, currentBounds.maxY);
+  const clampedZ = THREE.MathUtils.clamp(camera.position.z, currentBounds.minZ, currentBounds.maxZ);
+
+  if (clampedX !== camera.position.x) {
+    camera.position.x = clampedX;
+    playerControls.velocity.x = 0;
+  }
+  if (clampedY !== camera.position.y) {
+    camera.position.y = clampedY;
+    playerControls.fallSpeed = 0;
+  }
+  if (clampedZ !== camera.position.z) {
+    camera.position.z = clampedZ;
+    playerControls.velocity.z = 0;
+  }
 
   // Animate viewmodel sway & breathing in first person mode
   const isMoving =
@@ -1186,7 +1320,10 @@ function tick() {
   // Render secondary CCTV Camera PiP view if active.
   const cctvEnabled = !!currentLevel?.cctvCamera && currentLevel.cctvEnabled !== false;
   cctvContainer?.classList.toggle('hidden', !cctvEnabled);
-  if (cctvEnabled && cctvRenderer) {
+  cctvRefreshIn -= frameSeconds;
+  if (!cctvEnabled) cctvRefreshIn = 0;
+  if (cctvEnabled && cctvRenderer && cctvRefreshIn <= 0) {
+    cctvRefreshIn = 1 / 15;
     // CCTV sees the character even when the first-person view hides their body.
     const wasVisible = playerModel?.visible;
     if (playerModel) playerModel.visible = true;

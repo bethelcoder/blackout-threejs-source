@@ -1,0 +1,3 @@
+from pathlib import Path
+s=Path('src/scenes/coreChair.js').read_text().replace('buildCoreChair', 'buildCoreBot').replace('Level 3 workstation chair', 'Level 3 bot beside left desk').replace('group.position.set(-4.92, 0, 0)', 'group.position.set(-6.15, 0, 2.0)').replace('// Source seat faces +Z; point it toward the workstation on the left wall.\n  group.rotation.y = -Math.PI / 2;', '// Stand beside the desk, facing into the room.\n  group.rotation.y = Math.PI / 2;').replace('core-office-chair.glb', 'core-kitchen-bot.glb').replace('Imported Office Chair', 'Imported AI Kitchen Bot').replace('1.25 / size.y', '1.35 / size.y').replace('Office chair model unavailable.', 'Kitchen bot model unavailable.')
+Path('src/scenes/coreBot.js').write_text(s)

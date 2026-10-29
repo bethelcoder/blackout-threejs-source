@@ -12,7 +12,7 @@ function harness() {
   const shaders = deferred();
   const hidden = new Set(['hidden']);
   const loadingScreen = { style: {}, classList: { add: key => hidden.add(key), remove: key => hidden.delete(key) } };
-  const state = { builds: 0, renders: 0, locks: 0, compilations: 0 };
+  const state = { builds: 0, renders: 0, locks: 0, compilations: 0, visible: [] };
   const playerControls = { enabled: true, isLocked: true, isSeated: false, unlock() {}, lock() { state.locks++; }, setColliders() {}, teleport() {} };
   const hud = { resetLevelComplete() {}, setObjective() {}, showLevelBanner() {} };
   const scene = new THREE.Scene();
@@ -25,8 +25,8 @@ function harness() {
     buildLevel1: builder, buildLevel2: builder, buildLevel3: builder,
     loadingScreen, loadingLabel: {}, loadingBarFill: { style: {} },
     playerControls, interaction: { reset() {} }, hud, scene, camera,
-    aiState: { reset() {} }, terminal: { close() {} }, previousPlayerPosition: new THREE.Vector3(),
-    playEnding() {}, showOnly() {}, pauseMenu: {}, cctvContainer: null,
+    aiState: { reset() {} }, terminal: { open: true, close() { this.open = false; } }, previousPlayerPosition: new THREE.Vector3(),
+    playEnding() {}, showOnly(...visible) { state.visible = visible; }, pauseMenu: {}, cctvContainer: null,
     loadPlayerModel() {}, preloadLevel2Models: () => downloads.promise,
     requestAnimationFrame: callback => queueMicrotask(callback),
     setTimeout: (callback, delay) => { if (delay === 0) queueMicrotask(callback); return 1; }, clearTimeout() {},
@@ -81,3 +81,19 @@ await old;
 assert.equal(cancelled.state.builds, 0, 'A cancelled transition cannot restore an old level');
 assert.equal(cancelled.hidden.has('hidden'), true);
 console.log('Level-loading checks passed: downloads, model assembly and GPU readiness gate entry; cancellation cannot restore stale scenes.');
+const core = harness();
+core.playerControls.isLocked = false;
+const coreReady = core.loadLevel(2);
+assert.equal(core.terminal.open, false, 'Level 2 terminal closes before entering the core');
+assert.equal(core.isLoading(), true);
+await flush();
+assert.equal(core.state.builds, 1, 'Core does not wait for unrelated Level 2 model downloads');
+core.models.resolve(); await flush();
+assert.equal(core.state.compilations, 1);
+assert.equal(core.playerControls.enabled, false, 'Core waits for floor and GPU readiness');
+core.shaders.resolve(); await coreReady;
+assert.equal(core.isLoading(), false);
+assert.equal(core.playerControls.enabled, true);
+assert.deepEqual(core.state.visible, [core.pauseMenu], 'Lost mouse capture presents Resume instead of a frozen-looking room');
+assert.equal(core.state.locks, 0, 'No attempt to capture mouse without a fresh user gesture');
+console.log('Core transition checks passed: terminal cleanup, floor readiness, warm render and visible Resume.');

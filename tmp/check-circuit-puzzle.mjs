@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {buildCircuitTiles,evaluateCircuit,CIRCUIT_PATH} from '../src/systems/circuitPuzzle.js';
+for(let i=0;i<100;i++)assert.ok(!evaluateCircuit(buildCircuitTiles()).solved,'Scramble starts unsolved');
+const tiles=buildCircuitTiles(()=>0.5);
+CIRCUIT_PATH.forEach(id=>tiles[id].rotation=0);
+let result=evaluateCircuit(tiles);assert.ok(result.solved);assert.equal(result.voltage,5);assert.equal(result.relays.size,3);
+tiles[4].delta=-1;assert.ok(!evaluateCircuit(tiles).solved,'Connected route rejects wrong voltage');tiles[4].delta=-2;
+tiles[4].relay=0;assert.ok(!evaluateCircuit(tiles).solved,'Missing relay rejects route');tiles[4].relay=2;
+tiles[9].rotation=1;result=evaluateCircuit(tiles);assert.ok(!result.solved);assert.ok(result.active.size<11,'Broken connection stops live feedback');
+console.log('Circuit checks passed: 100 unsolved scrambles, solvable route, target voltage, required relays and broken wire feedback.');
