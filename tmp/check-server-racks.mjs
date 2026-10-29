@@ -36,13 +36,13 @@ const rackOccluders = [];
 let refreshes = 0;
 const loaded = buildServerRacks({ scene, colliders, rackOccluders, onReady: () => refreshes++ });
 await loaded.ready;
-assert.equal(scene.children.length, 10, 'Five of each rack model');
-assert.equal(colliders.length, 10);
-assert.equal(rackOccluders.length, 10);
+assert.equal(scene.children.length, 8, 'Five data racks and three system racks leave the workstation gap');
+assert.equal(colliders.length, 8);
+assert.equal(rackOccluders.length, 8);
 const dataCopies = scene.children.filter(group => group.name.startsWith('Data Center'));
 const systemCopies = scene.children.filter(group => group.name.startsWith('Server Racking'));
 assert.equal(dataCopies.length, 5);
-assert.equal(systemCopies.length, 5);
+assert.equal(systemCopies.length, 3);
 assert.ok(dataCopies.every(group => group.children[0].children[0].geometry === dataCopies[0].children[0].children[0].geometry), 'Copies share geometry');
 for (let i = 0; i < colliders.length; i++) {
   for (let j = i + 1; j < colliders.length; j++) assert.equal(colliders[i].intersectsBox(colliders[j]), false, 'Racks do not overlap');

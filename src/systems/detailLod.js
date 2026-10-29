@@ -30,6 +30,7 @@ function triangleCount(geometry) {
 }
 
 const clusterCache = new WeakMap();
+const transformedClusterCache = new WeakMap();
 
 /**
  * One triangle per occupied grid cell, taken whole so flat, densely tessellated
@@ -182,8 +183,18 @@ function buildProxy(root, cellSize) {
     const uv = !!geometry.attributes.uv;
     const batchable = uv && !Array.isArray(object.material) && !geometry.morphAttributes?.position;
     local.multiplyMatrices(inverse, object.matrixWorld);
-    let transformed = geometry.clone().applyMatrix4(local);
-    transformed = clusterGeometry(transformed, cell);
+    // Rack copies share source geometry and local transforms. Simplify each
+    // shape once instead of repeating the expensive work for every rack.
+    let variants = transformedClusterCache.get(geometry);
+    if (!variants) { variants = new Map(); transformedClusterCache.set(geometry, variants); }
+    const signature = `${cell}|${local.elements.map(value => Math.round(value * 1e6)).join(',')}`;
+    let transformed = variants.get(signature);
+    if (!transformed) {
+      const baked = geometry.clone().applyMatrix4(local);
+      transformed = clusterGeometry(baked, cell);
+      if (transformed !== baked) baked.dispose();
+      variants.set(signature, transformed);
+    }
     if (!batchable) { loose.push({ geometry: transformed, material: object.material }); return; }
     // Attribute sets must match for merging, so they are part of the batch key.
     const key = `${object.material.uuid}|${Object.keys(transformed.attributes).sort().join(',')}`;

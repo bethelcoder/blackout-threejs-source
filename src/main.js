@@ -12,7 +12,7 @@ import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
 import { attachHardHat } from './scenes/hardHat.js';
-import { preloadLevel2Models } from './systems/modelCache.js';
+import { preloadLevel2Models, preloadLevel3Models } from './systems/modelCache.js';
 import { createShockOverlay } from './shaders/shockOverlay.js';
 import { createCctvFeed } from './shaders/cctvFeed.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
@@ -687,8 +687,9 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     // Paint the transition before any cached geometry is prepared on the main thread.
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     if (generation !== loadGeneration) return;
-    if (index === 1) {
-      await preloadLevel2Models((finished, total) => {
+    if (index === 1 || index === 2) {
+      const preload = index === 1 ? preloadLevel2Models : preloadLevel3Models;
+      await preload((finished, total) => {
         if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
       });
     }
@@ -771,6 +772,16 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   loadPlayerModel();
+
+  // Warm the next room during play, after the current room's initial setup.
+  if (index === 0 || index === 1) {
+    setTimeout(() => {
+      if (currentLevelIndex === index && !levelLoading && !gameEnded) {
+        const preload = index === 0 ? preloadLevel2Models : preloadLevel3Models;
+        void preload().catch(error => console.warn('Next-room background preparation failed; entry will retry.', error));
+      }
+    }, 1500);
+  }
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);

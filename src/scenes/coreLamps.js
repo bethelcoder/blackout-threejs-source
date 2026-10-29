@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function arrangeCoreLamp(model) {
   const bounds = new THREE.Box3().setFromObject(model);
@@ -49,7 +49,7 @@ export function buildCoreLamps() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync('./models/core-lamp.glb').then(gltf => {
+  const ready = loadModel('./models/core-lamp.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     template = arrangeCoreLamp(gltf.scene);
     for (const holder of holders) holder.add(template.clone(true));

@@ -1,0 +1,54 @@
+{
+  "beforeBytes": 10508384,
+  "afterBytes": 5644940,
+  "meshes": [
+    {
+      "mesh": "Black_Metal_Plate",
+      "before": 155580,
+      "after": 103474,
+      "error": 0.0009996987646445632
+    },
+    {
+      "mesh": "Chrome",
+      "before": 7704,
+      "after": 2310,
+      "error": 0.0008969898335635662
+    },
+    {
+      "mesh": "Metal",
+      "before": 276,
+      "after": 212,
+      "error": 0.0003915849083568901
+    },
+    {
+      "mesh": "Screws",
+      "before": 5904,
+      "after": 2610,
+      "error": 0.0009744335548020899
+    },
+    {
+      "mesh": "Ribbon_Cable",
+      "before": 756,
+      "after": 676,
+      "error": 0.0003331342013552785
+    },
+    {
+      "mesh": "_1___Default",
+      "before": 69120,
+      "after": 20736,
+      "error": 0.00007475136226275936
+    },
+    {
+      "mesh": "blue_light",
+      "before": 69120,
+      "after": 20736,
+      "error": 0.00007473366713384166
+    },
+    {
+      "mesh": "Blue_Plastic",
+      "before": 3600,
+      "after": 1080,
+      "error": 0.00035585861769504845
+    }
+  ]
+}

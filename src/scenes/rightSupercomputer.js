@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function buildRightSupercomputer() {
   const group = new THREE.Group();
@@ -21,7 +21,7 @@ export function buildRightSupercomputer() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync('./models/right-supercomputer.glb').then(gltf => {
+  const ready = loadModel('./models/right-supercomputer.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     imported = gltf.scene;
     const bounds = new THREE.Box3().setFromObject(imported);

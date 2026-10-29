@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function buildCoreWetFloorSign() {
   const group = new THREE.Group();
@@ -20,7 +20,7 @@ export function buildCoreWetFloorSign() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync('/models/core-wet-floor-sign.glb').then(gltf => {
+  const ready = loadModel('/models/core-wet-floor-sign.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     const model = gltf.scene;
     model.name = 'Imported Wet Floor Sign';

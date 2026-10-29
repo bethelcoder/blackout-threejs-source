@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function buildCoreCrates() {
   const group = new THREE.Group();
@@ -18,7 +18,7 @@ export function buildCoreCrates() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync('./models/wooden-crates.glb').then(gltf => {
+  const ready = loadModel('./models/wooden-crates.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     const model = gltf.scene;
     model.name = 'Imported Wooden Crates';
