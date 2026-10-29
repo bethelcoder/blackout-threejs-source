@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadModel } from '../systems/modelCache.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RACK_GAPS } from './level2Layout.js';
 
 export function arrangeServerRack(source, name, z) {
   // Collapse the many individual screws/handles by material, retaining every triangle.
@@ -59,9 +60,12 @@ export function buildServerRacks({ scene, colliders, rackOccluders, onReady }) {
     const gltf = await loadModel(url);
     collect(gltf.scene);
     if (disposed) { release(); return; }
-    const template = arrangeServerRack(gltf.scene, name, positions[0]);
+    // The two racks nearest the back door are gone: that band of the right wall
+    // now holds the terminal workstation (see level2Layout.js).
+    const kept = positions.filter((z) => !RACK_GAPS.includes(z));
+    const template = arrangeServerRack(gltf.scene, name, kept[0]);
     collect(template.group);
-    positions.forEach((z, index) => {
+    kept.forEach((z, index) => {
       // Share merged geometry and materials across copies; load each asset once.
       const group = index === 0 ? template.group : template.group.clone(true);
       group.name = index === 0 ? name : `${name} ${index + 1}`;
