@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function buildCoreChair() {
   const group = new THREE.Group();
@@ -19,7 +19,7 @@ export function buildCoreChair() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync(new URL('../assets/models/core-office-chair.glb', import.meta.url).href).then(gltf => {
+  const ready = loadModel(new URL('../assets/models/core-office-chair.glb', import.meta.url).href).then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     const model = gltf.scene;
     model.name = 'Imported Office Chair';

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function buildEarthHologram() {
   const group = new THREE.Group();
@@ -42,7 +42,7 @@ export function buildEarthHologram() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync('./models/earth-hologram.glb').then(gltf => {
+  const ready = loadModel('./models/earth-hologram.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     const model = gltf.scene;
     earth = model.getObjectByName('Earth_2_Earth_Surface_002_0');

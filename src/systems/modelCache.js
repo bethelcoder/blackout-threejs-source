@@ -12,12 +12,36 @@ export const LEVEL2_MODEL_URLS = [
   new URL('../assets/models/data-center-server-rack.glb', import.meta.url).href,
   new URL('../assets/models/server-racking-system.glb', import.meta.url).href,
   new URL('../assets/models/venator-small-door.glb', import.meta.url).href,
+  new URL('../assets/models/vent.glb', import.meta.url).href,
+  new URL('../assets/models/modern_clock.glb', import.meta.url).href,
+  new URL('../assets/models/bolt_cutter_low-poly.glb', import.meta.url).href,
+  new URL('../assets/models/claw_hammer.glb', import.meta.url).href,
+  new URL('../assets/models/free_screwdriver.glb', import.meta.url).href,
+  new URL('../assets/models/vintage_pliers.glb', import.meta.url).href,
 ];
 export const LEVEL2_TEXTURE_URLS = [
   new URL('../assets/models/button/Scene_-_Root_baseColor.jpg', import.meta.url).href,
   new URL('../assets/models/button/Scene_-_Root_metallicRoughness_metal.jpg', import.meta.url).href,
   new URL('../assets/models/button/Scene_-_Root_metallicRoughness_rough.jpg', import.meta.url).href,
   new URL('../assets/models/button/Scene_-_Root_normal.jpg', import.meta.url).href,
+];
+
+export const LEVEL3_MODEL_URLS = [
+  './models/core-platform.glb', './models/core-ceiling.glb',
+  './models/core-lamp.glb', './models/core-pillar.glb',
+  './models/right-supercomputer.glb', './models/wooden-crates.glb',
+  './models/earth-hologram.glb', './models/sci-fi-office-desk.glb',
+  './models/left-personal-computer.glb', './models/drawer-keypad.glb',
+  './models/engineer-logbook.glb', './models/monitor-sticky-note.glb',
+  './models/uv-flashlight.glb', './models/metal-storage-cabinet.glb',
+  './models/office-drawer.glb', './models/sci-fi-crate-pile.glb',
+  './models/radiation-wall-sign.glb', '/models/core-wet-floor-sign.glb',
+  new URL('../assets/models/core-office-chair.glb', import.meta.url).href,
+  new URL('../assets/models/core-toolbox.glb', import.meta.url).href,
+  new URL('../assets/models/core-fire-extinguisher.glb', import.meta.url).href,
+  new URL('../assets/models/core-first-aid-box.glb', import.meta.url).href,
+  new URL('../assets/models/core-display-terminal.glb', import.meta.url).href,
+  new URL('../assets/models/core-kitchen-bot.glb', import.meta.url).href,
 ];
 
 function cachedTexture(url) {
@@ -80,22 +104,39 @@ export async function loadModel(url) {
   } };
 }
 
-/** Limit background downloads/decoding so Level 1 remains responsive. */
-export async function preloadLevel2Models(onProgress = () => {}) {
+/** Share background/entry requests and limit decoding to two assets at a time. */
+function createPreloader(modelUrls, textureUrls = []) {
+  let pending = null, finished = 0;
+  const listeners = new Set();
   const jobs = [
-    ...LEVEL2_MODEL_URLS.map(url => () => cachedModel(url)),
-    ...LEVEL2_TEXTURE_URLS.map(url => () => cachedTexture(url)),
+    ...modelUrls.map(url => () => cachedModel(url)),
+    ...textureUrls.map(url => () => cachedTexture(url)),
   ];
-  let next = 0;
-  let finished = 0;
-  const errors = [];
-  async function worker() {
-    while (next < jobs.length) {
-      const job = jobs[next++];
-      try { await job(); } catch (error) { errors.push(error); }
-      onProgress(++finished, jobs.length);
+  async function run() {
+    let next = 0;
+    const errors = [];
+    async function worker() {
+      while (next < jobs.length) {
+        const job = jobs[next++];
+        try { await job(); } catch (error) { errors.push(error); }
+        finished++;
+        for (const listener of listeners) listener(finished, jobs.length);
+        // Let input and rendering run between background jobs.
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
     }
+    await Promise.all([worker(), worker()]);
+    if (errors.length) pending = null;
+    return errors;
   }
-  await Promise.all([worker(), worker()]);
-  return errors;
+  return async (onProgress = () => {}) => {
+    listeners.add(onProgress);
+    if (!pending) { finished = 0; pending = run(); }
+    onProgress(finished, jobs.length);
+    try { return await pending; }
+    finally { listeners.delete(onProgress); }
+  };
 }
+
+export const preloadLevel2Models = createPreloader(LEVEL2_MODEL_URLS, LEVEL2_TEXTURE_URLS);
+export const preloadLevel3Models = createPreloader(LEVEL3_MODEL_URLS);

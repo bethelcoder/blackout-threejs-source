@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function buildLeftWorkstation() {
   const group = new THREE.Group();
@@ -29,8 +29,7 @@ export function buildLeftWorkstation() {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const loader = new GLTFLoader();
-  const load = url => loader.loadAsync(url).then(gltf => gltf.scene).catch(error => { console.warn('Workstation asset unavailable.', url, error); return null; });
+  const load = url => loadModel(url).then(gltf => gltf.scene).catch(error => { console.warn('Workstation asset unavailable.', url, error); return null; });
   const ready = Promise.all([load('./models/sci-fi-office-desk.glb'), load('./models/left-personal-computer.glb'), load('./models/drawer-keypad.glb'), load('./models/engineer-logbook.glb'), load('./models/monitor-sticky-note.glb'), load('./models/uv-flashlight.glb')]).then(([desk, computer, keypad, book, sticky, uv]) => {
     if (disposed || !desk) { for (const model of [desk, computer, keypad, book, sticky, uv]) if (model) disposeModel(model); return; }
     const bounds = new THREE.Box3().setFromObject(desk);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModel } from '../systems/modelCache.js';
 
 export function arrangeCoreCeiling(model) {
   const bounds = new THREE.Box3().setFromObject(model);
@@ -44,7 +44,7 @@ export function buildCoreCeiling(room) {
     });
     geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
-  const ready = new GLTFLoader().loadAsync('./models/core-ceiling.glb').then(gltf => {
+  const ready = loadModel('./models/core-ceiling.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     group.add(arrangeCoreCeiling(gltf.scene));
     if (original) original.visible = false;
