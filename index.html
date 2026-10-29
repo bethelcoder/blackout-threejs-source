@@ -18,9 +18,7 @@
   <!-- Background Music Audio Element -->
   <audio id="backgroundMusic" src="./star.mp3" loop></audio>
 
-
-
-  <!-- Loading screen (Centered Tactical Preloader) -->
+  <!-- Loading screen -->
   <div id="loading-screen">
     <div class="loading-inner tactical-modal">
       <div class="tech-corner tl"></div>
@@ -41,9 +39,8 @@
     </div>
   </div>
 
-  <!-- Main Landing Page Menu (Real Game Title Screen) -->
+  <!-- Main Landing Page Menu -->
   <div id="main-menu" class="landing-page hidden">
-    <!-- CRT and Glitch Shader Scanline Overlays -->
     <div class="crt-scanlines"></div>
     <div class="crt-vignette"></div>
     <div class="hazard-tape top-hazard"></div>
@@ -53,7 +50,6 @@
     <div class="layer-blur"></div>
 
     <div class="landing-container">
-      <!-- Top Telemetry Status Header -->
       <div class="game-top-bar">
         <div class="top-status-block">
           <span class="status-warning-icon">⚡</span>
@@ -66,11 +62,8 @@
         </div>
       </div>
 
-      <!-- Main Game Menu Layout (Left Console + Right 3D Sentinel Chamber) -->
       <div class="game-layout-row">
-        <!-- Left Industrial Bulkhead Console -->
         <div class="game-console-panel">
-          <!-- Danger High Voltage Warning Placard -->
           <div class="danger-placard">
             <div class="danger-header-stripe">
               <span class="danger-icon">⚡</span>
@@ -80,7 +73,6 @@
             <div class="danger-subtext">HIGH VOLTAGE &bull; 11,000 VOLTS &bull; UNGROUNDED POOLS DETECTED</div>
           </div>
 
-          <!-- Main Game Branding -->
           <div class="game-title-group">
             <h1 class="game-title">BLACKOUT</h1>
             <div class="game-subtitle">
@@ -92,7 +84,6 @@
             <span class="tag-flash">⚠</span> THE GRID HAS COLLAPSED &bull; ROGUE DEFENSE AI IN LOCKDOWN
           </div>
 
-          <!-- Vertical Game Action Menu Stack -->
           <div class="game-menu-stack">
             <button id="btn-play" class="game-menu-btn primary-start">
               <div class="btn-hazard-edge"></div>
@@ -120,7 +111,6 @@
             </button>
           </div>
 
-          <!-- Bottom Telemetry Readouts -->
           <div class="game-telemetry-box">
             <div class="telemetry-row">
               <span class="tel-label">CORE VOLTAGE:</span>
@@ -137,7 +127,6 @@
           </div>
         </div>
 
-        <!-- Right 3D Sentinel Drone Surveillance Chamber -->
         <div class="sentinel-chamber">
           <div class="hud-target-frame">
             <div class="bracket top-left"></div>
@@ -156,7 +145,6 @@
               <span>LETHALITY: 100%</span>
             </div>
 
-            <!-- Interactive 3D Spline Robot Model -->
             <spline-viewer class="robot-canvas" url="https://prod.spline.design/IGhNCQQwOgbIXJr7/scene.splinecode"></spline-viewer>
 
             <div class="target-bottom-warning">
@@ -168,7 +156,7 @@
     </div>
   </div>
 
-  <!-- Level 1 Tactical Guidance & Directive Modal -->
+  <!-- Level 1 Tactical Guidance & Directive Modal (GENERALIZED) -->
   <div id="guidance-modal" class="overlay hidden">
     <div class="guidance-panel tactical-modal">
       <div class="tech-corner tl"></div>
@@ -188,41 +176,38 @@
         <!-- Core Objective Card -->
         <div class="guidance-card objective-card">
           <div class="card-pill alert-pill">PRIMARY OBJECTIVE</div>
-          <div class="objective-quote">&ldquo;The objective is to open the doors. But you need a passcode.&rdquo;</div>
+          <div class="objective-quote">&ldquo;Infiltrate the facility, restore the systems, and bypass the lockdown.&rdquo;</div>
           <p class="objective-explanation">
-            The perimeter double blast doors leading to Level 2 are sealed tight under lockdown. Pushing the doors will do nothing until you unlock the electronic security keypad beside them.
+            The facility is on total lockdown. To reach the lower levels, you must navigate the dark, restore power to the sector, and gather the override credentials left behind by the maintenance crew.
           </p>
         </div>
 
         <!-- Tactical Riddle Card -->
         <div class="guidance-card riddle-card">
-          <div class="card-pill riddle-pill">TACTICAL RIDDLE &bull; CRITICAL CLUE</div>
-          <div class="riddle-quote">&ldquo;There&rsquo;s no TIME to waste.&rdquo;</div>
+          <div class="card-pill riddle-pill">INTEL &amp; ANOMALIES</div>
+          <div class="riddle-quote">&ldquo;Nothing is hidden to those who truly look.&rdquo;</div>
           <div class="riddle-breakdown">
             <div class="riddle-item">
-              <span class="riddle-glyph">⏱</span>
-              <span><strong>The Passcode is in the Locker:</strong> The blast door override code (0451) is written in the Technician Logbook, locked inside the wall locker.</span>
+              <span class="riddle-glyph"></span>
+              <span><strong>Visual Traces:</strong> Trust your eyes. Codes, patterns, and assignments are often left in plain sight on notice boards, sticky tags, or equipment registers.</span>
             </div>
             <div class="riddle-item">
-              <span class="riddle-glyph">🔑</span>
-              <span><strong>The Key is in the Clock:</strong> The locker key only drops when you enter the correct employee shift <strong>TIMES</strong> into the Industrial Clock Console keypad.</span>
+              <span class="riddle-glyph"></span>
+              <span><strong>Mechanical Locks:</strong> Not every door opens with a key. You may need to align dials, match shapes, or hang tools in their proper places to trigger a mechanism.</span>
             </div>
             <div class="riddle-item">
-              <span class="riddle-glyph">📜</span>
-              <span><strong>Find the Shift Records:</strong> Retrieve the screwdriver from the under-stairs toolbox and unscrew the high maintenance vent grille to recover the technician schedule.</span>
+              <span class="riddle-glyph"></span>
+              <span><strong>System Restoration:</strong> The facility is broken. You will need to locate missing components, pull cables, and route power to bring dead terminals online.</span>
             </div>
           </div>
         </div>
 
-        <!-- Critical Losing Condition Card (Security Strikes) -->
+        <!-- Critical Losing Condition Card -->
         <div class="guidance-card hazard-card">
           <div class="card-pill hazard-pill">⚠ AI SECURITY THREAT // 3-STRIKE PROTOCOL</div>
           <div class="hazard-desc">
-            Start with your torch. Find the electric box on the entrance wall and press <strong>E</strong>. Connect two numbered cables to each socket so their sum equals its target, then test the circuit. Use the light switch on the right wall once repaired. CCTV activates after the lights warm up.
-            <br>The facility AI triggers a permanent lockdown after <strong>3 Strikes</strong>:
-            <br>&bull; <strong>Camera Exposure</strong>: Being spotted in the CCTV cone for &ge; 3.0 seconds causes a strike.
-            <br>&bull; <strong>Keypad / Clock Errors</strong>: 4 incorrect PIN attempts trigger a strike.
-            <br>&bull; <strong>Security Lasers</strong>: Tripping security beams in Level 2 triggers a strike.
+            The facility AI is active and hostile. Use your torch to navigate the dark and restore the electrical grid. <strong>Do not</strong> linger in the CCTV camera cone, trip security lasers, or repeatedly fail keypad entries.
+            <br>The AI will trigger a lethal lockdown after <strong>3 Strikes</strong>.
           </div>
         </div>
 
@@ -230,23 +215,23 @@
         <div class="guidance-steps-row">
           <div class="guide-step">
             <span class="step-badge">1</span>
-            <strong>TOOLBOX</strong>
-            <p>Take Screwdriver under stairs</p>
+            <strong>EXPLORE</strong>
+            <p>Scan for tools and visual clues.</p>
           </div>
           <div class="guide-step">
             <span class="step-badge">2</span>
-            <strong>HIGH VENT</strong>
-            <p>Push crate &amp; unscrew grille</p>
+            <strong>INTERCEPT</strong>
+            <p>Read registers, tags, and notes.</p>
           </div>
           <div class="guide-step">
             <span class="step-badge">3</span>
-            <strong>CLOCK RIDDLE</strong>
-            <p>Enter shift times for Sector 1, 2, 3</p>
+            <strong>SOLVE</strong>
+            <p>Crack codes and align mechanisms.</p>
           </div>
           <div class="guide-step">
             <span class="step-badge">4</span>
-            <strong>BLAST DOORS</strong>
-            <p>Get logbook code &amp; unlock doors</p>
+            <strong>ESCAPE</strong>
+            <p>Restore power and unlock the next zone.</p>
           </div>
         </div>
       </div>
@@ -290,7 +275,6 @@
     <div class="menu-panel">
       <h2>Credits &amp; Third-Party Resources</h2>
       <ul id="credits-list" class="credits-list">
-        <!-- Populated from src/systems/credits.js -->
       </ul>
       <button id="btn-credits-close">BACK</button>
     </div>
@@ -391,7 +375,6 @@
     <div id="pickup-prompt" class="hidden">[F] Pick up</div>
     <div id="hud-toast" class="hidden"></div>
 
-    <!-- AI Security Status Panel -->
     <div id="ai-status-panel">
       <div class="tech-corner tl"></div>
       <div class="tech-corner tr"></div>
@@ -409,7 +392,6 @@
       <div id="camera-exposure" class="hidden" role="status"></div>
     </div>
 
-    <!-- Security Camera CCTV Picture-in-Picture Feed (Viewing rubric) -->
     <div id="cctv-container" class="hidden">
       <div class="cctv-header">
         <span class="cctv-rec-dot"></span> REC ● SEC-CAM 01
@@ -417,13 +399,11 @@
       <canvas id="cctv-canvas" width="240" height="135"></canvas>
     </div>
 
-    <!-- Level Banner -->
     <div id="level-banner" class="hidden">
       <div id="level-title"></div>
       <div id="level-subtitle"></div>
     </div>
 
-    <!-- Mission Objective Panel -->
     <div id="objective-panel" title="Click or press [H] to review Guidance &amp; Riddle">
       <div class="tech-corner tl"></div>
       <div class="tech-corner tr"></div>
@@ -473,7 +453,6 @@
         </div>
       </div>
       <div id="backpack-slots" class="backpack-slots-grid">
-        <!-- Populated dynamically from src/systems/backpackUI.js -->
       </div>
     </div>
   </div>
