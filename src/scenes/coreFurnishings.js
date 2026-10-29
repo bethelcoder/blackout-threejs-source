@@ -48,7 +48,7 @@ export function buildCoreFurnishings() {
     box(x - Math.sin(yaw) * 0.025, y, z - Math.cos(yaw) * 0.025, width + 0.1, height + 0.1, 0.04, dark, yaw);
   }
 
-  // Symmetric rear equipment bays flank the central feeder and corruption panel.
+  // Supercomputer equipment bays flank the hologram screen.
   for (const x of [-3.25, 3.25]) {
     const z = -6.35;
     box(x, 0.06, z, 1.2, 0.12, 0.76, dark);
@@ -66,7 +66,7 @@ export function buildCoreFurnishings() {
     solid(x, z, 1.2, 0.76, 2.33);
   }
 
-  screen('OPERATIONS / CORE SYSTEMS', ['FEEDER BANKS  A / B / C', 'MANUAL ISOLATION ENABLED', 'CONSULT MAINTENANCE SCHEDULE'], -6.96, 2.65, 0, 2.4, 1.0, Math.PI / 2);
+  screen('OPERATIONS / CORE SYSTEMS', ['CIRCUIT COMPONENTS / OFFLINE', 'ASSEMBLY INTERFACE ENABLED', 'CONSULT THE SERVICE ROBOT'], -6.96, 2.65, 0, 2.4, 1.0, Math.PI / 2);
   screen('COMPUTE ARRAY / TELEMETRY', ['PROCESSORS  //  DISTRIBUTED', 'SECURITY BUS //  CONNECTED', 'CORE STATUS //  AUTONOMOUS'], 6.96, 3.2, 0, 3, 1.0, -Math.PI / 2);
 
   // Front-left maintenance bench, with packed diagnostic cases and a tool board.
@@ -93,7 +93,7 @@ export function buildCoreFurnishings() {
   for (const x of [4.48, 5.52]) box(x, 0.5, 4, 0.045, 1, 0.56, silver);
   box(5, 0.92, 4.3, 1.1, 0.035, 0.025, cyan);
   box(5, 1.06, 3.82, 0.07, 0.3, 0.07, silver);
-  screen('FEEDER MAINTENANCE', ['READ THE SCHEDULE', 'VERIFY LOAD ORDER'], 5, 1.4, 3.84, 0.85, 0.5, Math.PI);
+  screen('CORE MAINTENANCE', ['ASSEMBLE THE COMPONENTS', 'CONNECT THE SHUTDOWN CIRCUIT'], 5, 1.4, 3.84, 0.85, 0.5, Math.PI);
 
   // Neat overhead cable trays link equipment bays without floor-level obstacles.
   for (const x of [-6.88, 6.88]) {

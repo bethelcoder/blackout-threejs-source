@@ -1,0 +1,50 @@
+[
+  {
+    "asset": "public/models/backpack_photogrammetry.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 21.33,
+    "afterMiB": 5.33
+  },
+  {
+    "asset": "public/models/front-door.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 64.0,
+    "afterMiB": 16.0
+  },
+  {
+    "asset": "public/models/storage-door.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 64.0,
+    "afterMiB": 16.0
+  },
+  {
+    "asset": "public/models/player.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 66.67,
+    "afterMiB": 50.67
+  },
+  {
+    "asset": "src/assets/models/maintenance-vent-cover.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 64.0,
+    "afterMiB": 16.0
+  },
+  {
+    "asset": "src/assets/models/modular-sci-fi-floor.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 85.33,
+    "afterMiB": 21.33
+  },
+  {
+    "asset": "src/assets/models/retro-computer.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 213.33,
+    "afterMiB": 53.33
+  },
+  {
+    "asset": "src/assets/models/terminal-desk.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 85.33,
+    "afterMiB": 21.33
+  }
+]

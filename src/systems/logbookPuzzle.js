@@ -59,7 +59,7 @@ export function createLogbookPuzzle({ onSolved, onUnlock, getKeypadModel, create
     };
     if (!drawer) {
       const note = document.createElement('p');
-      note.textContent = 'Margin note: Drawer combination = hour digits from approved entries, in entry-number order. Ignore the minutes. Each shift hour is a single digit.';
+      note.textContent = 'Drawer: use stamped hour digits in entry order; ignore minutes. Assembly: match component shapes and connector notches. UV service markings reveal the assembly access word.';
       panel.append(note);
       for (let i = 1; i <= 28; i++) {
         const row = document.createElement('p');

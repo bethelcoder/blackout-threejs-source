@@ -37,7 +37,7 @@ export function createRobotRepair({ onSolved }) {
       const draw = () => {
         progressLabel.textContent = `${awake ? 'LINK ACTIVE' : 'AWAITING HANDSHAKE'} // PARTS RELEASED ${progress}/3`;
         if (progress === RIDDLES.length) {
-          prompt.textContent = 'All three parts released: Flow Module, Motion Module, Interface Module. Robot record: circuit input 3V, output 5V; include R1 (+3V), R2 (-2V), R3 (+1V).';
+          prompt.textContent = 'Three components delivered: Power Module, Relay, Control Chip. Match their shapes and connector notches at the glowing hologram. Finally, a problem I can help solve without using my nonexistent hands.';
           input.disabled = true; send.disabled = true; return;
         }
         prompt.textContent = awake ? `RIDDLE ${progress + 1} / 3: ${RIDDLES[progress].text}` : 'Robot dormant. Talk to it: type HELLO on the communication keypad to wake it.';
@@ -52,9 +52,17 @@ export function createRobotRepair({ onSolved }) {
         }
         const riddle = RIDDLES[progress];
         if (answer !== riddle.answer) { status.textContent = 'Incorrect. Think it over and try again; your earned parts are safe.'; return; }
+        const rewards = [riddle.part].filter(id => !inventory.hasItem(id));
+        if (inventory.slots.filter(item => item === null).length < rewards.length) { status.textContent = `Make room for ${rewards.length} reward items, then submit your answer again.`; return; }
         if (!inventory.hasItem(riddle.part) && !inventory.addItem(riddle.part)) { status.textContent = 'Backpack full. Free a slot, then submit this answer again to collect the part.'; return; }
         progress++; input.value = ''; status.textContent = `Correct. Part ${progress}/3 collected: ${inventory.slots.find(item => item?.id === riddle.part)?.name}.`;
-        if (progress === RIDDLES.length) onSolved();
+        if (progress === RIDDLES.length) {
+          onSolved();
+          if (typeof window !== 'undefined' && window.speechSynthesis && typeof SpeechSynthesisUtterance !== 'undefined') {
+            const voice = new SpeechSynthesisUtterance('Excellent work, friend! Three components, on the house. Assemble them at the glowing hologram. I would lend a hand, but I seem to be missing those.');
+            voice.pitch = 1.15; voice.rate = 1.02; window.speechSynthesis.speak(voice);
+          }
+        }
         draw();
       }
       const send = button('Send message', submit);

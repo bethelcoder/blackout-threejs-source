@@ -48,7 +48,7 @@ export function buildCoreHologramScreen() {
       g.fillRect(980 + i * 19, 290 - (30 + (i * 37) % 100), 11, 30 + (i * 37) % 100);
     }
     g.fillStyle = '#8eefff';
-    g.fillText('ISOLATION', 985, 380);
+    g.fillText('COMPONENTS', 985, 380);
     g.font = 'bold 46px monospace'; g.fillText(`${progress} / 3`, 1000, 438);
     g.font = '16px monospace'; g.fillText('MUNICIPAL GRID STABLE', 960, 515);
     g.fillText('SYNAPSE // CONTROL ARRAY', 490, 607);
