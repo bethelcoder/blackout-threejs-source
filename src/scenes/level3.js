@@ -1,10 +1,23 @@
 import * as THREE from 'three';
 import { buildRoom, buildProp } from './roomBuilder.js';
-import { createElectricCorruptionMaterial } from '../shaders/electricCorruption.js';
+import { buildCoreHologramScreen } from './coreHologramScreen.js';
 import { createShockwaveFloorMaterial, MAX_WAVES } from '../shaders/shockwaveFloor.js';
 import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
-import { createSparkParticles } from '../systems/particles.js';
 import { sound } from '../systems/audio.js';
+import { buildCoreBase } from './coreBase.js';
+import { applyCoreWalls } from './coreWalls.js';
+import { buildCoreCeiling } from './coreCeiling.js';
+import { buildCoreLamps } from './coreLamps.js';
+import { buildCorePillars } from './corePillars.js';
+import { buildRightSupercomputer } from './rightSupercomputer.js';
+import { buildLeftWorkstation } from './leftWorkstation.js';
+import { buildCoreCrates } from './coreCrates.js';
+import { buildEarthHologram } from './earthHologram.js';
+import { buildCoreFurnishings } from './coreFurnishings.js';
+import { buildCoreChair } from './coreChair.js';
+import { buildCoreToolboxes } from './coreToolboxes.js';
+import { buildCoreExtinguisher } from './coreExtinguisher.js';
+import { buildCoreFirstAid } from './coreFirstAid.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
 const WAVE_THICKNESS = 0.7;
@@ -76,11 +89,52 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const add = (obj) => { scene.add(obj); roots.push(obj); return obj; };
 
   // ---------- Room ----------
-  const { group: room, colliders: wallColliders } = buildRoom({
+  const { group: room, colliders: wallColliders, floor } = buildRoom({
     width: 14, depth: 14, height: 5.5, wallColor: 0x5a3e3e,
+    officeFloor: true,
+    officeCeiling: true,
+    includeLeftCabinets: false,
+    includeRightCabinets: false,
+    includePlinths: false,
   });
+  floor.name = 'Level 3 office floor';
+  applyCoreWalls(room);
   add(room);
   colliders.push(...wallColliders);
+  const ceiling = buildCoreCeiling(room);
+  scene.add(ceiling.group);
+  const ceilingLamps = buildCoreLamps();
+  scene.add(ceilingLamps.group);
+  const cornerPillars = buildCorePillars();
+  scene.add(cornerPillars.group);
+  colliders.push(...cornerPillars.colliders);
+  const rightSupercomputer = buildRightSupercomputer();
+  scene.add(rightSupercomputer.group);
+  colliders.push(rightSupercomputer.collider);
+  const leftWorkstation = buildLeftWorkstation();
+  scene.add(leftWorkstation.group);
+  colliders.push(leftWorkstation.collider);
+  const woodenCrates = buildCoreCrates();
+  scene.add(woodenCrates.group);
+  colliders.push(woodenCrates.collider);
+  const earthHologram = buildEarthHologram();
+  scene.add(earthHologram.group);
+  colliders.push(earthHologram.collider);
+  const furnishings = buildCoreFurnishings();
+  scene.add(furnishings.group);
+  colliders.push(...furnishings.colliders);
+  const workstationChair = buildCoreChair();
+  scene.add(workstationChair.group);
+  colliders.push(workstationChair.collider);
+  const toolboxes = buildCoreToolboxes();
+  scene.add(toolboxes.group);
+  colliders.push(toolboxes.collider);
+  const extinguisher = buildCoreExtinguisher();
+  scene.add(extinguisher.group);
+  colliders.push(extinguisher.collider);
+  const firstAid = buildCoreFirstAid();
+  scene.add(firstAid.group);
+  colliders.push(firstAid.collider);
 
   // ---------- Lighting (one shadow caster, tight shadow frustum) ----------
   add(new THREE.HemisphereLight(0xffcccc, 0x664444, 0.6));
@@ -100,12 +154,8 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   // scale and dissolve as one unit; coreGroup sits on the pedestal under `core`.
   const core = add(new THREE.Group());
 
-  const pedestal = buildProp({
-    geometry: new THREE.CylinderGeometry(1.2, 1.5, 1.2, 24),
-    material: new THREE.MeshStandardMaterial({ color: 0x2c3540, metalness: 0.7, roughness: 0.3 }),
-    position: [0, 0.6, 0],
-  });
-  core.add(pedestal);
+  const pedestal = buildCoreBase();
+  core.add(pedestal.group);
 
   const hazardRing = new THREE.Mesh(
     new THREE.RingGeometry(1.6, 2.0, 48),
@@ -134,7 +184,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   coreGroup.add(coreLight);
 
   core.updateMatrixWorld(true);
-  colliders.push(new THREE.Box3().setFromObject(pedestal));
+  colliders.push(pedestal.collider);
 
   // ---------- Shockwave floor (shader-driven, one draw call) ----------
   const waveMat = createShockwaveFloorMaterial();
@@ -144,12 +194,9 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   waveFloor.renderOrder = 1;
   add(waveFloor);
 
-  // ---------- Corrupted wall panel + sparks ----------
-  const corruptionMat = createElectricCorruptionMaterial();
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(5, 3.5), corruptionMat);
-  panel.position.set(0, 2.4, -6.85);
-  add(panel);
-  const sparks = add(createSparkParticles({ origin: [0, 2.2, -6.5], color: 0xff5f4f, count: 100 }));
+  // ---------- Floating wall telemetry ----------
+  const hologramScreen = buildCoreHologramScreen();
+  add(hologramScreen.group);
 
   // ---------- Puzzle data (shuffled every run) ----------
   const loads = shuffle([34, 58, 91]);
@@ -296,6 +343,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const lerpK = (delta, rate) => 1 - Math.exp(-delta * rate);   // frame-rate independent smoothing
 
   function update(delta, camera) {
+    earthHologram.update(delta);
     t += delta;
     const phase = PHASES[phaseIndex()];
 
@@ -368,26 +416,36 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     const agitationTarget = finished ? 0.2 : 0.3 + progress * 0.3 + charge * 0.5;
     orbU.uAgitation.value += (agitationTarget - orbU.uAgitation.value) * lerpK(delta, 6);
 
-    const cu = corruptionMat.uniforms;
-    cu.uTime.value = t;
-    const corruptTarget = Math.min(1, 0.35 + progress * 0.2 + aiState.suspicion / 150 + charge * 0.2);
-    cu.uIntensity.value += (corruptTarget - cu.uIntensity.value) * lerpK(delta, 5);
+    hologramScreen.update(t, progress, charge);
 
     // --- Breaker levers ease toward their target ---
     for (const b of Object.values(breakers)) {
       b.pivot.rotation.x += (b.leverTarget - b.pivot.rotation.x) * lerpK(delta, 10);
     }
 
-    sparks.userData.update(delta);
     aiState.decay(2 * delta);
   }
 
   function dispose() {
+    firstAid.dispose();
+    extinguisher.dispose();
+    toolboxes.dispose();
+    workstationChair.dispose();
+    furnishings.dispose();
+    earthHologram.dispose();
+    woodenCrates.dispose();
+    leftWorkstation.dispose();
+    rightSupercomputer.dispose();
+    cornerPillars.dispose();
+    ceilingLamps.dispose();
+    ceiling.dispose();
+    pedestal.dispose();
     for (const obj of roots) { scene.remove(obj); disposeTree(obj); }
     roots.length = 0;
   }
 
   return {
+    ready: Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready]),
     colliders,
     update,
     dispose,

@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { buildEarthHologram } from '../src/scenes/earthHologram.js';
+globalThis.self = globalThis;
+globalThis.createImageBitmap = async () => ({ width: 1024, height: 1024, close() {} });
+const bytes = fs.readFileSync('public/models/earth-hologram.glb');
+const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+const original = GLTFLoader.prototype.loadAsync;
+GLTFLoader.prototype.loadAsync = async () => ({ scene: gltf.scene.clone(true) });
+try {
+  const display = buildEarthHologram(); await display.ready;
+  display.group.updateMatrixWorld(true);
+  const earth = display.group.getObjectByName('Earth_2_Earth_Surface_002_0');
+  const projection = display.group.getObjectByName('Earth_rays_2_transparent_004_0');
+  assert.ok(earth && projection, 'Supplied Earth and projection geometry retained');
+  const bounds = new THREE.Box3().setFromObject(earth);
+  assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).z - 1.3 * 0.72) < 0.0001);
+  const beamBounds = new THREE.Box3().setFromObject(projection);
+  assert.ok(beamBounds.min.y > 0.36 * 0.72 && beamBounds.min.y < 0.4 * 0.72, 'Projection beam meets projector');
+  assert.ok(earth.material.transparent && !earth.material.depthWrite);
+  assert.ok(earth.material.emissiveMap);
+  assert.ok(Math.abs(display.collider.max.y - 0.36 * 0.72) < 0.00001, 'Only solid projector base blocks walking');
+  assert.ok(display.collider.max.x < 7 && display.collider.min.x > 5.6 && display.collider.min.z > 4.7, 'Clear of supercomputer and main route');
+  const angle = earth.rotation.y;
+  for (let i = 0; i < 600; i++) display.update(1 / 60);
+  assert.ok(earth.rotation.y > angle + 2, 'Earth rotates continuously');
+  assert.ok(projection.material.opacity > 0.09 && projection.material.opacity < 0.15);
+  display.dispose();
+  const cancelled = buildEarthHologram(); cancelled.dispose(); await cancelled.ready;
+  assert.equal(cancelled.group.getObjectByName('Earth_2_Earth_Surface_002_0'), undefined);
+  console.log('Earth hologram checks passed: imported globe/beam, projector alignment, glow/transparency, animation, clearances and cancelled loading.');
+} finally { GLTFLoader.prototype.loadAsync = original; }

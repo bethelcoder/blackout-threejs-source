@@ -1,0 +1,3 @@
+from pathlib import Path
+s=Path('src/scenes/coreExtinguisher.js').read_text().replace('buildCoreExtinguisher', 'buildCoreFirstAid').replace('Level 3 wall-mounted fire extinguisher', 'Level 3 wall-mounted first aid box').replace('group.position.set(-6.75, 0.85, 5.8)', 'group.position.set(-6.75, 2.0, 5.8)').replace('core-fire-extinguisher.glb', 'core-first-aid-box.glb').replace('Imported Fire Extinguisher', 'Imported First Aid Box').replace('0.75 / size.y', '0.65 / size.y').replace('Fire extinguisher model unavailable.', 'First aid box model unavailable.')
+Path('src/scenes/coreFirstAid.js').write_text(s)
