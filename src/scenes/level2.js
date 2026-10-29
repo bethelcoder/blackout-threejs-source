@@ -209,6 +209,9 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   const officeChair = buildOfficeChair({ scene, colliders, hud, onSit: onChairSit, isSeated: isPlayerSeated });
   cleanup.push(() => officeChair.dispose());
 
+  // =====================================================================
+  // LEVEL COMPLETION
+  // =====================================================================
   let solved = false;
   terminalUI.onSolved = () => {
     if (solved || laserSecurity.isActive()) return;
