@@ -16,13 +16,17 @@ import { buildStorageCabinets } from './storageCabinets.js';
 import { buildStorageDoor } from './storageDoor.js';
 import { buildFrontDoor } from './frontDoor.js';
 import { createRoomPower } from '../systems/roomPower.js';
+import { DetailLod } from '../systems/detailLod.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 import { createVentHaze } from '../shaders/ventHaze.js';
 
-export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit, onCameraExposure, onPinStrike }) {
+export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit, onCameraExposure, onPinStrike, onToolTaken, getHeldToolId }) {
   const colliders = [];
   const cleanup = [];
   const poweredLights = [];
+  // Static dressing is drawn at the detail its distance allows once loaded.
+  const detailLod = new DetailLod();
+  cleanup.push(() => detailLod.dispose());
 
   // includeLeftCabinets: false removes the massive glossy switchgear racks.
   const { group: room, colliders: wallColliders } = buildRoom({ 
@@ -54,7 +58,9 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(electricalHazard.group);
   cleanup.push(() => electricalHazard.dispose());
 
-  const ventRoute = buildMaintenanceVent({ aiState, hud, onEnter: onVentEnter, onExit: onVentExit });
+  const ventRoute = buildMaintenanceVent({
+    aiState, hud, onEnter: onVentEnter, onExit: onVentExit, onToolTaken, getHeldToolId,
+  });
   scene.add(ventRoute.group);
   colliders.push(...ventRoute.colliders);
   cleanup.push(() => ventRoute.dispose());
@@ -269,6 +275,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   let warnTimer = 0;
 
   function update(delta, camera) {
+    detailLod.update(camera);
     power.update(delta);
     ventRoute.update(delta, camera);
     storageDoor.update(delta);
@@ -290,8 +297,20 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     }
   }
 
+  const ready = storageCabinets.ready.then(() => {
+    detailLod.addByName(scene, [
+      'Backroom Props & Furniture',
+      'Stacked Cardboard Boxes — Crafted by jerovdl',
+      'Imported metal storage cabinets',
+      'Maintenance notice board',
+    ]);
+  });
+
   return {
-    colliders, walkableSurfaces: walkway.walkableSurfaces, cctvCamera,
+    ready,
+    colliders,
+    walkableSurfaces: walkway.walkableSurfaces,
+    cctvCamera,
     get cctvEnabled() { return power.securityOnline; },
     update, dispose: () => cleanup.forEach((fn) => fn()),
     spawn: new THREE.Vector3(0, 1.7, 7.5),

@@ -12,6 +12,9 @@ import { buildServerRacks } from './serverRacks.js';
 import { buildVenatorSmallDoor } from './venatorSmallDoor.js';
 import { loadModel } from '../systems/modelCache.js';
 import { fitModel } from '../systems/fitModel.js';
+import { createRoutingHologram } from '../shaders/routingHologram.js';
+import { createRackDataStream } from '../shaders/rackDataStream.js';
+import { DetailLod } from '../systems/detailLod.js';
 import { SERVICE_BAY, STICKY_FALLBACK, COMPUTER } from './level2Layout.js';
 
 /**
@@ -25,7 +28,7 @@ import { SERVICE_BAY, STICKY_FALLBACK, COMPUTER } from './level2Layout.js';
  * derives its own positions from them, so nothing needs to be duplicated
  * here.
  */
-export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecurityHit, onChairSit, isPlayerSeated }) {
+export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecurityHit, onChairSit, isPlayerSeated, onCarryChange }) {
   const colliders = [];
   const cleanup = [];
 
@@ -110,7 +113,7 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
     note: STICKY_FALLBACK,
     sheetAnchor: paperRack.sheetAnchor,
   };
-  const puzzleChain = buildPuzzleChain({ scene, hud, sound, colliders, layout: puzzleLayout });
+  const puzzleChain = buildPuzzleChain({ scene, hud, sound, colliders, layout: puzzleLayout, onCarryChange });
   cleanup.push(() => puzzleChain.dispose());
 
   // =====================================================================
@@ -209,6 +212,27 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   const officeChair = buildOfficeChair({ scene, colliders, hud, onSit: onChairSit, isSeated: isPlayerSeated });
   cleanup.push(() => officeChair.dispose());
 
+  // Floor routing schematic on the open deck beside the walkway.
+  const routingHologram = createRoutingHologram({
+    position: new THREE.Vector3(-3.4, 0.015, 0.6),
+    radius: 1.6,
+    color: 0x4fe3ff,
+    intensity: 1,
+  });
+  scene.add(routingHologram.group);
+  cleanup.push(() => routingHologram.dispose());
+
+  // Data-traffic monitor on the face of the near server rack.
+  const rackStream = createRackDataStream({
+    position: new THREE.Vector3(5.33, 1.62, -1.4),
+    rotationY: -Math.PI / 2,
+    width: 0.82,
+    height: 1.5,
+    intensity: 1,
+  });
+  scene.add(rackStream.group);
+  cleanup.push(() => rackStream.dispose());
+
   // =====================================================================
   // LEVEL COMPLETION
   // =====================================================================
@@ -246,8 +270,16 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   // =====================================================================
   // UPDATE LOOP
   // =====================================================================
+
+  // Imported furniture is the heaviest geometry in this room, so it is registered
+  // once its GLBs have landed and then drawn at the detail its distance allows.
+  const detailLod = new DetailLod();
+  cleanup.push(() => detailLod.dispose());
   function update(delta, camera) {
+    detailLod.update(camera);
     laserSecurity.update(delta, camera);
+    routingHologram.update(delta);
+    rackStream.update(delta);
     smallDoor.update(delta, solved);
     design.update(delta, camera);
     puzzleChain.update(delta);
@@ -258,17 +290,20 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
     if (!terminalUI.open) aiState.decay(3 * delta);
   }
 
+  const ready = Promise.all([
+    venatorRoom.ready, serverRacks.ready, terminalStation.ready, officeChair.ready, smallDoor.ready,
+    ventPromise, design.ready, puzzleChain.ready,
+  ]).then(() => {
+    detailLod.addByName(scene, [
+      'Data Center Server Rack',
+      'Server Racking System',
+      'Imported terminal workstation',
+      'Office chair in front of terminal desk',
+    ]);
+  });
+
   return {
-    ready: Promise.all([
-      venatorRoom.ready,
-      serverRacks.ready,
-      terminalStation.ready,
-      officeChair.ready,
-      smallDoor.ready,
-      ventPromise,
-      design.ready,
-      puzzleChain.ready,
-    ]),
+    ready,
     colliders,
     serviceSpawn: new THREE.Vector3(5.95, 1.7, 5.8),
     update,

@@ -18,6 +18,8 @@ export class BackpackUI {
 
     // Listen for inventory updates
     inventory.onChange(() => this.render());
+    // Picking something up equips it, so the badges have to follow the hand too.
+    this.equipment?.onEquipChange(() => this.render());
 
     document.addEventListener('keydown', (e) => {
       if (e.code === 'KeyB') {
@@ -98,16 +100,23 @@ export class BackpackUI {
         let statusBadge = item.type.toUpperCase();
         let badgeClass = 'tool';
         if (item.id === 'torch') {
-          const isTorchActive = this.equipment?.equippedTool === 'torch' && this.equipment?.torchOn;
-          statusBadge = isTorchActive ? 'EQUIPPED [ACTIVE BEAM]' : 'IN RIG [BEAM OFF]';
-          badgeClass = isTorchActive ? 'active-torch' : 'idle-torch';
-        } else if (item.type === 'document') {
-          statusBadge = 'CLASSIFIED [READ]';
-          badgeClass = 'doc';
-        } else if (item.type === 'tool') {
-          statusBadge = 'OPERATIVE TOOL';
-          badgeClass = 'tool';
+          // The beam is a headlamp, so it can be lit with a wrench in hand:
+          // report the hand slot and the beam separately.
+          const inHand = this.equipment?.equippedTool === 'torch';
+          const lit = this.equipment?.torchOn;
+          statusBadge = `${inHand ? 'EQUIPPED' : 'IN BAG'} [${lit ? 'LIGHT ON' : 'LIGHT OFF'}]`;
+          badgeClass = lit ? 'active-torch' : 'idle-torch';
+        } else if (item.type === 'document' || item.type === 'tool') {
+          const inHand = this.equipment?.isEquipped(item.id);
+          statusBadge = inHand ? 'EQUIPPED [IN HAND]' : 'CLICK TO HOLD';
+          badgeClass = item.type === 'document' ? 'doc' : 'tool';
         }
+
+        // Reading is a separate action from holding, so documents get their own
+        // chip instead of overloading the slot click.
+        const readChip = item.type === 'document'
+          ? '<button class="slot-read" type="button">READ</button>'
+          : '';
 
         slotDiv.innerHTML = `
           <div class="slot-corner tl"></div>
@@ -115,6 +124,7 @@ export class BackpackUI {
           <div class="slot-corner bl"></div>
           <div class="slot-corner br"></div>
           <div class="slot-index">${slotNum}</div>
+          ${readChip}
           <div class="item-hologram-aura"></div>
           <div class="item-icon">${item.icon || '📦'}</div>
           <div class="item-info">
@@ -123,8 +133,17 @@ export class BackpackUI {
           </div>
         `;
 
+        const readBtn = slotDiv.querySelector('.slot-read');
+        if (readBtn) {
+          readBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            sound.playKeypadBeep();
+            this.showDocReader(item.name, item.content || item.desc);
+          });
+        }
+
         slotDiv.addEventListener('click', () => {
-          this._handleItemClick(item, index);
+          this._handleItemClick(item);
         });
       } else {
         slotDiv.innerHTML = `
@@ -142,29 +161,31 @@ export class BackpackUI {
     });
   }
 
-  _handleItemClick(item, index) {
+  _handleItemClick(item) {
     sound.playKeypadBeep();
 
+    let message;
     if (item.id === 'torch') {
       const isOn = this.equipment?.toggleTorch();
-      const statusText = isOn ? 'ENABLED (BEAM ON)' : 'DISABLED (BEAM OFF)';
-      const promptEl = document.getElementById('interact-prompt');
-      if (promptEl) {
-        promptEl.textContent = `Inspection Torch ${statusText}`;
-        promptEl.classList.remove('hidden');
-        setTimeout(() => promptEl.classList.add('hidden'), 1600);
-      }
-      this.render();
-    } else if (item.type === 'document') {
-      this.showDocReader(item.name, item.content || item.desc);
+      message = `Inspection Torch ${isOn ? 'ENABLED (BEAM ON)' : 'DISABLED (BEAM OFF)'}`;
+    } else if (item.type === 'tool' || item.type === 'document') {
+      // Clicking a holdable item toggles it between the hand and its bag slot;
+      // documents can still be read with the READ chip.
+      const inHand = this.equipment?.isEquipped(item.id);
+      if (inHand) this.equipment.unequipTool();
+      else this.equipment.equipTool(item.id);
+      message = `${item.name} ${inHand ? 'stowed in backpack' : 'held in hand'}`;
     } else {
-      const promptEl = document.getElementById('interact-prompt');
-      if (promptEl) {
-        promptEl.textContent = `${item.name}: ${item.desc}`;
-        promptEl.classList.remove('hidden');
-        setTimeout(() => promptEl.classList.add('hidden'), 2500);
-      }
+      message = `${item.name}: ${item.desc}`;
     }
+
+    const promptEl = document.getElementById('interact-prompt');
+    if (promptEl) {
+      promptEl.textContent = message;
+      promptEl.classList.remove('hidden');
+      setTimeout(() => promptEl.classList.add('hidden'), 2500);
+    }
+    this.render();
   }
 
   showDocReader(title, content) {
