@@ -20,12 +20,13 @@ import { PickupSystem } from './systems/pickupSystem.js';
 import { EquipmentSystem } from './systems/equipment.js';
 import { Viewmodel } from './systems/viewmodel.js';
 import { BackpackUI } from './systems/backpackUI.js';
+import { RenderQuality } from './systems/renderQuality.js';
 
 // ---------- Renderer / scene / camera ----------
 const canvas = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderQuality = new RenderQuality(renderer);
+renderQuality.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.localClippingEnabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -39,7 +40,7 @@ const cctvContainer = document.getElementById('cctv-container');
 let cctvRenderer = null;
 let cctvFeed = null;
 if (cctvCanvas) {
-  cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: true });
+  cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: false });
   cctvRenderer.setSize(240, 135);
   cctvRenderer.outputColorSpace = THREE.SRGBColorSpace;
   cctvRenderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -79,7 +80,7 @@ window.addEventListener('resize', () => {
   thirdPersonCamera.aspect = window.innerWidth / window.innerHeight;
   thirdPersonCamera.updateProjectionMatrix();
 
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderQuality.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
 });
 
 // ---------- UI elements ----------
@@ -506,6 +507,7 @@ function clearScene() {
   clearTimeout(advanceTimeout);
   interaction.reset();
   playerControls.enabled = true;
+  terminal.close();
   currentLevel?.dispose?.();
   // Remove everything except camera and its attached components
   for (let i = scene.children.length - 1; i >= 0; i--) {
@@ -517,7 +519,8 @@ function clearScene() {
 async function loadLevel(index, entry = 'door', resetStrikes = false) {
   clearScene();
   const generation = loadGeneration;
-  const needsLoadingScreen = index === 1;
+  const needsLoadingScreen = index === 1 || index === 2;
+  const roomName = index === 2 ? 'AI core' : 'control room';
   gameEnded = false;
   if (resetStrikes) securityRun.reset();
   else {
@@ -534,16 +537,18 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     loadingScreen.style.transition = 'none';
     loadingScreen.style.opacity = '1';
     loadingScreen.classList.remove('hidden');
-    loadingLabel.textContent = 'Preparing the control room...';
+    loadingLabel.textContent = `Preparing the ${roomName}...`;
     loadingBarFill.style.width = '0%';
     // Paint the transition before any cached geometry is prepared on the main thread.
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     if (generation !== loadGeneration) return;
-    await preloadLevel2Models((finished, total) => {
-      if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
-    });
+    if (index === 1) {
+      await preloadLevel2Models((finished, total) => {
+        if (generation === loadGeneration) loadingBarFill.style.width = `${Math.round(finished / total * 75)}%`;
+      });
+    }
     if (generation !== loadGeneration) return;
-    loadingLabel.textContent = 'Setting up the control room...';
+    loadingLabel.textContent = `Setting up the ${roomName}...`;
   }
 
   const builder = LEVEL_BUILDERS[index];
@@ -922,7 +927,7 @@ document.addEventListener('keydown', (e) => {
     showOnly(mainMenu);
     return;
   }
-  if (terminal.open) return;
+  if (terminal.open || currentLevel?.panelOpen) return;
   if (backpackUI.isOpen) return;
   if (playerControls.isLocked) {
     playerControls.unlock();
@@ -940,13 +945,14 @@ function resumeAfterPanel(event) {
 }
 document.addEventListener('security-keypad-close', resumeAfterPanel);
 document.addEventListener('wiring-panel-close', resumeAfterPanel);
+document.addEventListener('robot-repair-close', resumeAfterPanel);
 
 playerControls.controls.addEventListener('unlock', () => {
   if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
   if (document.getElementById('wiring-panel-overlay')) return;
   if (backpackUI.isOpen) return;
-  if (terminal.open) return;
+  if (terminal.open || currentLevel?.panelOpen) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) return;
@@ -1004,6 +1010,7 @@ bootSequence();
 
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
+let cctvRefreshIn = 0;
 function tick() {
   requestAnimationFrame(tick);
 
@@ -1011,11 +1018,16 @@ function tick() {
   // to eliminate GPU/CPU contention with the interactive Spline robot viewer and landing audio.
   const isLandingMenu = !mainMenu.classList.contains('hidden');
   const isInitialBoot = !currentLevel && loadingScreen && !loadingScreen.classList.contains('hidden');
-  if (isLandingMenu || isInitialBoot) {
+  if (isLandingMenu || isInitialBoot || levelLoading) {
+    clock.getDelta();
+    renderQuality.reset();
     return;
   }
 
-  const delta = Math.min(clock.getDelta(), 0.05);
+  const frameSeconds = clock.getDelta();
+  const delta = Math.min(frameSeconds, 0.05);
+  if (playerControls.isLocked && !document.hidden) renderQuality.update(frameSeconds);
+  else renderQuality.reset();
 
   if (playerMixer) {
     playerMixer.update(delta);
@@ -1177,7 +1189,10 @@ function tick() {
   // Render secondary CCTV Camera PiP view if active.
   const cctvEnabled = !!currentLevel?.cctvCamera && currentLevel.cctvEnabled !== false;
   cctvContainer?.classList.toggle('hidden', !cctvEnabled);
-  if (cctvEnabled && cctvRenderer) {
+  cctvRefreshIn -= frameSeconds;
+  if (!cctvEnabled) cctvRefreshIn = 0;
+  if (cctvEnabled && cctvRenderer && cctvRefreshIn <= 0) {
+    cctvRefreshIn = 1 / 15;
     // CCTV sees the character even when the first-person view hides their body.
     const wasVisible = playerModel?.visible;
     if (playerModel) playerModel.visible = true;
