@@ -436,6 +436,48 @@ const LEVEL_BOUNDS = [
   { minX: -6.70, maxX: 6.70, minZ: -6.70, maxZ: 6.70, minY: 0.35, maxY: 5.20 },
 ];
 
+function snapThirdPersonCamera() {
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const horizontalDirection = direction.clone();
+  horizontalDirection.y = 0;
+  horizontalDirection.normalize();
+
+  const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
+  const desiredTarget = camera.position.clone()
+    .addScaledVector(horizontalDirection, -1.8)
+    .add(new THREE.Vector3(0, 0.45, 0));
+
+  const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+  const desiredDist = toCameraVec.length();
+  const rayDir = toCameraVec.clone().normalize();
+
+  let safeDistance = desiredDist;
+  const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+  const hitPoint = new THREE.Vector3();
+
+  if (currentLevel?.colliders) {
+    for (const box of currentLevel.colliders) {
+      if (!box || box.isEmpty()) continue;
+      if (cameraRay.intersectBox(box, hitPoint)) {
+        const hitDist = cameraAnchor.distanceTo(hitPoint);
+        if (hitDist < safeDistance) safeDistance = hitDist;
+      }
+    }
+  }
+
+  const buffer = Math.min(0.20, safeDistance * 0.4);
+  const finalDist = safeDistance < desiredDist ? Math.max(0.05, safeDistance - buffer) : desiredDist;
+  const targetPos = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+  const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+  targetPos.x = THREE.MathUtils.clamp(targetPos.x, bounds.minX, bounds.maxX);
+  targetPos.y = THREE.MathUtils.clamp(targetPos.y, bounds.minY, bounds.maxY);
+  targetPos.z = THREE.MathUtils.clamp(targetPos.z, bounds.minZ, bounds.maxZ);
+
+  thirdPersonCamera.position.copy(targetPos);
+}
+
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
 let currentLevel = null;
 let currentLevelIndex = 0;
@@ -453,6 +495,7 @@ const securityRun = new SecurityRun({
   onStrike: (source) => {
     playerControls.teleport(currentLevel.spawn);
     previousPlayerPosition.copy(camera.position);
+    snapThirdPersonCamera();
     aiState.reset();
     interaction.reset();
     const reason = source.endsWith('-pin') ? 'Four incorrect PINs' : source === 'camera' ? 'Camera detected you' : 'Laser triggered';
@@ -528,7 +571,10 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
-    onShock: (position) => playerControls.teleport(position),
+    onShock: (position) => {
+      playerControls.teleport(position);
+      snapThirdPersonCamera();
+    },
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
     onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
@@ -546,6 +592,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   previousPlayerPosition.copy(camera.position);
+  snapThirdPersonCamera();
 
   aiState.reset();
 
@@ -1054,8 +1101,12 @@ function tick() {
       }
     }
 
-    // Leave a 0.25m buffer in front of any hit surface so camera near plane never clips through walls
-    const finalDist = Math.max(0.35, safeDistance - 0.25);
+    // Maintain a safe buffer in front of any hit surface so camera near plane never clips into obstacles
+    let finalDist = desiredDist;
+    if (safeDistance < desiredDist) {
+      const buffer = Math.min(0.20, safeDistance * 0.4);
+      finalDist = Math.max(0.05, safeDistance - buffer);
+    }
     const thirdPersonPosition = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
 
     // Hard clamp within designated room space for the active level
@@ -1064,11 +1115,21 @@ function tick() {
     thirdPersonPosition.y = THREE.MathUtils.clamp(thirdPersonPosition.y, bounds.minY, bounds.maxY);
     thirdPersonPosition.z = THREE.MathUtils.clamp(thirdPersonPosition.z, bounds.minZ, bounds.maxZ);
 
-    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
+    if (playerControls.cameraMode === "third" && previousCameraMode === "first") {
+      thirdPersonCamera.position.copy(thirdPersonPosition);
+    } else {
+      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
+    }
+
+    // Hard clamp thirdPersonCamera.position after lerping so it can NEVER leave designated room space
+    thirdPersonCamera.position.x = THREE.MathUtils.clamp(thirdPersonCamera.position.x, bounds.minX, bounds.maxX);
+    thirdPersonCamera.position.y = THREE.MathUtils.clamp(thirdPersonCamera.position.y, bounds.minY, bounds.maxY);
+    thirdPersonCamera.position.z = THREE.MathUtils.clamp(thirdPersonCamera.position.z, bounds.minZ, bounds.maxZ);
 
     // If camera is squeezed very close to player against a wall, hide player model so it doesn't obstruct view
+    // When in first-person mode, player model must remain hidden to avoid first-person clipping
     if (playerModel) {
-      playerModel.visible = finalDist > 0.45;
+      playerModel.visible = playerControls.cameraMode === "third" && finalDist > 0.45;
     }
 
     // Preserve the existing limited mouse-look angle.
@@ -1102,9 +1163,22 @@ function tick() {
 
   // Ensure first-person camera / player position stays within interior level bounds
   const currentBounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
-  camera.position.x = THREE.MathUtils.clamp(camera.position.x, currentBounds.minX, currentBounds.maxX);
-  camera.position.y = THREE.MathUtils.clamp(camera.position.y, currentBounds.minY, currentBounds.maxY);
-  camera.position.z = THREE.MathUtils.clamp(camera.position.z, currentBounds.minZ, currentBounds.maxZ);
+  const clampedX = THREE.MathUtils.clamp(camera.position.x, currentBounds.minX, currentBounds.maxX);
+  const clampedY = THREE.MathUtils.clamp(camera.position.y, currentBounds.minY, currentBounds.maxY);
+  const clampedZ = THREE.MathUtils.clamp(camera.position.z, currentBounds.minZ, currentBounds.maxZ);
+
+  if (clampedX !== camera.position.x) {
+    camera.position.x = clampedX;
+    playerControls.velocity.x = 0;
+  }
+  if (clampedY !== camera.position.y) {
+    camera.position.y = clampedY;
+    playerControls.fallSpeed = 0;
+  }
+  if (clampedZ !== camera.position.z) {
+    camera.position.z = clampedZ;
+    playerControls.velocity.z = 0;
+  }
 
   previousCameraMode = playerControls.cameraMode;
 

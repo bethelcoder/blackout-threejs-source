@@ -194,6 +194,14 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   );
   colliders.push(ceilingBox);
 
+  // Floor collider to physically prevent camera escaping through bottom of room
+  const floorBox = new THREE.Box3();
+  floorBox.setFromCenterAndSize(
+    new THREE.Vector3(0, -wallThickness / 2, 0),
+    new THREE.Vector3(width, wallThickness, depth)
+  );
+  colliders.push(floorBox);
+
   // 3. OVERHEAD RED I-BEAMS & PIPE STRUCTURE
   const redBeamMat = new THREE.MeshStandardMaterial({ color: 0x8b1a1a, metalness: 0.7, roughness: 0.3 });
   const pipeMat = new THREE.MeshStandardMaterial({ color: 0x3d4853, metalness: 0.8, roughness: 0.2 });
