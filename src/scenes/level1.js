@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createClockPuzzle } from '../riddles/clockPuzzle.js';
-import { buildRoom, buildHazardStrip, buildProp } from './roomBuilder.js';
+import { buildRoom, buildHazardStrip, buildItemPickupProp } from './roomBuilder.js';
 import { createSparkParticles } from '../systems/particles.js';
 import { sound } from '../systems/audio.js';
 import { buildMaintenanceWalkway } from './maintenanceWalkway.js';
@@ -9,7 +9,15 @@ import { buildMaintenanceVent } from './maintenanceVent.js';
 import { buildNoticeBoard } from './noticeBoard.js';
 import { buildSecurityKeypad } from './securityKeypad.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
+import { buildBackroomProps } from './backroomProps.js';
+import { buildLightSwitch } from './lightSwitch.js';
+import { buildElectricBox } from './electricBox.js';
+import { buildStorageCabinets } from './storageCabinets.js';
+import { buildStorageDoor } from './storageDoor.js';
+import { buildFrontDoor } from './frontDoor.js';
+import { createRoomPower } from '../systems/roomPower.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
+import { createVentHaze } from '../shaders/ventHaze.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -18,11 +26,17 @@ import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from
 export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentExit, onCameraExposure, onPinStrike }) {
   const colliders = [];
   const cleanup = [];
+  const poweredLights = [];
 
   // Build the clean substation corridor with gaps
-  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5, backDoorOpening: { width: 2.4, height: 3.2 } });
+  const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includePlinths: false, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5, backDoorOpening: { width: 1.55, height: 2.62 } });
   scene.add(room);
   colliders.push(...wallColliders);
+
+  const frontDoor = buildFrontDoor();
+  scene.add(frontDoor.group);
+  colliders.push(frontDoor.collider);
+  cleanup.push(() => frontDoor.dispose());
 
   const walkway = buildMaintenanceWalkway();
   scene.add(walkway.group);
@@ -37,6 +51,39 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   scene.add(ventRoute.group);
   colliders.push(...ventRoute.colliders);
   cleanup.push(() => ventRoute.dispose());
+
+  // In-World Pickup Items for backpack testing (tools, books, torch, keycard)
+  const itemPickups = [
+    { itemId: 'technical_guide', pos: [-1.8, 0.45, 6.2], rot: [0, 0.3, 0] },
+    { itemId: 'maintenance_manual', pos: [-2.2, 0.45, 4.5], rot: [0, -0.2, 0] },
+    { itemId: 'insulated_wrench', pos: [1.8, 0.45, 6.0], rot: [0, 0.8, 0] },
+    { itemId: 'multimeter', pos: [2.2, 0.45, 4.2], rot: [0, -0.5, 0] },
+    { itemId: 'torch', pos: [1.5, 0.45, 4.8], rot: [0, 0.1, 0] },
+    { itemId: 'access_card', pos: [-1.5, 0.45, 2.5], rot: [0, 0.6, 0] },
+  ];
+
+  const benchMat = new THREE.MeshStandardMaterial({ color: 0x222a33, roughness: 0.7, metalness: 0.6 });
+  const benchTopMat = new THREE.MeshStandardMaterial({ color: 0x364350, roughness: 0.5, metalness: 0.8 });
+
+  for (const item of itemPickups) {
+    const stand = new THREE.Group();
+    stand.position.set(item.pos[0], 0, item.pos[2]);
+    const standBody = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.42, 12), benchMat);
+    standBody.position.y = 0.21;
+    standBody.castShadow = true;
+    standBody.receiveShadow = true;
+    const standTop = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.04, 12), benchTopMat);
+    standTop.position.y = 0.43;
+    standTop.castShadow = true;
+    standTop.receiveShadow = true;
+    stand.add(standBody, standTop);
+    scene.add(stand);
+    cleanup.push(() => scene.remove(stand));
+
+    const prop = buildItemPickupProp({ itemId: item.itemId, position: [item.pos[0], 0.45, item.pos[2]], rotation: item.rot });
+    scene.add(prop);
+    cleanup.push(() => scene.remove(prop));
+  }
 
 
  // Sci-fi cargo crate
@@ -198,6 +245,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   const ambient = new THREE.AmbientLight(0xffffff, 0.25);
   scene.add(ambient);
   cleanup.push(() => scene.remove(ambient));
+  poweredLights.push({ light: hemiLight, off: 0.025, on: 0.55 }, { light: ambient, off: 0.012, on: 0.25 });
 
   // Aged acoustic tiles with a visible suspension grid and inset fixtures.
   const ceilingPanels = new THREE.Group();
@@ -242,7 +290,8 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   for (let row = 0; row <= 10; row++) {
     ceilingDetail('Ceiling grid cross rail', 0, 6.735, -10 + row * 2, 14, 0.025, 0.018, trimMat);
   }
-  for (const [x, z] of [[-1.5, -5], [4.5, 1], [-4.5, 7]]) {
+  const ventSpots = [[-1.5, -5], [4.5, 1], [-4.5, 7]];
+  for (const [x, z] of ventSpots) {
     ceilingDetail('Inset ventilation frame', x, 6.705, z, 0.78, 0.035, 0.95, trimMat);
     ceilingDetail('Dark ventilation opening', x, 6.68, z, 0.69, 0.02, 0.86, ventMat);
     for (let slat = 0; slat < 9; slat++) {
@@ -260,6 +309,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
         const light = new THREE.PointLight(0xe7eceb, 4, 18, 1.2);
         light.position.set(panel.position.x, 6.55, panel.position.z);
         ceilingPanels.add(light);
+        poweredLights.push({ light, off: 0, on: 4 });
       }
     }
   }
@@ -275,16 +325,33 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     diffuserMat.dispose();
   });
 
-  // Clutter props / crates using new buildProp format
+  // Faint displaced air under each ceiling vent, so the grilles read as working
+  // extractors rather than decoration.
+  const ventHazes = ventSpots.map(([x, z], index) => {
+    const haze = createVentHaze({
+      position: new THREE.Vector3(x, 6.64, z),
+      seed: index * 13.7,
+    });
+    scene.add(haze.group);
+    cleanup.push(() => haze.dispose());
+    return haze;
+  });
+
+  // Cardboard clutter props.
   const cardboardBoxes = buildCardboardBoxes();
   scene.add(cardboardBoxes.group);
   colliders.push(...cardboardBoxes.colliders);
   cleanup.push(() => cardboardBoxes.dispose());
-  const crate2 = buildProp({ geometry: new THREE.BoxGeometry(1.6, 0.9, 1.2), material: new THREE.MeshStandardMaterial({ color: 0x5a6a7c }), position: [3.5, 0.45, 3.6] });
-  const crate3 = buildProp({ geometry: new THREE.BoxGeometry(1.0, 0.8, 1.0), material: new THREE.MeshStandardMaterial({ color: 0x4a5868 }), position: [4.0, 0.4, -5] });
-  scene.add(crate2, crate3);
-  colliders.push(new THREE.Box3().setFromObject(crate2), new THREE.Box3().setFromObject(crate3));
-  cleanup.push(() => scene.remove(crate2, crate3));
+
+  // Backroom furnishings: shelves, tables, cupboards, and scattered documents
+  const backroomProps = buildBackroomProps({ scene, colliders });
+  scene.add(backroomProps.group);
+  cleanup.push(() => backroomProps.dispose());
+
+  const storageCabinets = buildStorageCabinets();
+  scene.add(storageCabinets.group);
+  colliders.push(...storageCabinets.colliders);
+  cleanup.push(() => storageCabinets.dispose());
 
   // 1. Clock Hint Poster (Right wall gap)
 
@@ -320,6 +387,35 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   const securitySweep = createSecuritySweep(cctvCamera, securityCamera.group, colliders);
   scene.add(securitySweep.group);
   cleanup.push(() => securitySweep.dispose());
+  securitySweep.group.visible = false;
+  cameraStatus.intensity = 0;
+
+  const electricBox = buildElectricBox({ hud, sound });
+  electricBox.group.position.set(2.2, 1.3, 9.77);
+  electricBox.group.rotation.y = Math.PI;
+  scene.add(electricBox.group);
+  colliders.push(new THREE.Box3(new THREE.Vector3(1.9, 0.89, 9.58), new THREE.Vector3(2.5, 1.71, 9.98)));
+  cleanup.push(() => electricBox.dispose());
+  const power = createRoomPower({
+    canActivate: () => electricBox.repaired,
+    onBlocked: () => hud.setObjective('The circuit is broken. Repair the electric box on the entrance wall [E], then return to this switch.'),
+    lights: poweredLights,
+    onBrightness: brightness => diffuserMat.color.setScalar(0.025 + brightness * 0.57),
+    onSwitch: () => {
+      sound.playSwitch();
+      hud.setObjective('Room power restored. Lights warming up...');
+    },
+    onSecurityOnline: () => {
+      securitySweep.group.visible = true;
+      cameraStatus.intensity = 0.5;
+      hud.setObjective('CCTV is online. Stay behind cover; find the screwdriver in the under-stairs toolbox.');
+    },
+  });
+  const lightSwitch = buildLightSwitch({ onActivate: () => power.activate(), isOn: () => power.activated, isReady: () => electricBox.repaired });
+  lightSwitch.group.position.set(6.93, 1.45, 8.4);
+  lightSwitch.group.rotation.y = -Math.PI / 2;
+  scene.add(lightSwitch.group);
+  cleanup.push(() => lightSwitch.dispose());
 
   // Hazard stripe & Exit Door
   const hazardStrip = buildHazardStrip({ width: 4.0, depth: 0.8, position: [0, 0.01, -9.0] });
@@ -339,88 +435,28 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     securityKeypad.dispose();
   });
 
-  const exitDoors = new THREE.Group();
-  exitDoors.name = 'Level 2 double doors';
-  exitDoors.position.set(0, 0, -9.78);
-  const doorGeometry = new THREE.BoxGeometry(1, 1, 1);
-  const doorPaint = new THREE.MeshStandardMaterial({ color: 0xc7c8c2, metalness: 0.25, roughness: 0.7 });
-  const doorTrim = new THREE.MeshStandardMaterial({ color: 0x383b3b, metalness: 0.7, roughness: 0.45 });
-  const doorHardware = new THREE.MeshStandardMaterial({ color: 0x939a9d, metalness: 0.85, roughness: 0.35 });
-  const doorGlass = new THREE.MeshStandardMaterial({ color: 0x344c58, metalness: 0.35, roughness: 0.2 });
-  function doorPart(parent, name, x, y, z, width, height, depth, material = doorPaint) {
-    const mesh = new THREE.Mesh(doorGeometry, material);
-    mesh.name = name;
-    mesh.position.set(x, y, z);
-    mesh.scale.set(width, height, depth);
-    mesh.castShadow = mesh.receiveShadow = true;
-    parent.add(mesh);
-  }
-  for (const x of [-1.27, 1.27]) doorPart(exitDoors, 'Door jamb', x, 1.63, 0.02, 0.12, 3.26, 0.18);
-  doorPart(exitDoors, 'Door frame header', 0, 3.27, 0.02, 2.66, 0.12, 0.18);
-  const doorHinges = [];
-  for (const side of [-1, 1]) {
-    const pivot = new THREE.Group();
-    pivot.position.x = side * 1.2;
-    exitDoors.add(pivot);
-    doorHinges.push(pivot);
-    const leaf = new THREE.Group();
-    leaf.position.x = -side * 0.6;
-    pivot.add(leaf);
-    const windowX = -side * 0.23;
-    // Separate panels leave a real opening for the narrow blue window.
-    doorPart(leaf, 'Lower door panel', 0, 0.76, 0, 1.19, 1.52, 0.1);
-    doorPart(leaf, 'Upper door panel', 0, 2.99, 0, 1.19, 0.42, 0.1);
-    const leftEdge = windowX - 0.145;
-    const rightEdge = windowX + 0.145;
-    doorPart(leaf, 'Panel left of window', (-0.595 + leftEdge) / 2, 2.15, 0, leftEdge + 0.595, 1.26, 0.1);
-    doorPart(leaf, 'Panel right of window', (rightEdge + 0.595) / 2, 2.15, 0, 0.595 - rightEdge, 1.26, 0.1);
-    doorPart(leaf, 'Window dark surround', windowX, 2.15, 0.055, 0.34, 1.34, 0.025, doorTrim);
-    doorPart(leaf, 'Narrow vision window', windowX, 2.15, 0.072, 0.25, 1.24, 0.018, doorGlass);
-    for (const x of [-0.46, 0.46]) doorPart(leaf, 'Push bar bracket', x, 1.22, 0.1, 0.07, 0.14, 0.13, doorHardware);
-    doorPart(leaf, 'Horizontal panic bar', 0, 1.2, 0.19, 1.0, 0.055, 0.055, doorHardware);
-    doorPart(leaf, 'Overhead door closer', 0, 3.06, 0.1, 0.7, 0.13, 0.12, doorHardware);
-    doorPart(leaf, 'Closer arm', -side * 0.12, 2.94, 0.14, 0.5, 0.025, 0.04, doorTrim);
-    for (const y of [0.3, 1.65, 2.9]) doorPart(leaf, 'Door hinge', side * 0.57, y, 0.07, 0.035, 0.18, 0.045, doorHardware);
-  }
-  let doorsOpen = false;
-  exitDoors.userData.interactable = true;
-  exitDoors.userData.getLabel = () => doorsOpen ? 'Entering Level 2...' : securityKeypad.isUnlocked() ? 'Push doors to enter Level 2' : 'Doors locked - use access keypad';
-  exitDoors.userData.onInteract = () => {
-    if (doorsOpen) return;
-    if (!securityKeypad.isUnlocked()) { hud.setObjective('Find the code in the technician logbook and enter it on the access keypad.'); return; }
-    doorsOpen = true;
-    doorCollider.makeEmpty();
-    sound.playSwitch();
-    hud.setObjective('Entering Level 2: the control room.');
-    hud.markLevelComplete();
-  };
-  scene.add(exitDoors);
-  const doorCollider = new THREE.Box3().setFromCenterAndSize(
-    new THREE.Vector3(0, 1.6, -9.78), new THREE.Vector3(2.4, 3.2, 0.2)
-  );
-  colliders.push(doorCollider);
-  cleanup.push(() => {
-    scene.remove(exitDoors);
-    doorGeometry.dispose();
-    for (const material of [doorPaint, doorTrim, doorHardware, doorGlass]) material.dispose();
-  });
+  const storageDoor = buildStorageDoor({ isUnlocked: () => securityKeypad.isUnlocked(), hud, sound });
+  scene.add(storageDoor.group);
+  colliders.push(storageDoor.collider);
+  cleanup.push(() => storageDoor.dispose());
 
   let warnTimer = 0;
 
   function update(delta, camera) {
+    power.update(delta);
+
     ventRoute.update(delta, camera);
-    if (doorsOpen) {
-      doorHinges[0].rotation.y = THREE.MathUtils.damp(doorHinges[0].rotation.y, -1.4, 6, delta);
-      doorHinges[1].rotation.y = THREE.MathUtils.damp(doorHinges[1].rotation.y, 1.4, 6, delta);
-    }
+    storageDoor.update(delta);
 
     electricalHazard.update(delta, camera);
     clockPuzzle.update(delta);
 
     if (sparks.userData.update) sparks.userData.update(delta);
 
-    securitySweep.update(delta);
-    const cameraSeesPlayer = securitySweep.sees(camera.position);
+    for (const haze of ventHazes) haze.update(delta);
+
+    if (power.securityOnline) securitySweep.update(delta);
+    const cameraSeesPlayer = power.securityOnline && securitySweep.sees(camera.position);
     onCameraExposure?.(delta, cameraSeesPlayer);
     if (cameraSeesPlayer) {
       aiState.raise(28 * delta);
@@ -439,11 +475,13 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     colliders,
     walkableSurfaces: walkway.walkableSurfaces,
     cctvCamera,
+    get cctvEnabled() { return power.securityOnline; },
     update,
     dispose: () => cleanup.forEach((fn) => fn()),
     spawn: new THREE.Vector3(0, 1.7, 7.5),
-    title: 'LEVEL 1 â€” INFILTRATION',
-    subtitle: 'Find a way past the perimeter security.',
-    objective: 'Explore the substation for access credentials.',
+    title: 'LEVEL 1 — INFILTRATION',
+    subtitle: 'Repair the circuit, then restore the lights.',
+    objective: 'Use your torch to find the electric box on the entrance wall. Press [E] to repair its wires, then use the light switch.',
   };
 }
+

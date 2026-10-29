@@ -48,10 +48,15 @@ export function buildSecurityCamera() {
   };
 }
 
-export function createRoomSecurityView() {
-  const camera = new THREE.PerspectiveCamera(44, 1, 0.25, 28);
-  camera.position.set(0, 6.05, -9.0);
-  camera.lookAt(0, 0, -0.8);
+export function createRoomSecurityView({
+  position = new THREE.Vector3(0, 6.05, -9.0),
+  target = new THREE.Vector3(0, 0, -0.8),
+  fov = 44,
+  far = 28,
+} = {}) {
+  const camera = new THREE.PerspectiveCamera(fov, 1, 0.25, far);
+  camera.position.copy(position);
+  camera.lookAt(target);
   camera.updateMatrixWorld(true);
   return camera;
 }
@@ -90,7 +95,9 @@ export function createSecuritySweep(camera, model, colliders) {
     elapsed += delta;
     // A complete left/right cycle takes 28 seconds, easing at each end.
     const yaw = Math.sin(elapsed * Math.PI * 2 / 28) * THREE.MathUtils.degToRad(55);
-    target.set(Math.sin(yaw) * 11, -6.05, Math.cos(yaw) * 11).add(camera.position);
+    // Aim at deck level directly below the mount, so the cone lands on the
+    // floor from any ceiling height instead of assuming level 1's 6.05 m.
+    target.set(Math.sin(yaw) * 11, -camera.position.y, Math.cos(yaw) * 11).add(camera.position);
     camera.lookAt(target);
     camera.updateMatrixWorld(true);
     model.position.copy(camera.position);

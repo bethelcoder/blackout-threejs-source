@@ -316,7 +316,7 @@ export function buildSecurityKeypad({
 
   group.userData.onInteract = () => {
     if (unlocked) {
-      if (hud) hud.setObjective('Access already granted. Push the double doors to enter Level 2.');
+      if (hud) hud.setObjective('Access already granted. Open the storage room door to enter Level 2.');
       return;
     }
 
@@ -714,10 +714,13 @@ export function buildSecurityKeypad({
         onSuccess?.();
 
         if (hud) {
-          hud.setObjective('Access granted! Level 2 double doors unlocked.');
+          hud.setObjective('Access granted! Storage room door unlocked.');
         }
 
-        feedbackTimer = setTimeout(closeModal, 1200);
+        // Returning to pointer lock needs a fresh player gesture. A timer
+        // cannot reliably capture the mouse after the PIN modal released it.
+        enterText.innerText = 'CONTINUE';
+        hint.innerText = 'Access granted. Click CONTINUE or press Enter to return, then open the storage room door.';
       } else {
         // Access Denied!
         wrongAttempts++;
@@ -754,6 +757,10 @@ export function buildSecurityKeypad({
 
     enterBtn.onclick = (e) => {
       e.stopPropagation();
+      if (unlocked) {
+        closeModal(true);
+        return;
+      }
       validateCode();
     };
 
@@ -777,14 +784,14 @@ export function buildSecurityKeypad({
     document.body.appendChild(overlay);
 
     disposeModal = closeModal;
-    function closeModal() {
+    function closeModal(resume = false) {
       clearTimeout(feedbackTimer);
       disposeModal = null;
       if (document.body.contains(overlay)) {
         document.body.removeChild(overlay);
       }
       window.removeEventListener('keydown', handleKeyDown, true);
-      document.dispatchEvent(new Event('security-keypad-close'));
+      document.dispatchEvent(new CustomEvent('security-keypad-close', { detail: { resume: resume === true } }));
     }
 
     function handleKeyDown(e) {
@@ -800,7 +807,8 @@ export function buildSecurityKeypad({
           renderDisplay();
         }
       } else if (e.key === 'Enter') {
-        validateCode();
+        if (unlocked) closeModal(true);
+        else validateCode();
       } else if (e.key === 'Backspace') {
         if (!isProcessing) {
           if (sound && sound.playKeypadBeep) sound.playKeypadBeep();

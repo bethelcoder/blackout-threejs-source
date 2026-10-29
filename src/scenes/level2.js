@@ -18,6 +18,12 @@ import { SERVICE_BAY, STICKY_FALLBACK, COMPUTER } from './level2Layout.js';
  * LEVEL 2 — CONTROL
  * Environment: Main Power-Grid Control Room & Server Banks
  * Signature Mechanic: Fictional interactive command-line terminal system.
+ *
+ * All placement comes from level2Layout.js. If you change the terminal's
+ * rotation, the service bay's height, the supply crate's position or the
+ * chair's spot, do it there — this file reads the shared anchors and
+ * derives its own positions from them, so nothing needs to be duplicated
+ * here.
  */
 export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecurityHit, onChairSit, isPlayerSeated }) {
   const colliders = [];
@@ -60,7 +66,7 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   colliders.push(...wallColliders);
 
   // =====================================================================
-  // DESIGN DRESSING (also exposes `ready` for its own GLB loads)
+  // DESIGN DRESSING
   // =====================================================================
   const design = buildLevel2Design({ scene, hud, includeRightFurniture: false, includeCeiling: false });
   colliders.push(...design.colliders);
@@ -153,6 +159,10 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   // its GLBs land, and stay as the fallback if they never do. They sit where
   // level2Layout.js says the real station sits, so the chair, the service
   // bay and the maintenance tag all line up either way.
+  //
+  // COMPUTER is derived from TERMINAL (rotationY = PI), which puts it at
+  // (6.459, 1.044, -5.6). The placeholder screen faces -x, i.e. into the
+  // room toward the chair, which is what you want for a PI-rotated station.
   // =====================================================================
   const consoleDesk = buildProp({
     geometry: new THREE.BoxGeometry(0.9, 1.0, 2.0),
@@ -199,9 +209,6 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   const officeChair = buildOfficeChair({ scene, colliders, hud, onSit: onChairSit, isSeated: isPlayerSeated });
   cleanup.push(() => officeChair.dispose());
 
-  // =====================================================================
-  // LEVEL COMPLETION
-  // =====================================================================
   let solved = false;
   terminalUI.onSolved = () => {
     if (solved || laserSecurity.isActive()) return;
@@ -269,6 +276,6 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
     spawn: new THREE.Vector3(0, 1.7, 6.0),
     title: 'LEVEL 2 — CONTROL',
     subtitle: 'Restore municipal power & water routing from the central terminal.',
-    objective: 'Disable the AI laser security.The terminal at the new workstation is offline — read the maintenance tag stuck to the computer.',
+    objective: 'Disable the AI laser security (shutdown button midway along the right wall). The terminal at the new workstation is offline — read the maintenance tag stuck to the computer.',
   };
 }

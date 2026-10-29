@@ -1,10 +1,10 @@
-import * as THREE from 'three';
+import { InteractionTarget } from './interactionTarget.js';
 
 const REACH = 3.2;
 
 /**
- * Casts a ray from the centre of the screen each frame and finds the
- * nearest object tagged .userData.interactable within reach.
+ * Finds visible interactable objects within reach, with a small aiming
+ * tolerance around the centre of the screen.
  * Objects register a callback: obj.userData.onInteract = () => {...}
  */
 export class InteractionSystem {
@@ -12,12 +12,11 @@ export class InteractionSystem {
     this.camera = camera;
     this.scene = scene;
     this.promptEl = promptEl;
-    this.raycaster = new THREE.Raycaster();
-    this.center = new THREE.Vector2(0, 0);
+    this.targeting = new InteractionTarget();
     this.current = null;
     this.isEnabled = isEnabled;
     this.held = false;
-    this.hits = [];
+    this.scanDelay = 0;
 
     document.addEventListener('keydown', (e) => {
       if (e.code === 'KeyE' && !e.repeat && this.isEnabled() && this.current) {
@@ -32,18 +31,18 @@ export class InteractionSystem {
   reset() {
     this.current = null;
     this.held = false;
+    this.scanDelay = 0;
     this.promptEl?.classList.add('hidden');
   }
 
   update(delta = 0) {
     if (!this.isEnabled()) { this.reset(); return; }
-    this.raycaster.setFromCamera(this.center, this.camera);
-    this.hits.length = 0;
-    this.raycaster.intersectObjects(this.scene.children, true, this.hits);
-    const hit = this.hits.find(h => h.distance <= REACH && h.object.isMesh && this._visible(h.object));
-
-    let target = hit ? this._interactableAncestor(hit.object) : null;
-    if (target && hit.distance > (target.userData.reach ?? REACH)) target = null;
+    this.scanDelay -= delta;
+    let target = this.current;
+    if (this.scanDelay <= 0) {
+      this.scanDelay = 0.08;
+      target = this.targeting.find(this.camera, this.scene, REACH, object => object.userData?.interactable);
+    }
 
     if (target !== this.current) {
       this.held = false;
@@ -63,17 +62,4 @@ export class InteractionSystem {
     }
   }
 
-  _interactableAncestor(obj) {
-    let o = obj;
-    while (o) {
-      if (o.userData?.interactable) return o;
-      o = o.parent;
-    }
-    return null;
-  }
-
-  _visible(obj) {
-    for (let node = obj; node; node = node.parent) if (!node.visible) return false;
-    return true;
-  }
 }

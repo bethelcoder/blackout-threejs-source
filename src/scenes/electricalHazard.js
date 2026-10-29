@@ -68,11 +68,9 @@ export function buildElectricalHazard({ aiState, onShock }) {
   cable.add(glow); // Local glow only; no shadow map or extra render pass.
 
   const status = document.getElementById('hazard-status');
-  const flash = document.getElementById('shock-flash');
   const resetPosition = new THREE.Vector3();
   let elapsed = 0;
   let cooldown = 0;
-  let flashTime = 0;
   let approachZ = -2.3;
   let previousMessage = '';
   let beepTimer = 0;
@@ -81,7 +79,6 @@ export function buildElectricalHazard({ aiState, onShock }) {
     update(delta, camera) {
       elapsed += delta;
       cooldown = Math.max(0, cooldown - delta);
-      flashTime = Math.max(0, flashTime - delta);
       const phase = elapsed % 8;
       const live = phase >= 5;
       const warning = phase >= 4 && !live;
@@ -114,7 +111,6 @@ export function buildElectricalHazard({ aiState, onShock }) {
         aiState.raise(25);
         sound.playDetectionWarning(0.9);
         cooldown = 1.5;
-        flashTime = 0.5;
       }
       if (cooldown > 0) message = 'SHOCK! Back on dry ground. Wait for power to switch off.';
       if (message !== previousMessage) {
@@ -123,7 +119,6 @@ export function buildElectricalHazard({ aiState, onShock }) {
         previousMessage = message;
       }
       status.dataset.state = cooldown > 0 || live ? 'live' : warning ? 'warning' : 'safe';
-      flash.style.opacity = String(flashTime * 1.2);
       beepTimer += delta;
       if (near && (warning || live) && beepTimer >= 0.7) {
         sound.playDetectionWarning(live ? 0.35 : 0.15);
@@ -142,7 +137,6 @@ export function buildElectricalHazard({ aiState, onShock }) {
       materials.forEach(material => material.dispose());
       textures.release();
       status.classList.add('hidden');
-      flash.style.opacity = '0';
     },
   };
 }
