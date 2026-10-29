@@ -16,6 +16,7 @@ import { buildStorageCabinets } from './storageCabinets.js';
 import { buildStorageDoor } from './storageDoor.js';
 import { buildFrontDoor } from './frontDoor.js';
 import { createRoomPower } from '../systems/roomPower.js';
+import { DetailLod } from '../systems/detailLod.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 import { createVentHaze } from '../shaders/ventHaze.js';
 
@@ -27,6 +28,9 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   const colliders = [];
   const cleanup = [];
   const poweredLights = [];
+  // Static dressing is drawn at the detail its distance allows once loaded.
+  const detailLod = new DetailLod();
+  cleanup.push(() => detailLod.dispose());
 
   // Build the clean substation corridor with gaps
   const { group: room, colliders: wallColliders } = buildRoom({ width: 14, depth: 20, height: 6.8, includePlinths: false, includeRightCabinets: false, officeCeiling: true, officeFinishes: true, leftCabinetMaxZ: 2.5, backDoorOpening: { width: 1.55, height: 2.62 } });
@@ -443,6 +447,7 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   let warnTimer = 0;
 
   function update(delta, camera) {
+    detailLod.update(camera);
     power.update(delta);
 
     ventRoute.update(delta, camera);
@@ -471,7 +476,17 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     }
   }
 
+  const ready = storageCabinets.ready.then(() => {
+    detailLod.addByName(scene, [
+      'Backroom Props & Furniture',
+      'Stacked Cardboard Boxes — Crafted by jerovdl',
+      'Imported metal storage cabinets',
+      'Maintenance notice board',
+    ]);
+  });
+
   return {
+    ready,
     colliders,
     walkableSurfaces: walkway.walkableSurfaces,
     cctvCamera,

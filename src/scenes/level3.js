@@ -24,6 +24,7 @@ import { buildCoreDisplayTerminal } from './coreDisplayTerminal.js';
 import { buildCoreBot } from './coreBot.js';
 import { createRobotRepair } from '../systems/robotRepair.js';
 import { createCircuitPuzzle } from '../systems/circuitPuzzle.js';
+import { DetailLod } from '../systems/detailLod.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
 const WAVE_THICKNESS = 0.5;
@@ -93,6 +94,9 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const colliders = [];
   const roots = [];                       // everything we add: removed + disposed in dispose()
   const add = (obj) => { scene.add(obj); roots.push(obj); return obj; };
+  // Imported set dressing is registered once loaded, then drawn at the detail
+  // its distance from the player allows.
+  const detailLod = new DetailLod();
 
   // ---------- Room ----------
   const { group: room, colliders: wallColliders, floor } = buildRoom({
@@ -549,6 +553,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const lerpK = (delta, rate) => 1 - Math.exp(-delta * rate);   // frame-rate independent smoothing
 
   function update(delta, camera) {
+    detailLod.update(camera);
     earthHologram.update(delta);
     if (robotRepair.isOpen || coreOverride.isOpen) return;
     t += delta;
@@ -646,7 +651,24 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     aiState.decay(2 * delta);
   }
 
+  const ready = Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready])
+    .then(() => {
+      detailLod.addByName(scene, [
+        'Level 3 right-wall supercomputer',
+        'Level 3 left-wall computer desk',
+        'Level 3 wooden crates',
+        'Level 3 organised equipment bays',
+        'Level 3 workstation chair',
+        'Level 3 stacked toolboxes',
+        'Level 3 wall-mounted fire extinguisher',
+        'Level 3 wall-mounted first aid box',
+        'Level 3 display terminal beside left desk',
+        'Core room perimeter dressing',
+      ]);
+    });
+
   function dispose() {
+    detailLod.dispose();
     roomProps.dispose();
     robotRepair.dispose();
     coreOverride.dispose();
@@ -670,7 +692,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   }
 
   return {
-    ready: Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready]),
+    ready,
     colliders,
     get panelOpen() { return robotRepair.isOpen || coreOverride.isOpen; },
     cctvCamera: cctvView,

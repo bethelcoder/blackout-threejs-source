@@ -10,6 +10,7 @@ import { buildServerRacks } from './serverRacks.js';
 import { buildVenatorSmallDoor } from './venatorSmallDoor.js';
 import { createRoutingHologram } from '../shaders/routingHologram.js';
 import { createRackDataStream } from '../shaders/rackDataStream.js';
+import { DetailLod } from '../systems/detailLod.js';
 
 /**
  * LEVEL 2 — CONTROL
@@ -200,7 +201,13 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   const smallDoor = buildVenatorSmallDoor({ scene, colliders, onReady: () => { doorMesh.visible = false; } });
   cleanup.push(() => smallDoor.dispose());
 
+  // Imported furniture is the heaviest geometry in this room, so it is registered
+  // once its GLBs have landed and then drawn at the detail its distance allows.
+  const detailLod = new DetailLod();
+  cleanup.push(() => detailLod.dispose());
+
   function update(delta, camera) {
+    detailLod.update(camera);
     laserSecurity.update(delta, camera);
     routingHologram.update(delta);
     rackStream.update(delta);
@@ -213,8 +220,19 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
     if (!terminalUI.open) aiState.decay(3 * delta);
   }
 
+  const ready = Promise.all([
+    venatorRoom.ready, serverRacks.ready, terminalStation.ready, officeChair.ready, smallDoor.ready,
+  ]).then(() => {
+    detailLod.addByName(scene, [
+      'Data Center Server Rack',
+      'Server Racking System',
+      'Imported terminal workstation',
+      'Office chair in front of terminal desk',
+    ]);
+  });
+
   return {
-    ready: Promise.all([venatorRoom.ready, serverRacks.ready, terminalStation.ready, officeChair.ready, smallDoor.ready]),
+    ready,
     colliders,
     serviceSpawn: new THREE.Vector3(5.95, 1.7, 5.8),
     update,

@@ -20,7 +20,9 @@ import { inventory } from './systems/inventory.js';
 import { PickupSystem } from './systems/pickupSystem.js';
 import { EquipmentSystem } from './systems/equipment.js';
 import { Viewmodel } from './systems/viewmodel.js';
+import { CharacterGrip } from './systems/characterGrip.js';
 import { BackpackUI } from './systems/backpackUI.js';
+import { buildHeldTool } from './systems/heldTools.js';
 import { RenderQuality } from './systems/renderQuality.js';
 
 // ---------- Renderer / scene / camera ----------
@@ -126,11 +128,23 @@ const equipment = new EquipmentSystem(camera, flashlight);
 const viewmodel = new Viewmodel(camera, flashlight);
 equipment.setViewmodel(viewmodel);
 
+// Third-person hand attachment: one anchor on the avatar's right-hand bone.
+// Declared before the subscription below because onEquipChange fires immediately.
+let handAnchor = null;
+const handToolMeshes = new Map();
+
+// Rebuilt with every avatar load; the mixer overwrites finger poses each frame,
+// so the grip is re-applied in tick right after the mixer runs.
+let characterGrip = null;
+
+equipment.onEquipChange((itemId) => syncHeldTool(itemId));
+
 const pickupSystem = new PickupSystem(
   () => (playerControls.cameraMode === "third" ? thirdPersonCamera : camera),
   scene,
   pickupPrompt,
-  hudToast
+  hudToast,
+  (itemId) => equipment.equipTool(itemId)
 );
 
 const backpackUI = new BackpackUI({
@@ -256,6 +270,48 @@ function attachBackpackToCharacter(characterModel) {
   return wrapperGroup;
 }
 
+// The equipped tool is parented to the avatar's right hand so third person
+// shows the same tool the first-person viewmodel is holding.
+function attachHeldToolToCharacter(characterModel) {
+  let handBone = null;
+  characterModel.traverse((child) => {
+    if (child.isBone && child.name === 'RightHand') handBone = child;
+  });
+
+  const anchor = new THREE.Group();
+  anchor.name = 'HeldToolAnchor';
+  // Mixamo hand bones run +Y from wrist to fingertips: the tool's grip follows
+  // that. The offset seats it against the palm, and ZYX order lets the last
+  // rotation tip the working end forward. With the arms hanging at the sides a
+  // vertical tool is swallowed by the hip pouch, so the tool is tipped forward
+  // and scaled up slightly to stay readable from the third-person camera.
+  anchor.position.set(0, 0.045, 0.024);
+  anchor.rotation.order = 'ZYX';
+  anchor.rotation.set(0.9, 0, -0.45);
+  anchor.scale.setScalar(1.15);
+  (handBone ?? characterModel).add(anchor);
+  handAnchor = anchor;
+
+  // Tool meshes outlive a model reload; move them under the new anchor.
+  for (const mesh of handToolMeshes.values()) anchor.add(mesh);
+  syncHeldTool(equipment.equippedTool);
+}
+
+function syncHeldTool(itemId) {
+  if (!handAnchor) return;
+  if (itemId && !handToolMeshes.has(itemId)) {
+    const mesh = buildHeldTool(itemId);
+    if (mesh) {
+      mesh.traverse((object) => {
+        if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; }
+      });
+      handToolMeshes.set(itemId, mesh);
+      handAnchor.add(mesh);
+    }
+  }
+  for (const [id, mesh] of handToolMeshes) mesh.visible = id === itemId;
+}
+
 function loadPlayerModel() {
   const modelGeneration = loadGeneration;
   // Clean up the previous model and its animation mixer.
@@ -267,6 +323,7 @@ function loadPlayerModel() {
   if (playerModel) {
     scene.remove(playerModel);
     playerModel = null;
+    characterGrip = null;
   }
 
   playerActions = {};
@@ -325,6 +382,8 @@ function loadPlayerModel() {
 
       // Attach worn backpack so character wears it in 3rd person
       attachBackpackToCharacter(model);
+      attachHeldToolToCharacter(model);
+      characterGrip = new CharacterGrip(model);
 
 
       scene.add(model);
@@ -679,19 +738,6 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
 
   hud.setObjective(currentLevel.objective);
   hud.showLevelBanner(currentLevel.title, currentLevel.subtitle);
-  if (index === 0) {
-    // Defer Level 2 background model caching until Level 1 has stabilized and player is playing
-    const deferPreload = () => {
-      if (generation === loadGeneration && !gameEnded) {
-        void preloadLevel2Models();
-      }
-    };
-    if (window.requestIdleCallback) {
-      setTimeout(() => window.requestIdleCallback(deferPreload, { timeout: 10000 }), 6000);
-    } else {
-      setTimeout(deferPreload, 8000);
-    }
-  }
 
   // Show or hide CCTV PiP feed depending on whether this level provides a CCTV camera
   if (currentLevel.cctvCamera && cctvContainer) {
@@ -1096,6 +1142,10 @@ function tick() {
 
   if (playerMixer) {
     playerMixer.update(delta);
+  }
+  if (characterGrip) {
+    const heldMesh = handToolMeshes.get(equipment.equippedTool);
+    characterGrip.update(Boolean(heldMesh?.visible));
   }
 
 

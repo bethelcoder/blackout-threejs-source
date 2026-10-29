@@ -90,12 +90,15 @@ export class BackpackUI {
       if (item) {
         let statusBadge = item.type.toUpperCase();
         if (item.id === 'torch') {
-          const isTorchActive = this.equipment?.equippedTool === 'torch' && this.equipment?.torchOn;
-          statusBadge = isTorchActive ? 'EQUIPPED [LIGHT ON]' : 'IN BAG [LIGHT OFF]';
+          // The beam is a headlamp, so it can be lit with a wrench in hand:
+          // report the hand slot and the beam separately.
+          const inHand = this.equipment?.equippedTool === 'torch';
+          const lit = this.equipment?.torchOn;
+          statusBadge = `${inHand ? 'EQUIPPED' : 'IN BAG'} [${lit ? 'LIGHT ON' : 'LIGHT OFF'}]`;
         } else if (item.type === 'document') {
           statusBadge = 'READABLE [CLICK]';
         } else if (item.type === 'tool') {
-          statusBadge = 'TOOL';
+          statusBadge = this.equipment?.isEquipped(item.id) ? 'EQUIPPED [IN HAND]' : 'TOOL [CLICK TO HOLD]';
         }
 
         slotDiv.innerHTML = `
@@ -134,6 +137,18 @@ export class BackpackUI {
       this.render();
     } else if (item.type === 'document') {
       this.showDocReader(item.name, item.content || item.desc);
+    } else if (item.type === 'tool') {
+      // Clicking a tool toggles it between the hand and its bag slot.
+      const wasEquipped = this.equipment?.isEquipped(item.id);
+      if (wasEquipped) this.equipment.unequipTool();
+      else this.equipment.equipTool(item.id);
+      const promptEl = document.getElementById('interact-prompt');
+      if (promptEl) {
+        promptEl.textContent = `${item.name} ${wasEquipped ? 'stowed in backpack' : 'held in hand'}`;
+        promptEl.classList.remove('hidden');
+        setTimeout(() => promptEl.classList.add('hidden'), 1600);
+      }
+      this.render();
     } else {
       const promptEl = document.getElementById('interact-prompt');
       if (promptEl) {
