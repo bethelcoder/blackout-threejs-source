@@ -186,6 +186,14 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     colliders.push(box);
   }
 
+  // Ceiling collider to physically prevent camera or player escaping through top of room
+  const ceilingBox = new THREE.Box3();
+  ceilingBox.setFromCenterAndSize(
+    new THREE.Vector3(0, height + wallThickness / 2, 0),
+    new THREE.Vector3(width, wallThickness, depth)
+  );
+  colliders.push(ceilingBox);
+
   // 3. OVERHEAD RED I-BEAMS & PIPE STRUCTURE
   const redBeamMat = new THREE.MeshStandardMaterial({ color: 0x8b1a1a, metalness: 0.7, roughness: 0.3 });
   const pipeMat = new THREE.MeshStandardMaterial({ color: 0x3d4853, metalness: 0.8, roughness: 0.2 });

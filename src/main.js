@@ -426,6 +426,16 @@ function playPlayerAnimation(name) {
 
 
 // ---------- Level manager ----------
+// Designated interior room boundary constraints (prevents cameras from escaping into the void)
+const LEVEL_BOUNDS = [
+  // Level 1: width 14 (±7), depth 20 (±10), height 6.8
+  { minX: -6.70, maxX: 6.70, minZ: -9.70, maxZ: 9.70, minY: 0.35, maxY: 6.50 },
+  // Level 2: width 14 (±7), depth 16 (±8), height 4.2
+  { minX: -6.70, maxX: 6.70, minZ: -7.70, maxZ: 7.70, minY: 0.35, maxY: 3.90 },
+  // Level 3: width 14 (±7), depth 14 (±7), height 5.5
+  { minX: -6.70, maxX: 6.70, minZ: -6.70, maxZ: 6.70, minY: 0.35, maxY: 5.20 },
+];
+
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
 let currentLevel = null;
 let currentLevelIndex = 0;
@@ -1005,7 +1015,7 @@ function tick() {
 
 
 
-    // Make the third-person camera follow behind the player.
+    // Make the third-person camera follow behind the player with spring-arm obstacle avoidance.
     const direction = new THREE.Vector3();
     camera.getWorldDirection(direction);
 
@@ -1014,12 +1024,52 @@ function tick() {
     horizontalDirection.y = 0;
     horizontalDirection.normalize();
 
-    // Follow the physical eye height; PlayerControls applies crouch once.
-    const thirdPersonPosition = camera.position.clone()
-      .addScaledVector(horizontalDirection, -1.8)
-      .add(new THREE.Vector3(0, 0.5, 0));
+    // The anchor point on the player (head/chest level)
+    const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
 
-    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+    // Desired camera target in open space (1.8m back, 0.45m up)
+    const desiredTarget = camera.position.clone()
+      .addScaledVector(horizontalDirection, -1.8)
+      .add(new THREE.Vector3(0, 0.45, 0));
+
+    // Vector from anchor to desired camera position
+    const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+    const desiredDist = toCameraVec.length();
+    const rayDir = toCameraVec.clone().normalize();
+
+    // Check collision against all level colliders (walls, cupboards, shelves, server racks)
+    let safeDistance = desiredDist;
+    const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+    const hitPoint = new THREE.Vector3();
+
+    if (currentLevel?.colliders) {
+      for (const box of currentLevel.colliders) {
+        if (!box || box.isEmpty()) continue;
+        if (cameraRay.intersectBox(box, hitPoint)) {
+          const hitDist = cameraAnchor.distanceTo(hitPoint);
+          if (hitDist < safeDistance) {
+            safeDistance = hitDist;
+          }
+        }
+      }
+    }
+
+    // Leave a 0.25m buffer in front of any hit surface so camera near plane never clips through walls
+    const finalDist = Math.max(0.35, safeDistance - 0.25);
+    const thirdPersonPosition = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+    // Hard clamp within designated room space for the active level
+    const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+    thirdPersonPosition.x = THREE.MathUtils.clamp(thirdPersonPosition.x, bounds.minX, bounds.maxX);
+    thirdPersonPosition.y = THREE.MathUtils.clamp(thirdPersonPosition.y, bounds.minY, bounds.maxY);
+    thirdPersonPosition.z = THREE.MathUtils.clamp(thirdPersonPosition.z, bounds.minZ, bounds.maxZ);
+
+    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
+
+    // If camera is squeezed very close to player against a wall, hide player model so it doesn't obstruct view
+    if (playerModel) {
+      playerModel.visible = finalDist > 0.45;
+    }
 
     // Preserve the existing limited mouse-look angle.
     const horizontalAngle = Math.atan2(direction.x, direction.z);
@@ -1047,12 +1097,14 @@ function tick() {
       camera.position.z
     ).addScaledVector(lookDirection, 5);
 
-
     thirdPersonCamera.lookAt(lookTarget);
-    }
+  }
 
-
-
+  // Ensure first-person camera / player position stays within interior level bounds
+  const currentBounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+  camera.position.x = THREE.MathUtils.clamp(camera.position.x, currentBounds.minX, currentBounds.maxX);
+  camera.position.y = THREE.MathUtils.clamp(camera.position.y, currentBounds.minY, currentBounds.maxY);
+  camera.position.z = THREE.MathUtils.clamp(camera.position.z, currentBounds.minZ, currentBounds.maxZ);
 
   previousCameraMode = playerControls.cameraMode;
 
