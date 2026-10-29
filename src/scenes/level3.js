@@ -18,19 +18,23 @@ import { buildCoreChair } from './coreChair.js';
 import { buildCoreToolboxes } from './coreToolboxes.js';
 import { buildCoreExtinguisher } from './coreExtinguisher.js';
 import { buildCoreFirstAid } from './coreFirstAid.js';
+import { buildCoreDisplayTerminal } from './coreDisplayTerminal.js';
+import { buildCoreBot } from './coreBot.js';
+import { createRobotRepair } from '../systems/robotRepair.js';
+import { createCircuitPuzzle } from '../systems/circuitPuzzle.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
-const WAVE_THICKNESS = 0.7;
+const WAVE_THICKNESS = 0.5;
 const WAVE_START_RADIUS = 1.7;   // just outside the pedestal
 const WAVE_END_RADIUS = 10.2;    // past the room corners (~9.9)
-const CHARGE_TIME = 0.9;         // telegraph before each surge
-const JUMP_CLEARANCE = 0.35;     // feet must be this high to clear a wave (jump peaks ~1.0 m)
+const CHARGE_TIME = 1.6;         // telegraph before each surge
+const JUMP_CLEARANCE = 0.22;     // feet must be this high to clear a wave (jump peaks ~1.0 m)
 
 // Index = number of feeders already isolated.
 const PHASES = [
-  { interval: 4.2, speed: 3.2, burst: 1, gap: 1.6 },
-  { interval: 3.5, speed: 3.9, burst: 1, gap: 1.3 },
-  { interval: 3.2, speed: 4.5, burst: 2, gap: 1.1 },
+  { interval: 6.5, speed: 2.5, burst: 1, gap: 2.1 },
+  { interval: 6.0, speed: 2.7, burst: 1, gap: 2.0 },
+  { interval: 5.5, speed: 2.9, burst: 1, gap: 1.9 },
 ];
 
 const BREAKER_SPOTS = [
@@ -135,6 +139,12 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const firstAid = buildCoreFirstAid();
   scene.add(firstAid.group);
   colliders.push(firstAid.collider);
+  const displayTerminal = buildCoreDisplayTerminal();
+  scene.add(displayTerminal.group);
+  colliders.push(displayTerminal.collider);
+  const deskBot = buildCoreBot();
+  scene.add(deskBot.group);
+  colliders.push(deskBot.collider);
 
   // ---------- Lighting (one shadow caster, tight shadow frustum) ----------
   add(new THREE.HemisphereLight(0xffcccc, 0x664444, 0.6));
@@ -188,6 +198,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
   // ---------- Shockwave floor (shader-driven, one draw call) ----------
   const waveMat = createShockwaveFloorMaterial();
+  waveMat.uniforms.uThickness.value = WAVE_THICKNESS;
   const waveFloor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), waveMat);
   waveFloor.rotation.x = -Math.PI / 2;
   waveFloor.position.y = 0.03;
@@ -205,6 +216,43 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
   let progress = 0;
   let finished = false;
+  let wavesDisabled = false;
+  const recoveredClue = () => hud.setObjective('ROBOT RECORD: the hologram circuit starts at 3V and must finish at 5V. Route through all three relays: R1 boosts +3V, R2 drains 2V, R3 boosts +1V. A connected wire alone is not enough.');
+  const robotRepair = createRobotRepair({ onSolved: () => {
+    recoveredClue();
+    sound.playAccessGranted();
+  } });
+  const coreOverride = createCircuitPuzzle({ onSolved: () => {
+    if (wavesDisabled && robotRepair.solved && !finished) beginIsolation();
+  } });
+  Object.assign(deskBot.group.userData, {
+    interactable: true,
+    label: 'Repair robot',
+    getLabel: () => !wavesDisabled ? 'Robot unsafe - disable shockwave feeders first' : robotRepair.solved ? 'Replay robot maintenance clue' : 'Repair robot',
+    onInteract: () => {
+      if (!wavesDisabled) { hud.setObjective('Disable the shockwaves first: isolate the three feeders from highest load to lowest. Check the maintenance schedule.'); return; }
+      if (robotRepair.solved) recoveredClue(); else robotRepair.open();
+    },
+  });
+  const openCircuit = () => {
+    if (finished) return;
+    if (!wavesDisabled) { hud.setObjective('Circuit locked. Disable the shockwaves using the three feeders first.'); return; }
+    if (!robotRepair.solved) { hud.setObjective('Repair the robot beside the desk to restore circuit access and recover the routing clue.'); return; }
+    coreOverride.open();
+  };
+  Object.assign(hologramScreen.group.userData, {
+    interactable: true,
+    label: 'Connect hologram shutdown circuit',
+    reach: 3.5,
+    onInteract: openCircuit,
+  });
+  Object.assign(displayTerminal.group.userData, {
+    interactable: true,
+    label: 'Read circuit access status',
+    onInteract: () => hud.setObjective(robotRepair.solved
+      ? 'Circuit access restored. Use the large wall hologram to connect the shutdown route through all three relays at 5V.'
+      : 'Repair the robot beside this desk after disabling the shockwave feeders. It can restore access to the wall hologram circuit.'),
+  });
   const phaseIndex = () => Math.min(progress, PHASES.length - 1);
 
   // ---------- Breakers ----------
@@ -298,7 +346,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   let t = 0;
   let spin = 0;
   let charge = 0;
-  let timeToNext = 3.5;      // grace before the first surge
+  let timeToNext = 8;      // grace before the first surge
   let secondIn = -1;
   let chargeSounded = false;
   let dissolve = 0;
@@ -317,7 +365,16 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
       breakers[id].lock(true);
       progress++;
       sound.playAccessGranted();
-      if (progress === correctOrder.length) { beginIsolation(); return; }
+      if (progress === correctOrder.length) {
+        wavesDisabled = true;
+        waves.forEach(w => { w.active = false; });
+        waveMat.uniforms.uRadius.value.fill(-10);
+        waveMat.uniforms.uCharge.value = 0;
+        secondIn = -1;
+        charge = 0;
+        hud.setObjective('Shockwaves disabled. The room is safe. Repair the robot beside the left desk to recover the core override clue.');
+        return;
+      }
       applyPhase();
       hud.setObjective(`Feeder ${id} isolated (${progress}/${correctOrder.length}). The core is escalating — keep moving!`);
     } else {
@@ -344,11 +401,12 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
   function update(delta, camera) {
     earthHologram.update(delta);
+    if (robotRepair.isOpen || coreOverride.isOpen) return;
     t += delta;
     const phase = PHASES[phaseIndex()];
 
     // --- Surge scheduler: charge (telegraph) -> fire ---
-    if (!finished) {
+    if (!finished && !wavesDisabled) {
       timeToNext -= delta;
       charge = timeToNext < CHARGE_TIME ? 1 - Math.max(timeToNext, 0) / CHARGE_TIME : 0;
       if (charge > 0 && !chargeSounded) { chargeSounded = true; sound.playDetectionWarning(0.35); }
@@ -427,6 +485,10 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   }
 
   function dispose() {
+    robotRepair.dispose();
+    coreOverride.dispose();
+    deskBot.dispose();
+    displayTerminal.dispose();
     firstAid.dispose();
     extinguisher.dispose();
     toolboxes.dispose();
@@ -445,13 +507,14 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   }
 
   return {
-    ready: Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready]),
+    ready: Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready]),
     colliders,
+    get panelOpen() { return robotRepair.isOpen || coreOverride.isOpen; },
     update,
     dispose,
     spawn: new THREE.Vector3(0, 1.7, 5.5),
     title: 'LEVEL 3 — THE CORE',
     subtitle: 'Isolate the AI without cutting the stabilized municipal grid.',
-    objective: 'Read the maintenance schedule (south-east corner), isolate the feeders in order, and jump the core\'s shockwaves!',
+    objective: 'Disable shockwaves: read the maintenance schedule and isolate feeders from highest load to lowest. Then repair the robot and solve the circuit on the large wall hologram.',
   };
 }

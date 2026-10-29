@@ -1,12 +1,25 @@
 import assert from 'node:assert/strict';
+import { CIRCUIT_PATH } from '../src/systems/circuitPuzzle.js';
 import * as THREE from 'three';
 import { buildLevel3 } from '../src/scenes/level3.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const context = texts => new Proxy({}, { get: (_, key) => key === 'fillText' ? text => texts.push(text)
   : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
+class Element {
+  constructor(tag) { this.tag=tag;this.children=[];this.style={};this.events={};this.texts=[];this.value=''; }
+  getContext() { return context(this.texts); }
+  append(...items) { this.children.push(...items);items.forEach(x=>x.parent=this); }
+  remove() { if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this); }
+  addEventListener(type,fn) { this.events[type]=fn; }
+  querySelectorAll(tag) { return this.children.flatMap(x=>[...(x.tag===tag?[x]:[]),...x.querySelectorAll(tag)]); }
+  click() { if(!this.disabled)this.events.click?.(); }
+  setAttribute() {} focus() {}
+}
+globalThis.CustomEvent=class {constructor(type,args){this.type=type;this.detail=args.detail;}};
 globalThis.document = {
-  createElement() { const image = { texts: [] }; image.getContext = () => context(image.texts); return image; },
+  body: new Element('body'), addEventListener(){}, removeEventListener(){}, dispatchEvent(){}, exitPointerLock(){},
+  createElement(tag) { return new Element(tag); },
   createElementNS() {
     const events = new Map();
     return { width: 2048, height: 2048,
@@ -24,8 +37,11 @@ GLTFLoader.prototype.loadAsync = async () => {
 const scene = new THREE.Scene();
 const hud = { setObjective() {} };
 const aiState = { suspicion: 0, raise() {}, decay() {} };
+const buildRandom = Math.random;
+Math.random = () => 0.5;
 const level = buildLevel3({ scene, aiState, hud, onEnding: () => endings++, onSurgeHit: () => surges++ });
 await level.ready;
+Math.random = buildRandom;
 const floor = scene.getObjectByName('Level 3 office floor');
 assert.ok(floor.material.map.image, 'Shared office floor texture is generated');
 assert.deepEqual(floor.material.map.repeat.toArray(), [14 / 3.2, 14 / 3.2]);
@@ -46,10 +62,30 @@ const feeders = scene.children.filter(object => object.userData.label?.startsWit
 assert.equal(feeders.length, 3);
 const load = object => Number.parseInt(object.children.find(child => child.material?.map?.image?.texts)?.material.map.image.texts[1]);
 feeders.sort((a, b) => load(b) - load(a));
+const bot=scene.getObjectByName('Level 3 bot beside left desk');
+bot.userData.onInteract();assert.ok(!level.panelOpen,'Robot requires feeders first');
 for (const feeder of feeders) feeder.userData.onInteract();
+const hitsAfterFeeders=surges;
+for (let frame=0;frame<1800;frame++)level.update(1/60,camera);
+assert.equal(surges,hitsAfterFeeders,'Waves stay disabled while puzzles remain');
+assert.equal(endings,0,'Feeders do not finish the level');
+bot.userData.onInteract();assert.ok(level.panelOpen);
+let buttons=document.body.querySelectorAll('button');
+for(let i=0;i<2;i++)buttons[0].click();
+for(let i=0;i<3;i++)buttons[1].click();
+buttons[2].click();buttons.find(b=>b.textContent==='Run diagnostics').click();
+buttons.find(b=>b.textContent==='Return to room').click();
+assert.equal(endings,0,'Robot provides a clue rather than finishing');
+scene.getObjectByName('Core holographic wall screen').userData.onInteract();
+assert.ok(level.panelOpen);
+buttons=document.body.querySelectorAll('button');
+const authorize=buttons.find(b=>b.textContent==='Authorize shutdown');
+authorize.click();assert.ok(level.panelOpen,'Broken circuit cannot finish level');
+for(const id of CIRCUIT_PATH){if(id===12||id===3)continue;buttons[id].click();buttons[id].click();}
+authorize.click();assert.ok(!level.panelOpen,'Correct route closes circuit');
 for (let frame = 0; frame < 200; frame++) level.update(1 / 60, camera);
 assert.equal(endings, 1, 'Core puzzle reaches ending without stopping animation');
 level.dispose();
 GLTFLoader.prototype.loadAsync = originalLoad;
 assert.equal(scene.children.length, 0);
-console.log('Level 3 checks passed: floor texture readiness, 20 seconds of updates, shockwaves, three feeders, ending and disposal.');
+console.log('Level 3 checks passed: floor texture readiness, 20 seconds of updates, shockwaves, feeders disable hazards without ending, robot repair, hologram circuit, ending and disposal.');

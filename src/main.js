@@ -929,7 +929,7 @@ document.addEventListener('keydown', (e) => {
     showOnly(mainMenu);
     return;
   }
-  if (terminal.open) return;
+  if (terminal.open || currentLevel?.panelOpen) return;
   if (backpackUI.isOpen) return;
   if (playerControls.isLocked) {
     playerControls.unlock();
@@ -947,13 +947,14 @@ function resumeAfterPanel(event) {
 }
 document.addEventListener('security-keypad-close', resumeAfterPanel);
 document.addEventListener('wiring-panel-close', resumeAfterPanel);
+document.addEventListener('robot-repair-close', resumeAfterPanel);
 
 playerControls.controls.addEventListener('unlock', () => {
   if (levelLoading || gameEnded) return;
   if (document.getElementById('security-keypad-overlay')) return;
   if (document.getElementById('wiring-panel-overlay')) return;
   if (backpackUI.isOpen) return;
-  if (terminal.open) return;
+  if (terminal.open || currentLevel?.panelOpen) return;
   if (!mainMenu.classList.contains('hidden')) return;
   if (!creditsScreen.classList.contains('hidden')) return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) return;

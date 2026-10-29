@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { buildCoreDisplayTerminal } from '../src/scenes/coreDisplayTerminal.js';
+globalThis.self=globalThis;
+globalThis.createImageBitmap=async()=>({width:1024,height:1024,close(){}});
+const bytes=fs.readFileSync('src/assets/models/core-display-terminal.glb');
+const gltf=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+GLTFLoader.prototype.loadAsync=async()=>gltf;
+const terminal=buildCoreDisplayTerminal();await terminal.ready;
+console.log('Bounds',terminal.collider.min.toArray(),terminal.collider.max.toArray());
+assert.ok(Math.abs(terminal.collider.min.y)<0.00001);
+assert.ok(terminal.collider.min.x>-7 && terminal.collider.max.x<-4.8);
+assert.ok(terminal.collider.max.z<-1.1 && terminal.collider.min.z>-3.9);
+let draws=0;terminal.group.traverse(o=>{if(o.isMesh)draws++;});
+console.log('Terminal draw calls',draws);
+terminal.dispose();
