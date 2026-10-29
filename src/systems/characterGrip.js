@@ -3,10 +3,10 @@ import * as THREE from 'three';
 /**
  * Closes the character's right hand around a held tool.
  *
- * The Mixamo clips in `models/animations/` animate every finger bone, so the
- * fist cannot be authored once: each frame the pose has to be re-applied on top
- * of whatever the mixer wrote. Call `update` immediately after
- * `playerMixer.update`.
+ * The Mixamo clips set the finger bones once when the action binds and then stop
+ * writing them, so the fist has to be re-applied every frame. It is written from
+ * the bind pose rather than multiplied onto the current one: a multiply would
+ * compound frame after frame and the fingers would keep curling on their own.
  */
 
 // The knuckle stays put; the other three joints fold the finger into the palm.
@@ -45,6 +45,7 @@ export class CharacterGrip {
         const axis = axisWorld.clone().applyQuaternion(worldQuat.invert()).normalize();
         this.bones.push({
           bone,
+          bind: bone.quaternion.clone(),
           curl: new THREE.Quaternion().setFromAxisAngle(axis, CURL_ANGLES[i]),
         });
       }
@@ -52,7 +53,9 @@ export class CharacterGrip {
   }
 
   update(holding) {
-    if (!holding) return;
-    for (const { bone, curl } of this.bones) bone.quaternion.multiply(curl);
+    for (const { bone, bind, curl } of this.bones) {
+      bone.quaternion.copy(bind);
+      if (holding) bone.quaternion.multiply(curl);
+    }
   }
 }

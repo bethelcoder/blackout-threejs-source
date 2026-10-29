@@ -4,8 +4,8 @@ import { buildHeldTool } from './heldTools.js';
 
 /**
  * First-Person Hands & Held Equipment Viewmodel System.
- * Loads `fps_arms.glb` and `low_poly_torch.glb`, accurately aligning the torch
- * model inside the right hand grip with forward illumination and procedural sway.
+ * Loads `fps_arms.glb` and seats the shared held-tool meshes inside the right
+ * hand grip, with forward illumination and procedural sway.
  */
 export class Viewmodel {
   constructor(camera, flashlight) {
@@ -48,7 +48,7 @@ export class Viewmodel {
     this.swayTime = 0;
 
     this._loadArmsModel();
-    this._loadTorchModel();
+    this._buildTorch();
   }
 
   _loadArmsModel() {
@@ -99,73 +99,16 @@ export class Viewmodel {
     );
   }
 
-  _loadTorchModel() {
-    const loader = new GLTFLoader();
-    loader.load(
-      './models/low_poly_torch.glb',
-      (gltf) => {
-        const model = gltf.scene;
-
-        // Auto-scale torch model to fit natural human hand grip (~20cm length)
-        const box = new THREE.Box3().setFromObject(model);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        const targetLength = 0.20;
-        const scaleFactor = targetLength / maxDim;
-        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-        // Center pivot on the torch grip handle
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        model.position.set(-center.x * scaleFactor, -center.y * scaleFactor, -center.z * scaleFactor);
-
-        // Orient the flashlight horizontally forward facing down -Z
-        if (size.y >= size.x && size.y >= size.z) {
-          // Model modeled vertically: rotate +Y to -Z
-          model.rotation.x = -Math.PI / 2;
-        } else if (size.x >= size.y && size.x >= size.z) {
-          model.rotation.y = Math.PI / 2;
-        }
-
-        model.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = false;
-            child.receiveShadow = false;
-            if (child.material) {
-              if (!child.material.map) {
-                child.material = new THREE.MeshStandardMaterial({
-                  color: 0x222830,
-                  roughness: 0.4,
-                  metalness: 0.75,
-                });
-              } else {
-                child.material.roughness = 0.45;
-                child.material.metalness = 0.5;
-              }
-            }
-          }
-        });
-
-        // Add a subtle glowing front lens cap
-        const lensGeo = new THREE.CircleGeometry(0.026, 16);
-        const lensMat = new THREE.MeshBasicMaterial({ color: 0xe8f4ff });
-        const lensMesh = new THREE.Mesh(lensGeo, lensMat);
-        lensMesh.position.set(0, 0, -0.102);
-        lensMesh.rotation.y = Math.PI;
-        model.add(lensMesh);
-
-        this.torchMesh = model;
-        this.torchGroup.add(model);
-        this.isTorchLoaded = true;
-        this.setTool(this.equippedTool, this.torchLit);
-      },
-      undefined,
-      (err) => {
-        console.info('low_poly_torch.glb procedural fallback:', err?.message || err);
-        this._createProceduralTorchFallback();
-      }
-    );
+  /**
+   * The torch is the same mesh the character's hand holds in third person, so
+   * the grip transform below is the only one that has to stay correct.
+   */
+  _buildTorch() {
+    const torch = buildHeldTool('torch');
+    this.torchMesh = torch;
+    this.torchGroup.add(torch);
+    this.isTorchLoaded = true;
+    this.setTool(this.equippedTool, this.torchLit);
   }
 
   _createProceduralArmsFallback() {
@@ -207,36 +150,6 @@ export class Viewmodel {
     this.armsMesh = fallbackGroup;
     this.group.add(fallbackGroup);
     this.isArmsLoaded = true;
-  }
-
-  _createProceduralTorchFallback() {
-    const fallbackTorch = new THREE.Group();
-
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.018, 0.018, 0.16, 12),
-      new THREE.MeshStandardMaterial({ color: 0x1c2228, metalness: 0.8, roughness: 0.25 })
-    );
-    body.rotation.x = Math.PI / 2;
-
-    const head = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032, 0.020, 0.05, 12),
-      new THREE.MeshStandardMaterial({ color: 0x364250, metalness: 0.9, roughness: 0.2 })
-    );
-    head.position.z = -0.09;
-    head.rotation.x = Math.PI / 2;
-
-    const lens = new THREE.Mesh(
-      new THREE.CircleGeometry(0.028, 12),
-      new THREE.MeshBasicMaterial({ color: 0xe8f4ff })
-    );
-    lens.position.z = -0.116;
-    lens.rotation.y = Math.PI;
-
-    fallbackTorch.add(body, head, lens);
-    this.torchMesh = fallbackTorch;
-    this.torchGroup.add(fallbackTorch);
-    this.isTorchLoaded = true;
-    this.setTool(this.equippedTool, this.torchLit);
   }
 
   /** Show the equipped tool in the first-person hand; null leaves the hand empty. */

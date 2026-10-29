@@ -1,5 +1,45 @@
 import * as THREE from 'three';
 
+// Soft procedural noise used as a bump map so flat colours read as real
+// powder-coated / brushed metal instead of smooth plastic.
+function makeNoiseTexture(kind, repeat) {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (kind === 'brushed') {
+    const img = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      const row = (Math.random() - 0.5) * 70;
+      for (let x = 0; x < size; x++) {
+        const v = 128 + row + (Math.random() - 0.5) * 24;
+        const i = (y * size + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  } else {
+    // "Orange peel" texture of powder coat: tiny noise upscaled with smoothing.
+    const small = document.createElement('canvas');
+    small.width = small.height = 40;
+    const sctx = small.getContext('2d');
+    const img = sctx.createImageData(40, 40);
+    for (let i = 0; i < 40 * 40; i++) {
+      const v = 128 + (Math.random() - 0.5) * 110;
+      img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+      img.data[i * 4 + 3] = 255;
+    }
+    sctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(small, 0, 0, size, size);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  return texture;
+}
+
 /**
  * Backroom industrial furnishings for Level 1:
  * - Tall heavy storage shelves with parts bins and archive boxes (full standing cover)
@@ -145,27 +185,43 @@ export function buildBackroomProps({ scene, colliders }) {
   decalTexture.colorSpace = THREE.SRGBColorSpace;
   cleanupTextures.push(decalTexture);
 
-  // Standard Materials
+  // Surface-grain bump maps: powder-coat "orange peel" and brushed-steel streaks.
+  const peelBump = makeNoiseTexture('peel', 6);
+  const brushedBump = makeNoiseTexture('brushed', 4);
+  cleanupTextures.push(peelBump, brushedBump);
+
+  // Standard Materials. Painted / coated surfaces are dielectrics, so metalness
+  // stays near zero and roughness carries the matte character. Only the bare
+  // steel parts and the chrome hardware keep real metalness.
   const darkSteelMat = new THREE.MeshStandardMaterial({
     color: 0x343c44,
-    roughness: 0.65,
-    metalness: 0.72,
+    roughness: 0.55,
+    metalness: 0.35,
+    bumpMap: brushedBump,
+    bumpScale: 0.25,
   });
   const paintedMetalMat = new THREE.MeshStandardMaterial({
     color: 0x56626d,
-    roughness: 0.72,
-    metalness: 0.55,
+    roughness: 0.78,
+    metalness: 0.08,
+    bumpMap: peelBump,
+    bumpScale: 0.45,
   });
   const cupboardPaintMat = new THREE.MeshStandardMaterial({
     color: 0x47515a,
-    roughness: 0.68,
-    metalness: 0.58,
+    roughness: 0.75,
+    metalness: 0.08,
+    bumpMap: peelBump,
+    bumpScale: 0.45,
   });
   const woodTableMat = new THREE.MeshStandardMaterial({
     color: 0x5a4d3f,
-    roughness: 0.88,
-    metalness: 0.12,
+    roughness: 0.9,
+    metalness: 0.0,
+    bumpMap: brushedBump,
+    bumpScale: 0.35,
   });
+  // The one shiny element on each piece of furniture: hardware vs. matte body.
   const chromeHardwareMat = new THREE.MeshStandardMaterial({
     color: 0xcccccc,
     roughness: 0.35,
@@ -173,25 +229,30 @@ export function buildBackroomProps({ scene, colliders }) {
   });
   const binOrangeMat = new THREE.MeshStandardMaterial({
     color: 0xc86422,
-    roughness: 0.6,
-    metalness: 0.2,
+    roughness: 0.8,
+    metalness: 0.05,
   });
   const binBlueMat = new THREE.MeshStandardMaterial({
     color: 0x245582,
-    roughness: 0.6,
-    metalness: 0.2,
+    roughness: 0.8,
+    metalness: 0.05,
   });
   const binDarkMat = new THREE.MeshStandardMaterial({
     color: 0x22262a,
-    roughness: 0.7,
-    metalness: 0.4,
+    roughness: 0.85,
+    metalness: 0.05,
+  });
+  const labelMat = new THREE.MeshStandardMaterial({
+    color: 0xd9d4c0,
+    roughness: 0.95,
+    metalness: 0.0,
   });
   const screenMat = new THREE.MeshStandardMaterial({
     color: 0x0c251c,
     emissive: 0x187a55,
     emissiveIntensity: 0.8,
-    roughness: 0.4,
-    metalness: 0.5,
+    roughness: 0.35,
+    metalness: 0.1,
   });
   const paperMat = new THREE.MeshStandardMaterial({
     map: paperTexture,
@@ -201,28 +262,77 @@ export function buildBackroomProps({ scene, colliders }) {
   });
   const decalMat = new THREE.MeshStandardMaterial({
     map: decalTexture,
-    roughness: 0.6,
-    metalness: 0.2,
+    roughness: 0.8,
+    metalness: 0.0,
   });
 
   cleanupMaterials.push(
     darkSteelMat, paintedMetalMat, cupboardPaintMat, woodTableMat,
-    chromeHardwareMat, binOrangeMat, binBlueMat, binDarkMat, screenMat, paperMat, decalMat
+    chromeHardwareMat, binOrangeMat, binBlueMat, binDarkMat, labelMat, screenMat, paperMat, decalMat
   );
 
-  // Common Unit Geometries for Instantiating
-  const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-  const cylinderGeo = new THREE.CylinderGeometry(1, 1, 1, 12);
-  cleanupGeometries.push(boxGeo, cylinderGeo);
+  // Geometry cache. Boxes get small bevelled edges because no real manufactured
+  // object has razor-sharp 90 degree corners; identical sizes share one geometry.
+  const bevelGeometries = new Map();
+  function bevelBoxGeometry(w, h, d) {
+    const key = `${w.toFixed(4)}_${h.toFixed(4)}_${d.toFixed(4)}`;
+    if (bevelGeometries.has(key)) return bevelGeometries.get(key);
+    const minDim = Math.min(w, h, d);
+    const r = Math.min(0.012, minDim * 0.25);
+    const hw = (w - 2 * r) / 2;
+    const hh = (h - 2 * r) / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-hw, -hh);
+    shape.lineTo(hw, -hh);
+    shape.lineTo(hw, hh);
+    shape.lineTo(-hw, hh);
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: d - 2 * r,
+      bevelEnabled: true,
+      bevelThickness: r,
+      bevelSize: r,
+      bevelOffset: 0,
+      bevelSegments: minDim > 0.05 ? 2 : 1,
+      steps: 1,
+      curveSegments: 1,
+    });
+    geo.translate(0, 0, -(d - 2 * r) / 2);
+    bevelGeometries.set(key, geo);
+    return geo;
+  }
+  const cylinderGeo = new THREE.CylinderGeometry(1, 1, 1, 14);
+  const screenGeo = new THREE.PlaneGeometry(0.32, 0.18);
+  const decalGeo = new THREE.PlaneGeometry(0.42, 0.21);
+  cleanupGeometries.push(cylinderGeo, screenGeo, decalGeo);
 
   function addBox(parent, material, x, y, z, sx, sy, sz) {
-    const mesh = new THREE.Mesh(boxGeo, material);
+    const mesh = new THREE.Mesh(bevelBoxGeometry(sx, sy, sz), material);
     mesh.position.set(x, y, z);
-    mesh.scale.set(sx, sy, sz);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     parent.add(mesh);
     return mesh;
+  }
+
+  // Cylinder whose length runs along the given local axis ('x', 'y' or 'z').
+  function addCylinder(parent, material, x, y, z, radius, length, axis = 'y') {
+    const mesh = new THREE.Mesh(cylinderGeo, material);
+    mesh.position.set(x, y, z);
+    mesh.scale.set(radius, length, radius);
+    if (axis === 'x') mesh.rotation.z = Math.PI / 2;
+    if (axis === 'z') mesh.rotation.x = Math.PI / 2;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    return mesh;
+  }
+
+  // Plastic storage bin: body, moulded rim and a paper label card on the front.
+  function addBin(parent, material, x, y, z, sx, sy, sz) {
+    addBox(parent, material, x, y, z, sx, sy, sz);
+    addBox(parent, material, x, y + sy / 2 - 0.01, z, sx + 0.02, 0.03, sz + 0.02);
+    addBox(parent, labelMat, x, y + 0.02, z + sz / 2 + 0.014, Math.min(0.14, sx * 0.4), 0.05, 0.006);
   }
 
   // =========================================================================
@@ -237,10 +347,11 @@ export function buildBackroomProps({ scene, colliders }) {
     const halfW = width / 2;
     const halfD = depth / 2;
 
-    // 4 Corner Upright Posts
+    // 4 Corner Upright Posts, each on a bolted floor plate
     for (const px of [-halfW + postSize / 2, halfW - postSize / 2]) {
       for (const pz of [-halfD + postSize / 2, halfD - postSize / 2]) {
         addBox(shelfGroup, darkSteelMat, px, height / 2, pz, postSize, height, postSize);
+        addBox(shelfGroup, darkSteelMat, px, 0.006, pz, 0.1, 0.012, 0.1);
       }
     }
 
@@ -271,26 +382,28 @@ export function buildBackroomProps({ scene, colliders }) {
 
     // Shelf Clutter Items
     // Tier 1 (bottom): Heavy battery packs & dark crates
-    addBox(shelfGroup, binDarkMat, -halfW + 0.45, 0.35, 0, 0.65, 0.36, depth - 0.15);
-    addBox(shelfGroup, binOrangeMat, halfW - 0.4, 0.32, 0, 0.55, 0.30, depth - 0.18);
+    addBin(shelfGroup, binDarkMat, -halfW + 0.45, 0.35, 0, 0.65, 0.36, depth - 0.15);
+    addBin(shelfGroup, binOrangeMat, halfW - 0.4, 0.32, 0, 0.55, 0.30, depth - 0.18);
 
     // Tier 2: Storage bins & parts containers
-    addBox(shelfGroup, binBlueMat, -0.3, 0.85, -0.05, 0.5, 0.28, depth - 0.2);
-    addBox(shelfGroup, binOrangeMat, 0.35, 0.83, 0.02, 0.45, 0.24, depth - 0.22);
-    addBox(shelfGroup, binDarkMat, halfW - 0.3, 0.82, 0, 0.35, 0.22, depth - 0.24);
+    addBin(shelfGroup, binBlueMat, -0.3, 0.85, -0.05, 0.5, 0.28, depth - 0.2);
+    addBin(shelfGroup, binOrangeMat, 0.35, 0.83, 0.02, 0.45, 0.24, depth - 0.22);
+    addBin(shelfGroup, binDarkMat, halfW - 0.3, 0.82, 0, 0.35, 0.22, depth - 0.24);
 
-    // Tier 3: Technical archive file binders & document storage boxes
+    // Tier 3: Technical archive file binders (with spine labels) & document storage boxes
     for (let f = 0; f < 5; f++) {
-      addBox(shelfGroup, f % 2 ? binBlueMat : paintedMetalMat, -halfW + 0.25 + f * 0.12, 1.48, 0, 0.09, 0.32, depth - 0.3);
+      const bx = -halfW + 0.25 + f * 0.12;
+      addBox(shelfGroup, f % 2 ? binBlueMat : paintedMetalMat, bx, 1.48, 0, 0.09, 0.32, depth - 0.3);
+      addBox(shelfGroup, labelMat, bx, 1.5, (depth - 0.3) / 2 + 0.004, 0.05, 0.1, 0.006);
     }
-    addBox(shelfGroup, binDarkMat, 0.2, 1.46, 0, 0.52, 0.28, depth - 0.2);
+    addBin(shelfGroup, binDarkMat, 0.2, 1.46, 0, 0.52, 0.28, depth - 0.2);
 
     // Tier 4: Spare component coils / conduit boxes
     addBox(shelfGroup, paintedMetalMat, -0.4, 2.10, 0, 0.45, 0.18, depth - 0.25);
-    addBox(shelfGroup, binOrangeMat, 0.35, 2.12, 0, 0.38, 0.22, depth - 0.22);
+    addBin(shelfGroup, binOrangeMat, 0.35, 2.12, 0, 0.38, 0.22, depth - 0.22);
 
     // Tier 5 (top): Extra storage box
-    addBox(shelfGroup, binBlueMat, -0.15, 2.70, 0, 0.55, 0.22, depth - 0.25);
+    addBin(shelfGroup, binBlueMat, -0.15, 2.70, 0, 0.55, 0.22, depth - 0.25);
 
     group.add(shelfGroup);
 
@@ -326,22 +439,35 @@ export function buildBackroomProps({ scene, colliders }) {
     // Top Header Lip
     addBox(cupboardGroup, darkSteelMat, 0, height + 0.015, 0, width + 0.04, 0.03, depth + 0.04);
 
+    // Dark seam where the two doors meet
+    addBox(cupboardGroup, binDarkMat, 0, height / 2 + 0.06, depth / 2 + 0.006, 0.02, height - 0.22, 0.012);
+
     // Double Doors Division & Seams
     const doorHalfW = (width - 0.06) / 2;
     for (const side of [-1, 1]) {
       const doorX = side * (doorHalfW / 2 + 0.01);
       // Inset door panel
       addBox(cupboardGroup, paintedMetalMat, doorX, height / 2 + 0.06, depth / 2 + 0.012, doorHalfW - 0.02, height - 0.22, 0.024);
-      // Chrome Handle / Latch
-      addBox(cupboardGroup, chromeHardwareMat, side * 0.08, 1.25, depth / 2 + 0.04, 0.03, 0.18, 0.035);
+      // Chrome pull: round bar held off the door on two standoffs
+      for (const hy of [1.19, 1.31]) {
+        addBox(cupboardGroup, chromeHardwareMat, side * 0.08, hy, depth / 2 + 0.036, 0.02, 0.02, 0.026);
+      }
+      addCylinder(cupboardGroup, chromeHardwareMat, side * 0.08, 1.25, depth / 2 + 0.05, 0.011, 0.2, 'y');
+      // Chrome hinges on the outer edge
+      for (const hy of [0.45, 1.3, 2.1]) {
+        addBox(cupboardGroup, chromeHardwareMat, side * (width / 2 - 0.02), hy, depth / 2 + 0.02, 0.025, 0.12, 0.03);
+      }
       // Ventilation Louver Slats (Upper door ventilation)
       for (let s = 0; s < 5; s++) {
-        addBox(cupboardGroup, darkSteelMat, doorX, 1.95 + s * 0.05, depth / 2 + 0.025, doorHalfW - 0.16, 0.018, 0.012);
+        const slat = addBox(cupboardGroup, darkSteelMat, doorX, 1.95 + s * 0.05, depth / 2 + 0.025, doorHalfW - 0.16, 0.018, 0.012);
+        slat.rotation.x = -0.35;
       }
     }
+    // Key lock
+    addCylinder(cupboardGroup, chromeHardwareMat, 0.08, 1.05, depth / 2 + 0.03, 0.013, 0.02, 'z');
 
     // High Voltage Warning Decal Placard
-    const decalMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.21), decalMat);
+    const decalMesh = new THREE.Mesh(decalGeo, decalMat);
     decalMesh.position.set(0, 1.65, depth / 2 + 0.026);
     cupboardGroup.add(decalMesh);
 
@@ -378,6 +504,14 @@ export function buildBackroomProps({ scene, colliders }) {
     // Heavy Top Slab
     addBox(tableGroup, woodTableMat, 0, height - tableTopThickness / 2, 0, width, tableTopThickness, depth);
 
+    // Steel edge banding around the slab
+    for (const pz of [-halfD + 0.01, halfD - 0.01]) {
+      addBox(tableGroup, darkSteelMat, 0, height - tableTopThickness / 2, pz, width + 0.01, tableTopThickness + 0.01, 0.02);
+    }
+    for (const px of [-halfW + 0.01, halfW - 0.01]) {
+      addBox(tableGroup, darkSteelMat, px, height - tableTopThickness / 2, 0, 0.02, tableTopThickness + 0.01, depth - 0.02);
+    }
+
     // Steel Table Apron / Perimeter Frame
     for (const pz of [-halfD + 0.04, halfD - 0.04]) {
       addBox(tableGroup, darkSteelMat, 0, height - tableTopThickness - 0.04, pz, width - 0.14, 0.08, 0.03);
@@ -386,10 +520,11 @@ export function buildBackroomProps({ scene, colliders }) {
       addBox(tableGroup, darkSteelMat, px, height - tableTopThickness - 0.04, 0, 0.03, 0.08, depth - 0.14);
     }
 
-    // 4 Heavy Tubular Steel Legs
+    // 4 Heavy Tubular Steel Legs with rubber levelling pads
     for (const lx of [-halfW + legSize / 2 + 0.03, halfW - legSize / 2 - 0.03]) {
       for (const lz of [-halfD + legSize / 2 + 0.03, halfD - legSize / 2 - 0.03]) {
         addBox(tableGroup, darkSteelMat, lx, (height - tableTopThickness) / 2, lz, legSize, height - tableTopThickness, legSize);
+        addCylinder(tableGroup, binDarkMat, lx, 0.01, lz, 0.04, 0.02, 'y');
       }
     }
 
@@ -399,19 +534,31 @@ export function buildBackroomProps({ scene, colliders }) {
       addBox(tableGroup, darkSteelMat, lx, 0.16, 0, 0.05, 0.05, depth - 0.16);
     }
 
+    // Lower wooden shelf resting on the rails, with a parts bin on it
+    addBox(tableGroup, woodTableMat, 0, 0.1975, 0, width - 0.2, 0.025, depth - 0.2);
+    addBin(tableGroup, binBlueMat, -0.5, 0.3, 0, 0.5, 0.18, 0.4);
+
     // --- Tabletop Equipment & Clutter ---
     // 1. Diagnostic Oscilloscope / Test Terminal Unit
     const scopeX = -halfW + 0.45;
     const scopeZ = -0.15;
     const scopeY = height + 0.14;
     addBox(tableGroup, darkSteelMat, scopeX, scopeY, scopeZ, 0.48, 0.28, 0.38);
-    // Bezel screen
-    const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.18), screenMat);
-    screenMesh.position.set(scopeX, scopeY + 0.02, scopeZ + 0.191);
+    // Rubber feet
+    for (const fx of [-0.2, 0.2]) for (const fz of [-0.15, 0.15]) {
+      addBox(tableGroup, binDarkMat, scopeX + fx, height + 0.006, scopeZ + fz, 0.05, 0.012, 0.05);
+    }
+    // Carry handle on top
+    for (const hx of [-0.15, 0.15]) addBox(tableGroup, binDarkMat, scopeX + hx, scopeY + 0.15, scopeZ, 0.02, 0.03, 0.03);
+    addCylinder(tableGroup, binDarkMat, scopeX, scopeY + 0.165, scopeZ, 0.01, 0.32, 'x');
+    // Bezel frame and screen
+    addBox(tableGroup, binDarkMat, scopeX, scopeY + 0.02, scopeZ + 0.192, 0.37, 0.23, 0.006);
+    const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+    screenMesh.position.set(scopeX, scopeY + 0.02, scopeZ + 0.197);
     tableGroup.add(screenMesh);
     // Control knobs & dials
     for (let k = 0; k < 3; k++) {
-      addBox(tableGroup, chromeHardwareMat, scopeX - 0.12 + k * 0.12, scopeY - 0.09, scopeZ + 0.195, 0.04, 0.04, 0.02);
+      addCylinder(tableGroup, chromeHardwareMat, scopeX - 0.12 + k * 0.12, scopeY - 0.09, scopeZ + 0.2, 0.02, 0.02, 'z');
     }
 
     // 2. Blueprint Spread Out on the Tabletop
@@ -542,6 +689,8 @@ export function buildBackroomProps({ scene, colliders }) {
     dispose() {
       group.removeFromParent();
       cleanupGeometries.forEach((g) => g.dispose());
+      bevelGeometries.forEach((g) => g.dispose());
+      bevelGeometries.clear();
       cleanupMaterials.forEach((m) => m.dispose());
       cleanupTextures.forEach((t) => t.dispose());
     },

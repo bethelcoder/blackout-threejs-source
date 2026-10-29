@@ -1,8 +1,14 @@
 import * as THREE from 'three';
 import { loadModel } from '../systems/modelCache.js';
+import { TERMINAL } from './level2Layout.js';
 
-/** Retain the complete L-shaped workstation; put the usable computer on its clear wing. */
-export function arrangeTerminalStation(deskSource, computerSource, { onInteract, getLabel }) {
+/**
+ * Retain the complete L-shaped workstation; put the usable computer on its clear wing.
+ * `placement` is where the station sits in the world and how it is yawed: the
+ * whole L is built around the group origin, so moving the station only means
+ * moving the group.
+ */
+export function arrangeTerminalStation(deskSource, computerSource, { onInteract, getLabel, placement = TERMINAL }) {
   const group = new THREE.Group();
   group.name = 'Imported terminal workstation';
   function fit(source, scale, rotation = 0) {
@@ -20,24 +26,26 @@ export function arrangeTerminalStation(deskSource, computerSource, { onInteract,
   desk.name = 'Complete Desk_design_1 workstation';
   fit(deskSource, 0.005);
   desk.add(deskSource);
-  desk.position.set(0, 0, -5.7);
   desk.rotation.y = -Math.PI / 2;
   group.add(desk);
 
   const computer = new THREE.Group();
   computer.name = 'Retro computer grid terminal';
-  // Source keyboard faces +X: the right-hand side of the room.
+  // Source keyboard faces +X; the station yaw swings it to face into the room.
   fit(computerSource, 0.0035);
   computer.add(computerSource);
   const desktopHeight = 208.74721 * 0.005;
   const wingCenter = (234.84064 - 78.28023) * 0.005;
-  // Keep the right-facing computer centred on the rotated side wing.
-  computer.position.set(-wingCenter, desktopHeight, -5.7);
+  // Keep the computer centred on the rotated side wing, at desktop height.
+  computer.position.set(-wingCenter, desktopHeight, 0);
   computer.userData.interactable = true;
   computer.userData.label = 'Use grid terminal';
   computer.userData.getLabel = getLabel;
   computer.userData.onInteract = onInteract;
   group.add(computer);
+
+  group.position.set(placement.x, 0, placement.z);
+  group.rotation.y = placement.rotationY;
   group.updateMatrixWorld(true);
 
   // Two separate footprints leave the inside of the L accessible.
@@ -49,7 +57,7 @@ export function arrangeTerminalStation(deskSource, computerSource, { onInteract,
   return { group, colliders, computer };
 }
 
-export function buildTerminalStation({ scene, colliders, onInteract, getLabel, onReady }) {
+export function buildTerminalStation({ scene, colliders, onInteract, getLabel, onReady, placement }) {
   let disposed = false;
   let station = null;
   const resources = new Set();
@@ -75,7 +83,7 @@ export function buildTerminalStation({ scene, colliders, onInteract, getLabel, o
     load(new URL('../assets/models/retro-computer.glb', import.meta.url).href),
   ]).then(([desk, computer]) => {
     if (disposed) return;
-    station = arrangeTerminalStation(desk, computer, { onInteract, getLabel });
+    station = arrangeTerminalStation(desk, computer, { onInteract, getLabel, placement });
     scene.add(station.group);
     colliders.push(...station.colliders);
     onReady?.();
@@ -86,6 +94,8 @@ export function buildTerminalStation({ scene, colliders, onInteract, getLabel, o
   });
   return {
     ready,
+    // puzzleChain.js hangs the maintenance tag on the imported computer once it exists.
+    get computer() { return station?.computer ?? null; },
     dispose() {
       disposed = true;
       station?.group.removeFromParent();

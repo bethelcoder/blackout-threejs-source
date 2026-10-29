@@ -7,13 +7,13 @@ import { sound } from './audio.js';
  * Detects world meshes with `userData.pickupable = true` and `userData.itemId`.
  */
 export class PickupSystem {
-  constructor(getCamera, scene, promptEl, toastEl, onToolCollected = () => {}) {
+  constructor(getCamera, scene, promptEl, toastEl, onItemCollected = () => {}) {
     // getCamera can be a Camera instance or a function returning the active camera
     this.getCamera = typeof getCamera === 'function' ? getCamera : () => getCamera;
     this.scene = scene;
     this.promptEl = promptEl;
     this.toastEl = toastEl;
-    this.onToolCollected = onToolCollected;
+    this.onItemCollected = onItemCollected;
     this.targeting = new InteractionTarget();
 
     this.currentTarget = null;
@@ -67,9 +67,9 @@ export class PickupSystem {
         obj.userData.onPickup();
       }
 
-      // Tools go straight into the hand so the pickup is visible immediately;
-      // the item also keeps its bag slot.
-      if (def?.type === 'tool') this.onToolCollected(itemId);
+      // Picked-up items also go into the hand, so tools and books both read as
+      // just collected. The bag keeps them selectable afterwards.
+      this.onItemCollected(itemId);
 
       // Remove from scene and parent
       if (obj.parent) {

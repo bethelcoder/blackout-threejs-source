@@ -147,6 +147,29 @@ const pickupSystem = new PickupSystem(
   (itemId) => equipment.equipTool(itemId)
 );
 
+// Level 2's carry slot only hides the world prop. Mirroring it into the hand
+// keeps the pickup visible without putting it in the bag, and hands back
+// whatever the player was holding once the prop is put down again.
+let carriedItemId = null;
+let handBeforeCarry = null;
+function setCarryHand(itemId) {
+  if (itemId === carriedItemId) return;
+  if (!itemId) {
+    const previous = handBeforeCarry;
+    const wasInHand = carriedItemId !== null && equipment.isEquipped(carriedItemId);
+    carriedItemId = null;
+    handBeforeCarry = null;
+    if (wasInHand) {
+      if (previous) equipment.equipTool(previous);
+      else equipment.unequipTool();
+    }
+    return;
+  }
+  if (carriedItemId === null) handBeforeCarry = equipment.equippedTool;
+  carriedItemId = itemId;
+  equipment.equipTool(itemId);
+}
+
 const backpackUI = new BackpackUI({
   overlayEl: el('backpack-overlay'),
   slotsContainerEl: el('backpack-slots'),
@@ -687,7 +710,15 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
     onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
-    onVentExit: () => loadLevel(1, 'vent') };
+    onVentExit: () => loadLevel(1, 'vent'),
+    // Level 1's toolbox hands a tool straight to the bag and the hand, so the
+    // vent gating reads the same state that draws the tool in both views.
+    onToolTaken: (itemId) => {
+      if (!inventory.hasItem(itemId)) inventory.addItem(itemId);
+      equipment.equipTool(itemId);
+    },
+    getHeldToolId: () => equipment.equippedTool,
+    onCarryChange: setCarryHand };
   currentLevel = builder(args);
   currentLevelIndex = index;
 
@@ -704,6 +735,11 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   snapThirdPersonCamera();
 
   aiState.reset();
+
+  // A carried puzzle prop belongs to the level it came from.
+  if (carriedItemId && equipment.isEquipped(carriedItemId)) equipment.equipTool('torch');
+  carriedItemId = null;
+  handBeforeCarry = null;
 
   if (needsLoadingScreen) {
     await currentLevel.ready;
@@ -847,32 +883,85 @@ function startFacilityGame() {
   playerControls.lock();
 }
 
-// Start game triggers: Click opens the tactical guidance screen
-el('btn-play')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  showOnly(guidanceModal);
-});
-el('btn-hero-play')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  showOnly(guidanceModal);
-});
+function isGameActive() {
+  return currentLevel !== null && hudRoot && !hudRoot.classList.contains('hidden');
+}
 
-// Guidance modal action triggers
-el('btn-start-infiltration')?.addEventListener('click', () => {
-  startFacilityGame();
-});
+function openGuidanceModal() {
+  const btnStart = el('btn-start-infiltration');
+  const btnClose = el('btn-guidance-close');
+  const textSpan = btnStart?.querySelector('.btn-text');
+  const closeTextSpan = btnClose?.querySelector('.btn-text');
 
-el('btn-guidance-close')?.addEventListener('click', () => {
-  if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
-    guidanceModal?.classList.add('hidden');
+  if (isGameActive()) {
+    // In-game mode: User opened guidance with [H] or clicked objective panel
+    if (textSpan) {
+      textSpan.textContent = 'RESUME INFILTRATION [ENTER]';
+    } else if (btnStart) {
+      btnStart.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">RESUME INFILTRATION [ENTER]</span>';
+    }
+    btnStart?.classList.remove('primary');
+    btnStart?.classList.add('resume-start');
+
+    if (closeTextSpan) {
+      closeTextSpan.textContent = 'CLOSE DOSSIER [ESC]';
+    } else if (btnClose) {
+      btnClose.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">CLOSE DOSSIER [ESC]</span>';
+    }
+  } else {
+    // Main menu mode: User clicked "MISSION DOSSIER" or pressed Enter on title screen
+    if (textSpan) {
+      textSpan.textContent = 'COMMENCE INFILTRATION [ENTER]';
+    } else if (btnStart) {
+      btnStart.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">COMMENCE INFILTRATION [ENTER]</span>';
+    }
+    btnStart?.classList.add('primary');
+    btnStart?.classList.remove('resume-start');
+
+    if (closeTextSpan) {
+      closeTextSpan.textContent = 'BACK TO MENU';
+    } else if (btnClose) {
+      btnClose.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">BACK TO MENU</span>';
+    }
+  }
+
+  showOnly(guidanceModal);
+}
+
+function closeGuidanceModal() {
+  guidanceModal?.classList.add('hidden');
+  if (isGameActive()) {
     playerControls.lock();
   } else {
     showOnly(mainMenu);
   }
+}
+
+// Start game triggers: Click opens the tactical guidance screen
+el('btn-play')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openGuidanceModal();
+});
+el('btn-hero-play')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openGuidanceModal();
+});
+
+// Guidance modal action triggers
+el('btn-start-infiltration')?.addEventListener('click', () => {
+  if (isGameActive()) {
+    closeGuidanceModal();
+  } else {
+    startFacilityGame();
+  }
+});
+
+el('btn-guidance-close')?.addEventListener('click', () => {
+  closeGuidanceModal();
 });
 
 // Real video game UI hover sound effects
-document.querySelectorAll('.game-menu-btn, .btn-guidance-start').forEach((btn) => {
+document.querySelectorAll('.game-menu-btn, .btn-guidance-start, .tactical-btn').forEach((btn) => {
   btn.addEventListener('mouseenter', () => {
     sound.playKeypadBeep();
   });
@@ -900,19 +989,19 @@ window.addEventListener('keydown', tryPlayMusic, { once: true });
 // Navigation Bar & Modal Listeners
 el('nav-mission')?.addEventListener('click', (e) => {
   e.preventDefault();
-  showOnly(guidanceModal);
+  openGuidanceModal();
 });
 
 el('btn-hero-brief')?.addEventListener('click', (e) => {
   e.preventDefault();
-  showOnly(guidanceModal);
+  openGuidanceModal();
 });
 
 el('objective-panel')?.addEventListener('click', () => {
   if (playerControls.isLocked) {
     playerControls.unlock();
   }
-  showOnly(guidanceModal);
+  openGuidanceModal();
 });
 
 el('nav-controls')?.addEventListener('click', (e) => {
@@ -989,7 +1078,7 @@ el('btn-lose-menu')?.addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
   // If on main menu, Enter opens guidance modal
   if (!mainMenu.classList.contains('hidden') && e.code === 'Enter') {
-    showOnly(guidanceModal);
+    openGuidanceModal();
     return;
   }
   // If Lose screen is showing, pressing [R] or Enter restarts the level immediately
@@ -999,30 +1088,28 @@ document.addEventListener('keydown', (e) => {
     playerControls.lock();
     return;
   }
-  // If Guidance modal is showing, pressing [Enter] commences infiltration
+  // If Guidance modal is showing, pressing [Enter] commences or resumes infiltration
   if (guidanceModal && !guidanceModal.classList.contains('hidden') && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
-    startFacilityGame();
+    if (isGameActive()) {
+      closeGuidanceModal();
+    } else {
+      startFacilityGame();
+    }
     return;
   }
   // In-game: Press [H] to toggle Guidance & Riddle modal
   if (e.code === 'KeyH' && !e.repeat) {
     if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
-      guidanceModal.classList.add('hidden');
-      if (currentLevel) playerControls.lock();
-    } else if (playerControls.isLocked) {
-      playerControls.unlock();
-      showOnly(guidanceModal);
+      closeGuidanceModal();
+    } else if (isGameActive()) {
+      if (playerControls.isLocked) playerControls.unlock();
+      openGuidanceModal();
     }
     return;
   }
   if (e.code !== 'Escape') return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
-    guidanceModal.classList.add('hidden');
-    if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
-      playerControls.lock();
-    } else {
-      showOnly(mainMenu);
-    }
+    closeGuidanceModal();
     return;
   }
   if (controlsModal && !controlsModal.classList.contains('hidden')) {
@@ -1106,8 +1193,10 @@ function bootSequence() {
       loadingLabel.textContent = 'Substation systems ready.';
       setTimeout(() => {
         loadingScreen.style.opacity = '0';
+        loadingScreen.style.pointerEvents = 'none';
         setTimeout(() => {
           loadingScreen.classList.add('hidden');
+          loadingScreen.style.display = 'none';
           showOnly(mainMenu);
         }, 600);
       }, 250);

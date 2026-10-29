@@ -57,6 +57,34 @@ export const ITEM_DEFS = {
     icon: '💳',
     desc: 'Encrypted municipal magnetic keycard granting Level 1 clearance.',
   },
+  screwdriver: {
+    id: 'screwdriver',
+    name: 'Flat Screwdriver',
+    type: 'tool',
+    icon: '🪛',
+    desc: 'Insulated flat-head driver for vent grilles and panel screws.',
+  },
+  hammer: {
+    id: 'hammer',
+    name: 'Claw Hammer',
+    type: 'tool',
+    icon: '🔨',
+    desc: 'Forged claw hammer. Too blunt for the vent screws.',
+  },
+  wrench: {
+    id: 'wrench',
+    name: 'Open-End Wrench',
+    type: 'tool',
+    icon: '🔧',
+    desc: 'Flat forged wrench with an open jaw. Wrong fit for vent screws.',
+  },
+  pliers: {
+    id: 'pliers',
+    name: 'Pliers',
+    type: 'tool',
+    icon: '🗜️',
+    desc: 'Riveted pliers with dipped grips. Cannot grip the vent screws.',
+  },
 };
 
 export class Inventory {
