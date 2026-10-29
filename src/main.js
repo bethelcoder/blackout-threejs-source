@@ -11,6 +11,7 @@ import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
+import { attachHardHat } from './scenes/hardHat.js';
 import { preloadLevel2Models } from './systems/modelCache.js';
 import { createShockOverlay } from './shaders/shockOverlay.js';
 import { createCctvFeed } from './shaders/cctvFeed.js';
@@ -272,7 +273,11 @@ function loadPlayerModel() {
   activeAction = null;
 
   gltfLoader.load(
-    './models/player.glb', // CHANGED: was '/models/player.glb' (absolute path 404s when hosted in a subfolder)
+    // CHANGED: was '/models/player.glb' (absolute path 404s when hosted in a subfolder).
+    // ?v= is manual cache-busting: public/ files are served under their original
+    // name, so Vite never hashes them and browsers keep the old avatar after deploy.
+    // Bump it whenever player.glb changes.
+    './models/player.glb?v=2',
 
     (gltf) => {
       if (modelGeneration !== loadGeneration) return;
@@ -300,6 +305,10 @@ function loadPlayerModel() {
 
       playerModel = model;
       model.userData.ignoreInteraction = true;
+
+      // Rigid hat, bone-parented before the model is scaled/moved so the offsets
+      // stay in the avatar's own metres.
+      attachHardHat(model);
 
       // The clips rotate the armature -90 degrees, which leaves every skinned
       // mesh's bounding volume lying on the floor while the body renders upright.
