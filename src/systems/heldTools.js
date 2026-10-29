@@ -207,6 +207,13 @@ function buildTxCore() {
 
 const BUILDERS = {
   torch: buildTorch,
+  uv_flashlight: () => {
+    const torch = buildTorch();
+    torch.traverse(mesh => {
+      if (mesh.material?.isMeshBasicMaterial) mesh.material.color.setHex(0xc38aff);
+    });
+    return torch;
+  },
   insulated_wrench: buildWrench,
   multimeter: buildMultimeter,
   technical_guide: () => buildBook(0x1d374a),

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadModel } from '../systems/modelCache.js';
 import { CHAIR } from './level2Layout.js';
+import { batchStaticModel } from '../systems/staticGeometry.js';
 
 export function arrangeOfficeChair(source, placement = CHAIR) {
   const group = new THREE.Group();
@@ -8,6 +9,8 @@ export function arrangeOfficeChair(source, placement = CHAIR) {
   // The supplied chair faces +X, which is what the moved workstation needs;
   // any extra yaw goes on the group so the fit below stays axis-aligned.
   source.rotation.y = 0;
+  // The chair is rigid: combine its screws, wheels and cushions by material.
+  source = batchStaticModel(source);
   source.updateMatrixWorld(true);
   let bounds = new THREE.Box3().setFromObject(source);
   source.scale.setScalar(1.25 / bounds.getSize(new THREE.Vector3()).y);
@@ -41,6 +44,7 @@ export function buildOfficeChair({ scene, colliders, hud, onSit, isSeated, place
       });
       if (disposed) { release(); return; }
       chair = arrangeOfficeChair(gltf.scene, placement);
+      chair.group.traverse(object => { if (object.geometry) resources.add(object.geometry); });
       chair.group.userData.interactable = true;
       chair.group.userData.label = 'Sit at desk';
       chair.group.userData.reach = 1.8;

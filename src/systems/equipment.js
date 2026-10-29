@@ -13,6 +13,7 @@ export class EquipmentSystem {
     this.equippedTool = 'torch'; // Torch equipped in hand by default
     this.torchOn = true;
     this.torchIntensity = 3.5;
+    this.uvIntensity = 12;
     this.listeners = [];
   }
 
@@ -27,7 +28,11 @@ export class EquipmentSystem {
   }
 
   _applyTorchLight() {
-    if (this.flashlight) this.flashlight.intensity = this.torchOn ? this.torchIntensity : 0;
+    if (this.flashlight) {
+      const uv = this.equippedTool === 'uv_flashlight';
+      this.flashlight.color.set(uv ? 0xc38aff : 0xfff1db);
+      this.flashlight.intensity = this.torchOn ? (uv ? this.uvIntensity : this.torchIntensity) : 0;
+    }
     this.viewmodel?.setTool(this.equippedTool, this.torchOn);
   }
 
@@ -37,13 +42,14 @@ export class EquipmentSystem {
   }
 
   toggleTorch() {
-    if (this.equippedTool !== 'torch') {
+    if (!['torch', 'uv_flashlight'].includes(this.equippedTool)) {
       this.equipTool('torch');
       return true;
     }
     this.torchOn = !this.torchOn;
     sound.playSwitch();
     this._applyTorchLight();
+    this._notify();
     return this.torchOn;
   }
 
@@ -51,7 +57,7 @@ export class EquipmentSystem {
     this.equippedTool = itemId ?? null;
     // The beam is a camera-mounted headlamp, so drawing another tool must not
     // douse it - the player would be left in the dark mid-room.
-    if (itemId === 'torch') this.torchOn = true;
+    if (itemId === 'torch' || itemId === 'uv_flashlight') this.torchOn = true;
     sound.playSwitch();
     this._applyTorchLight();
     this._notify();

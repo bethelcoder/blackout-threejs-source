@@ -1,0 +1,56 @@
+[
+  {
+    "asset": "public/models/drawer-keypad.glb",
+    "maxTextureSize": 512,
+    "beforeMiB": 106.67,
+    "afterMiB": 6.67
+  },
+  {
+    "asset": "public/models/uv-flashlight.glb",
+    "maxTextureSize": 512,
+    "beforeMiB": 64.0,
+    "afterMiB": 4.0
+  },
+  {
+    "asset": "public/models/core-pillar.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 64.0,
+    "afterMiB": 16.0
+  },
+  {
+    "asset": "public/models/wooden-crates.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 106.67,
+    "afterMiB": 26.67
+  },
+  {
+    "asset": "public/models/earth-hologram.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 42.67,
+    "afterMiB": 10.67
+  },
+  {
+    "asset": "src/assets/models/core-display-terminal.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 64.67,
+    "afterMiB": 16.67
+  },
+  {
+    "asset": "src/assets/models/core-kitchen-bot.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 42.67,
+    "afterMiB": 10.67
+  },
+  {
+    "asset": "src/assets/models/core-office-chair.glb",
+    "maxTextureSize": 512,
+    "beforeMiB": 80.0,
+    "afterMiB": 20.0
+  },
+  {
+    "asset": "src/assets/models/core-toolbox.glb",
+    "maxTextureSize": 1024,
+    "beforeMiB": 64.0,
+    "afterMiB": 16.0
+  }
+]

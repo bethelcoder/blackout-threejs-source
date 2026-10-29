@@ -169,7 +169,12 @@ export function buildSecurityKeypad({
   sound,
   hud,
   onSuccess,
-  onPinStrike
+  onPinStrike,
+  successMessage = 'Access granted! Storage room door unlocked.',
+  successHint = 'Access granted. Click CONTINUE or press Enter to return, then open the storage room door.',
+  hintText = 'Enter the 4-digit code from the logbook. Four wrong PINs cause a strike. Escape to close.',
+  maxWrongAttempts = 3,
+  wrongMessage,
 }) {
   const group = new THREE.Group();
   group.position.set(...position);
@@ -714,23 +719,23 @@ export function buildSecurityKeypad({
         onSuccess?.();
 
         if (hud) {
-          hud.setObjective('Access granted! Storage room door unlocked.');
+          hud.setObjective(successMessage);
         }
 
         // Returning to pointer lock needs a fresh player gesture. A timer
         // cannot reliably capture the mouse after the PIN modal released it.
         enterText.innerText = 'CONTINUE';
-        hint.innerText = 'Access granted. Click CONTINUE or press Enter to return, then open the storage room door.';
+        hint.innerText = successHint;
       } else {
         // Access Denied!
         wrongAttempts++;
-        if (wrongAttempts > 3) {
+        if (wrongAttempts > maxWrongAttempts) {
           wrongAttempts = 0;
           closeModal();
           onPinStrike?.('door-pin');
           return;
         }
-        hud?.setObjective(`Incorrect door PIN (${wrongAttempts}/3). A fourth wrong attempt causes a security strike. Check the technician logbook.`);
+        hud?.setObjective(wrongMessage ?? `Incorrect door PIN (${wrongAttempts}/3). A fourth wrong attempt causes a security strike. Check the technician logbook.`);
         if (sound && sound.playDetectionWarning) sound.playDetectionWarning(0.6);
         statusLight.style.backgroundColor = '#ff1111';
         statusLight.style.boxShadow = '0 0 14px #ff0000';
@@ -770,7 +775,7 @@ export function buildSecurityKeypad({
 
     // Hint text below frame
     const hint = document.createElement('div');
-    hint.innerText = 'Enter the 4-digit code from the logbook. Four wrong PINs cause a strike. Escape to close.';
+    hint.innerText = hintText;
     Object.assign(hint.style, {
       color: '#adb5bd',
       fontSize: '14px',
@@ -828,6 +833,7 @@ export function buildSecurityKeypad({
   return {
     mesh: group,
     isUnlocked: () => unlocked,
+    get isOpen() { return !!disposeModal; },
     dispose: () => {
       disposeModal?.();
       clearTimeout(feedbackTimer);

@@ -697,7 +697,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   const builder = LEVEL_BUILDERS[index];
-  const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding,
+  const args = { scene, aiState, hud, equipment, terminalUI: terminal, onEnding: playEnding,
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
@@ -1218,7 +1218,7 @@ function tick() {
   // to eliminate GPU/CPU contention with the interactive Spline robot viewer and landing audio.
   const isLandingMenu = !mainMenu.classList.contains('hidden');
   const isInitialBoot = !currentLevel && loadingScreen && !loadingScreen.classList.contains('hidden');
-  if (isLandingMenu || isInitialBoot || levelLoading) {
+  if (document.hidden || isLandingMenu || isInitialBoot || levelLoading) {
     clock.getDelta();
     renderQuality.reset();
     return;
@@ -1229,7 +1229,7 @@ function tick() {
   if (playerControls.isLocked && !document.hidden) renderQuality.update(frameSeconds);
   else renderQuality.reset();
 
-  if (playerMixer) {
+  if (playerMixer && (playerControls.cameraMode === 'third' || (currentLevel?.cctvCamera && currentLevel.cctvEnabled !== false))) {
     playerMixer.update(delta);
   }
   if (characterGrip) {
@@ -1318,103 +1318,106 @@ function tick() {
 
 
 
-    // Make the third-person camera follow behind the player with spring-arm obstacle avoidance.
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
+    // The spring arm and its collider tests are only needed in third-person view.
+    if (playerControls.cameraMode === 'third') {
+      // Make the third-person camera follow behind the player with spring-arm obstacle avoidance.
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
 
-    // Keep the camera behind the player based on horizontal look direction.
-    const horizontalDirection = direction.clone();
-    horizontalDirection.y = 0;
-    horizontalDirection.normalize();
+      // Keep the camera behind the player based on horizontal look direction.
+      const horizontalDirection = direction.clone();
+      horizontalDirection.y = 0;
+      horizontalDirection.normalize();
 
-    // The anchor point on the player (head/chest level)
-    const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
+      // The anchor point on the player (head/chest level)
+      const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
 
-    // Desired camera target in open space (1.8m back, 0.45m up)
-    const desiredTarget = camera.position.clone()
-      .addScaledVector(horizontalDirection, -1.8)
-      .add(new THREE.Vector3(0, 0.45, 0));
+      // Desired camera target in open space (1.8m back, 0.45m up)
+      const desiredTarget = camera.position.clone()
+        .addScaledVector(horizontalDirection, -1.8)
+        .add(new THREE.Vector3(0, 0.45, 0));
 
-    // Vector from anchor to desired camera position
-    const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
-    const desiredDist = toCameraVec.length();
-    const rayDir = toCameraVec.clone().normalize();
+      // Vector from anchor to desired camera position
+      const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+      const desiredDist = toCameraVec.length();
+      const rayDir = toCameraVec.clone().normalize();
 
-    // Check collision against all level colliders (walls, cupboards, shelves, server racks)
-    let safeDistance = desiredDist;
-    const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
-    const hitPoint = new THREE.Vector3();
+      // Check collision against all level colliders (walls, cupboards, shelves, server racks)
+      let safeDistance = desiredDist;
+      const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+      const hitPoint = new THREE.Vector3();
 
-    if (currentLevel?.colliders) {
-      for (const box of currentLevel.colliders) {
-        if (!box || box.isEmpty()) continue;
-        if (cameraRay.intersectBox(box, hitPoint)) {
-          const hitDist = cameraAnchor.distanceTo(hitPoint);
-          if (hitDist < safeDistance) {
-            safeDistance = hitDist;
+      if (currentLevel?.colliders) {
+        for (const box of currentLevel.colliders) {
+          if (!box || box.isEmpty()) continue;
+          if (cameraRay.intersectBox(box, hitPoint)) {
+            const hitDist = cameraAnchor.distanceTo(hitPoint);
+            if (hitDist < safeDistance) {
+              safeDistance = hitDist;
+            }
           }
         }
       }
+
+      // Maintain a safe buffer in front of any hit surface so camera near plane never clips into obstacles
+      let finalDist = desiredDist;
+      if (safeDistance < desiredDist) {
+        const buffer = Math.min(0.20, safeDistance * 0.4);
+        finalDist = Math.max(0.05, safeDistance - buffer);
+      }
+      const thirdPersonPosition = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+      // Hard clamp within designated room space for the active level
+      const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+      thirdPersonPosition.x = THREE.MathUtils.clamp(thirdPersonPosition.x, bounds.minX, bounds.maxX);
+      thirdPersonPosition.y = THREE.MathUtils.clamp(thirdPersonPosition.y, bounds.minY, bounds.maxY);
+      thirdPersonPosition.z = THREE.MathUtils.clamp(thirdPersonPosition.z, bounds.minZ, bounds.maxZ);
+
+      if (playerControls.cameraMode === "third" && previousCameraMode === "first") {
+        thirdPersonCamera.position.copy(thirdPersonPosition);
+      } else {
+        thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
+      }
+
+      // Hard clamp thirdPersonCamera.position after lerping so it can NEVER leave designated room space
+      thirdPersonCamera.position.x = THREE.MathUtils.clamp(thirdPersonCamera.position.x, bounds.minX, bounds.maxX);
+      thirdPersonCamera.position.y = THREE.MathUtils.clamp(thirdPersonCamera.position.y, bounds.minY, bounds.maxY);
+      thirdPersonCamera.position.z = THREE.MathUtils.clamp(thirdPersonCamera.position.z, bounds.minZ, bounds.maxZ);
+
+      // If camera is squeezed very close to player against a wall, hide player model so it doesn't obstruct view
+      // When in first-person mode, player model must remain hidden to avoid first-person clipping
+      if (playerModel) {
+        playerModel.visible = playerControls.cameraMode === "third" && finalDist > 0.45;
+      }
+
+      // Preserve the existing limited mouse-look angle.
+      const horizontalAngle = Math.atan2(direction.x, direction.z);
+      const pitch = Math.asin(
+        THREE.MathUtils.clamp(direction.y, -1, 1)
+      );
+
+      const limitedPitch = THREE.MathUtils.clamp(
+        pitch,
+        MIN_CAMERA_PITCH,
+        MAX_CAMERA_PITCH
+      );
+
+      const lookDirection = new THREE.Vector3(
+        Math.sin(horizontalAngle) * Math.cos(limitedPitch),
+        Math.sin(limitedPitch),
+        Math.cos(horizontalAngle) * Math.cos(limitedPitch)
+      );
+
+      // Aim at the player's normal reference height, not the lowered
+      // first-person camera height.
+      const lookTarget = new THREE.Vector3(
+        camera.position.x,
+        camera.position.y - 0.5,
+        camera.position.z
+      ).addScaledVector(lookDirection, 5);
+
+      thirdPersonCamera.lookAt(lookTarget);
     }
-
-    // Maintain a safe buffer in front of any hit surface so camera near plane never clips into obstacles
-    let finalDist = desiredDist;
-    if (safeDistance < desiredDist) {
-      const buffer = Math.min(0.20, safeDistance * 0.4);
-      finalDist = Math.max(0.05, safeDistance - buffer);
-    }
-    const thirdPersonPosition = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
-
-    // Hard clamp within designated room space for the active level
-    const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
-    thirdPersonPosition.x = THREE.MathUtils.clamp(thirdPersonPosition.x, bounds.minX, bounds.maxX);
-    thirdPersonPosition.y = THREE.MathUtils.clamp(thirdPersonPosition.y, bounds.minY, bounds.maxY);
-    thirdPersonPosition.z = THREE.MathUtils.clamp(thirdPersonPosition.z, bounds.minZ, bounds.maxZ);
-
-    if (playerControls.cameraMode === "third" && previousCameraMode === "first") {
-      thirdPersonCamera.position.copy(thirdPersonPosition);
-    } else {
-      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
-    }
-
-    // Hard clamp thirdPersonCamera.position after lerping so it can NEVER leave designated room space
-    thirdPersonCamera.position.x = THREE.MathUtils.clamp(thirdPersonCamera.position.x, bounds.minX, bounds.maxX);
-    thirdPersonCamera.position.y = THREE.MathUtils.clamp(thirdPersonCamera.position.y, bounds.minY, bounds.maxY);
-    thirdPersonCamera.position.z = THREE.MathUtils.clamp(thirdPersonCamera.position.z, bounds.minZ, bounds.maxZ);
-
-    // If camera is squeezed very close to player against a wall, hide player model so it doesn't obstruct view
-    // When in first-person mode, player model must remain hidden to avoid first-person clipping
-    if (playerModel) {
-      playerModel.visible = playerControls.cameraMode === "third" && finalDist > 0.45;
-    }
-
-    // Preserve the existing limited mouse-look angle.
-    const horizontalAngle = Math.atan2(direction.x, direction.z);
-    const pitch = Math.asin(
-      THREE.MathUtils.clamp(direction.y, -1, 1)
-    );
-
-    const limitedPitch = THREE.MathUtils.clamp(
-      pitch,
-      MIN_CAMERA_PITCH,
-      MAX_CAMERA_PITCH
-    );
-
-    const lookDirection = new THREE.Vector3(
-      Math.sin(horizontalAngle) * Math.cos(limitedPitch),
-      Math.sin(limitedPitch),
-      Math.cos(horizontalAngle) * Math.cos(limitedPitch)
-    );
-
-    // Aim at the player's normal reference height, not the lowered
-    // first-person camera height.
-    const lookTarget = new THREE.Vector3(
-      camera.position.x,
-      camera.position.y - 0.5,
-      camera.position.z
-    ).addScaledVector(lookDirection, 5);
-
-    thirdPersonCamera.lookAt(lookTarget);
   }
 
   // Ensure first-person camera / player position stays within interior level bounds

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { batchStaticModel } from '../systems/staticGeometry.js';
 
 // Both copies share one download, their geometry, and their PBR textures.
 export function buildStorageCabinets() {
@@ -43,7 +44,7 @@ export function buildStorageCabinets() {
   }
   const ready = new GLTFLoader().loadAsync('./models/metal-storage-cabinet.glb').then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
-    template = gltf.scene;
+    template = batchStaticModel(gltf.scene);
     const bounds = new THREE.Box3().setFromObject(template);
     const size = bounds.getSize(new THREE.Vector3());
     const center = bounds.getCenter(new THREE.Vector3());

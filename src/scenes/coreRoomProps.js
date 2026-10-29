@@ -1,22 +1,19 @@
 import * as THREE from 'three';
 import { loadModel } from '../systems/modelCache.js';
 import { buildCardboardBoxes } from './cardboardBoxes.js';
+import { batchStaticModel as batchCabinet } from '../systems/staticGeometry.js';
+export { batchStaticModel as batchCabinet } from '../systems/staticGeometry.js';
 
 const CABINET_URL = './models/metal-storage-cabinet.glb';
 const CABINET_HEIGHT = 2.1;
 
-// Level 3's shockwave ring sweeps out to r=10.2, so the floor between the core
-// and the walls has to stay runnable: every prop below hugs a wall, clear of the
-// breaker plinths and the switchgear racks that line x = +-6.2.
+// Keep storage against the perimeter and the route to the hologram open.
 const CABINETS = [
-  { x: -3.45, z: -6.5, yaw: 0 },          // north wall, flanking the corrupted panel
-  { x: 3.45, z: -6.5, yaw: 0 },
   { x: 2.35, z: 6.5, yaw: Math.PI },      // south wall bank beside the work area
   { x: 3.55, z: 6.5, yaw: Math.PI },
 ];
 
 const CRATE_SPOTS = [
-  { x: -4.85, z: -6.1 },
   { x: 3.55, z: 5.05 },
 ];
 
@@ -81,9 +78,9 @@ export function buildCoreRoomProps() {
   }
 
   let disposed = false;
-  const ready = loadModel(CABINET_URL).then(gltf => {
+  const cabinetReady = loadModel(CABINET_URL).then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
-    const template = gltf.scene;
+    const template = batchCabinet(gltf.scene);
     const bounds = new THREE.Box3().setFromObject(template);
     const size = bounds.getSize(new THREE.Vector3());
     const centre = bounds.getCenter(new THREE.Vector3());
@@ -100,6 +97,74 @@ export function buildCoreRoomProps() {
     }
   }).catch(error => console.warn('Storage cabinet model unavailable; keeping blockout.', error));
 
+  const officeDrawer = new THREE.Group();
+  officeDrawer.name = 'Office drawer beside right supercomputer';
+  officeDrawer.position.set(4.95, 0, -6.05);
+  group.add(officeDrawer);
+  const drawerCollider = new THREE.Box3();
+  colliders.push(drawerCollider);
+  const drawerReady = loadModel('./models/office-drawer.glb').then(gltf => {
+    if (disposed) { disposeModel(gltf.scene); return; }
+    const model = batchCabinet(gltf.scene);
+    // The supplied drawer fronts face -X; turn them toward the room (+Z).
+    model.rotation.y = Math.PI / 2;
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = bounds.getSize(new THREE.Vector3());
+    const centre = bounds.getCenter(new THREE.Vector3());
+    const scale = Math.min(1.65 / size.x, 1.65 / size.y, 1.6 / size.z);
+    model.scale.setScalar(scale);
+    model.position.set(-centre.x * scale, -bounds.min.y * scale, -centre.z * scale);
+    model.traverse(object => { if (object.isMesh) object.castShadow = object.receiveShadow = true; });
+    officeDrawer.add(model);
+    officeDrawer.updateWorldMatrix(true, true);
+    drawerCollider.setFromObject(officeDrawer);
+  }).catch(error => console.warn('Office drawer model unavailable.', error));
+  const cratePile = new THREE.Group();
+  cratePile.name = 'Sci-fi crate pile right of display terminal';
+  // The terminal faces +X; its right-hand side is toward the rear wall (-Z).
+  cratePile.position.set(-6.1, 0, -4.25);
+  group.add(cratePile);
+  const crateCollider = new THREE.Box3();
+  colliders.push(crateCollider);
+  const crateReady = loadModel('./models/sci-fi-crate-pile.glb').then(gltf => {
+    if (disposed) { disposeModel(gltf.scene); return; }
+    const model = batchCabinet(gltf.scene);
+    model.rotation.y = Math.PI / 2;
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = bounds.getSize(new THREE.Vector3());
+    const centre = bounds.getCenter(new THREE.Vector3());
+    const scale = Math.min(1.25 / size.x, 1.5 / size.y, 1.4 / size.z);
+    model.scale.setScalar(scale);
+    model.position.set(-centre.x * scale, -bounds.min.y * scale, -centre.z * scale);
+    model.traverse(object => { if (object.isMesh) object.castShadow = object.receiveShadow = true; });
+    cratePile.add(model);
+    cratePile.updateWorldMatrix(true, true);
+    crateCollider.setFromObject(cratePile);
+  }).catch(error => console.warn('Sci-fi crate pile unavailable.', error));
+  const wallSign = new THREE.Group();
+  wallSign.name = 'Wall-mounted radiation sign';
+  wallSign.position.set(6.94, 2.7, -3.7);
+  wallSign.rotation.y = -Math.PI / 2;
+  group.add(wallSign);
+  const signReady = loadModel('./models/radiation-wall-sign.glb').then(gltf => {
+    if (disposed) { disposeModel(gltf.scene); return; }
+    const model = gltf.scene;
+    // The pole was removed during conversion; orient the triangular face upright.
+    model.rotation.y = -Math.PI / 2;
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = bounds.getSize(new THREE.Vector3());
+    const centre = bounds.getCenter(new THREE.Vector3());
+    const scale = Math.min(1.1 / size.x, 0.95 / size.y);
+    model.scale.setScalar(scale);
+    model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
+    model.traverse(object => { if (object.isMesh) { object.receiveShadow = true; object.material.side = THREE.DoubleSide; } });
+    wallSign.add(model);
+  }).catch(error => console.warn('Wall sign unavailable.', error));
+  const ready = Promise.all([cabinetReady, drawerReady, crateReady, signReady]);
+
   return {
     group,
     colliders,
@@ -108,10 +173,7 @@ export function buildCoreRoomProps() {
       if (disposed) return;
       disposed = true;
       group.removeFromParent();
-      group.traverse(object => {
-        if (object.geometry && object.geometry !== placeholderGeometry) object.geometry.dispose();
-        if (object.material && object.material !== placeholderMaterial) object.material.dispose();
-      });
+      disposeModel(group);
       placeholderGeometry.dispose();
       placeholderMaterial.dispose();
     },

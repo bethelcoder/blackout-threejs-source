@@ -58,13 +58,13 @@ export function createCircuitPuzzle({onSolved}) {
       overlay=document.createElement('div');overlay.id='core-circuit-overlay';
       overlay.style.cssText='position:fixed;inset:0;z-index:10000;overflow:auto;background:#020c14f5;color:#b8f4ff;display:grid;place-items:center;padding:16px;font:15px monospace;box-sizing:border-box';
       const panel=document.createElement('section');panel.style.cssText='width:min(500px,100%);padding:20px;border:1px solid #27bdd7;background:#061c28;box-sizing:border-box';
-      panel.innerHTML='<h2 style="margin:0;color:#5eeaff">NEURAL LINK / CIRCUIT OVERRIDE</h2><p>Rotate tiles to connect IN → OUT through relays R1, R2 and R3. Start: 3V. Required output: 5V. Modifiers add or subtract voltage along the live wire.</p><p>Click / Enter: rotate clockwise · Right-click: counterclockwise · Padlocks cannot rotate. No timer.</p>';
+      panel.innerHTML='<h2 style="margin:0;color:#5eeaff">CIRCUIT OVERRIDE</h2><p>Connect IN to OUT through all 3 relays. Finish at 5V.</p><p>Click a tile to rotate.</p>';
       const status=document.createElement('p');status.setAttribute('aria-live','polite');
       const board=document.createElement('div');board.style.cssText='display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px';
       const buttons=[];
       function draw(){
         const state=evaluateCircuit(tiles);
-        status.textContent=`SIGNAL ${state.voltage}V / TARGET 5V  ·  RELAYS ${state.relays.size}/3 — ${state.reason}`;
+        status.textContent=`SIGNAL ${state.voltage}V / TARGET 5V  ·  RELAYS ${state.relays.size}/3`;
         tiles.forEach((tile,i)=>{
           const b=buttons[i],live=state.active.has(i),blocked=tile.locked&&![3,12].includes(i);
           const color=live?'#75ffb3':tile.relay?'#ffc875':'#32899e';

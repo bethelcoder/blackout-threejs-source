@@ -99,11 +99,11 @@ export class BackpackUI {
       if (item) {
         let statusBadge = item.type.toUpperCase();
         let badgeClass = 'tool';
-        if (item.id === 'torch') {
+        if (item.id === 'torch' || item.id === 'uv_flashlight') {
           // The beam is a headlamp, so it can be lit with a wrench in hand:
           // report the hand slot and the beam separately.
-          const inHand = this.equipment?.equippedTool === 'torch';
-          const lit = this.equipment?.torchOn;
+          const inHand = this.equipment?.equippedTool === item.id;
+          const lit = this.equipment?.torchOn && (item.id === 'torch' ? this.equipment?.equippedTool !== 'uv_flashlight' : inHand);
           statusBadge = `${inHand ? 'EQUIPPED' : 'IN BAG'} [${lit ? 'LIGHT ON' : 'LIGHT OFF'}]`;
           badgeClass = lit ? 'active-torch' : 'idle-torch';
         } else if (item.type === 'document' || item.type === 'tool') {
@@ -165,9 +165,11 @@ export class BackpackUI {
     sound.playKeypadBeep();
 
     let message;
-    if (item.id === 'torch') {
-      const isOn = this.equipment?.toggleTorch();
-      message = `Inspection Torch ${isOn ? 'ENABLED (BEAM ON)' : 'DISABLED (BEAM OFF)'}`;
+    if (item.id === 'torch' || item.id === 'uv_flashlight') {
+      const isOn = this.equipment?.equippedTool === item.id
+        ? this.equipment.toggleTorch()
+        : (this.equipment?.equipTool(item.id), this.equipment?.torchOn);
+      message = `${item.name} ${isOn ? 'ENABLED (BEAM ON)' : 'DISABLED (BEAM OFF)'}`;
     } else if (item.type === 'tool' || item.type === 'document') {
       // Clicking a holdable item toggles it between the hand and its bag slot;
       // documents can still be read with the READ chip.

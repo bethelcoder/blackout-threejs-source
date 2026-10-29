@@ -5,7 +5,8 @@ const context = new Proxy({}, { get: (_, key) => key.startsWith('create') ? () =
 globalThis.document = { createElement: () => ({ getContext: () => context }) };
 const props = buildCoreFurnishings();
 props.group.updateMatrixWorld(true);
-assert.equal(props.colliders.length, 4, 'Only racks, chair and bench create floor obstacles');
+assert.equal(props.colliders.length, 3, 'Supercomputers and maintenance bench retain collision');
+assert.ok(props.group.getObjectByName('NODE ARRAY / 01') && props.group.getObjectByName('NODE ARRAY / 02'), 'Both supercomputers restored');
 let meshes = 0;
 props.group.traverse(object => { if (object.isMesh) meshes++; });
 assert.ok(meshes <= 16, 'Static detailing merged into a small number of draw calls');

@@ -33,7 +33,7 @@ try {
   const meshesA = [], meshesB = [];
   a.traverse(object => { if (object.isMesh) meshesA.push(object); });
   b.traverse(object => { if (object.isMesh) meshesB.push(object); });
-  assert.equal(meshesA.length, 189);
+  assert.equal(meshesA.length, 5);
   meshesA.forEach((mesh, index) => assert.equal(mesh.geometry, meshesB[index].geometry, 'Copies share geometry'));
   props.dispose();
   const cancelled = buildStorageCabinets();

@@ -4,6 +4,16 @@
  */
 
 export const ITEM_DEFS = {
+  robot_flow_module: { id: 'robot_flow_module', name: 'Power Module', type: 'part', icon: '⚙', desc: 'Triangular circuit component. Match it to the power socket.' },
+  robot_motion_module: { id: 'robot_motion_module', name: 'Relay', type: 'part', icon: '⚙', desc: 'Diamond circuit component. Match it to the relay socket.' },
+  robot_interface_module: { id: 'robot_interface_module', name: 'Control Chip', type: 'part', icon: '⚙', desc: 'Hexagonal circuit component. Match it to the control socket.' },
+  uv_flashlight: {
+    id: 'uv_flashlight',
+    name: 'UV Flashlight',
+    type: 'tool',
+    icon: '🔦',
+    desc: 'Ultraviolet inspection flashlight recovered from the engineer’s locked drawer.',
+  },
   torch: {
     id: 'torch',
     name: 'Inspection Torch',

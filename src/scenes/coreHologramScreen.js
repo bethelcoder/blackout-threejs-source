@@ -48,7 +48,7 @@ export function buildCoreHologramScreen() {
       g.fillRect(980 + i * 19, 290 - (30 + (i * 37) % 100), 11, 30 + (i * 37) % 100);
     }
     g.fillStyle = '#8eefff';
-    g.fillText('ISOLATION', 985, 380);
+    g.fillText('COMPONENTS', 985, 380);
     g.font = 'bold 46px monospace'; g.fillText(`${progress} / 3`, 1000, 438);
     g.font = '16px monospace'; g.fillText('MUNICIPAL GRID STABLE', 960, 515);
     g.fillText('SYNAPSE // CONTROL ARRAY', 490, 607);
@@ -74,14 +74,38 @@ export function buildCoreHologramScreen() {
   const scan = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 0.009), ringMaterial);
   scan.position.z = 0.065;
   group.add(scan);
+  const guidanceMaterial = new THREE.MeshBasicMaterial({ color: 0x69edff, transparent: true,
+    opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const guidanceGlow = new THREE.Mesh(new THREE.PlaneGeometry(5.35, 2.85), guidanceMaterial);
+  guidanceGlow.name = 'Hologram guidance glow'; guidanceGlow.position.z = -0.012; guidanceGlow.visible = false;
+  group.add(guidanceGlow);
+  const frameGeometry = new THREE.PlaneGeometry(5.15, 2.65);
+  const guidanceFrame = new THREE.LineSegments(new THREE.EdgesGeometry(frameGeometry),
+    new THREE.LineBasicMaterial({ color: 0x9affed, transparent: true, depthWrite: false, toneMapped: false }));
+  frameGeometry.dispose();
+  guidanceFrame.name = 'Hologram guidance frame'; guidanceFrame.position.z = 0.075; guidanceFrame.visible = false;
+  group.add(guidanceFrame);
+  let guidance = false;
   paint(0); lastProgress = 0;
   return {
     group,
+    setGuidance(active) {
+      guidance = active; guidanceGlow.visible = active; guidanceFrame.visible = active;
+    },
     update(time, progress, charge) {
       if (progress !== lastProgress) { paint(progress); lastProgress = progress; }
       rings.forEach((ring, i) => { ring.rotation.z = time * (i % 2 ? -1 : 1) * (0.12 + i * 0.035); });
       scan.position.y = 1.18 - (time * 0.28 % 2.36);
       ringMaterial.opacity = 0.65 + Math.sin(time * 2) * 0.08 + charge * 0.15;
+      if (guidance) {
+        const pulse = 0.5 + Math.sin(time * 3) * 0.5;
+        guidanceMaterial.opacity = 0.18 + pulse * 0.24;
+        guidanceFrame.material.opacity = 0.8 + pulse * 0.2;
+        ringMaterial.opacity = 0.8 + pulse * 0.2;
+        material.color.setRGB(1.8 + pulse * 1.2, 1.8 + pulse * 1.2, 1.8 + pulse * 1.2);
+      } else {
+        material.color.setRGB(1, 1, 1);
+      }
     },
     // Geometry, material and map are owned by level3's root disposal.
   };
