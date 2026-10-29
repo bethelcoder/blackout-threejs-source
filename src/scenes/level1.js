@@ -17,6 +17,7 @@ import { buildStorageDoor } from './storageDoor.js';
 import { buildFrontDoor } from './frontDoor.js';
 import { createRoomPower } from '../systems/roomPower.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
+import { createVentHaze } from '../shaders/ventHaze.js';
 
 /**
  * LEVEL 1 — INFILTRATION
@@ -289,7 +290,8 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
   for (let row = 0; row <= 10; row++) {
     ceilingDetail('Ceiling grid cross rail', 0, 6.735, -10 + row * 2, 14, 0.025, 0.018, trimMat);
   }
-  for (const [x, z] of [[-1.5, -5], [4.5, 1], [-4.5, 7]]) {
+  const ventSpots = [[-1.5, -5], [4.5, 1], [-4.5, 7]];
+  for (const [x, z] of ventSpots) {
     ceilingDetail('Inset ventilation frame', x, 6.705, z, 0.78, 0.035, 0.95, trimMat);
     ceilingDetail('Dark ventilation opening', x, 6.68, z, 0.69, 0.02, 0.86, ventMat);
     for (let slat = 0; slat < 9; slat++) {
@@ -321,6 +323,18 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     ventMat.dispose();
     detailGeo.dispose();
     diffuserMat.dispose();
+  });
+
+  // Faint displaced air under each ceiling vent, so the grilles read as working
+  // extractors rather than decoration.
+  const ventHazes = ventSpots.map(([x, z], index) => {
+    const haze = createVentHaze({
+      position: new THREE.Vector3(x, 6.64, z),
+      seed: index * 13.7,
+    });
+    scene.add(haze.group);
+    cleanup.push(() => haze.dispose());
+    return haze;
   });
 
   // Cardboard clutter props.
@@ -438,6 +452,8 @@ export function buildLevel1({ scene, aiState, hud, onShock, onVentEnter, onVentE
     clockPuzzle.update(delta);
 
     if (sparks.userData.update) sparks.userData.update(delta);
+
+    for (const haze of ventHazes) haze.update(delta);
 
     if (power.securityOnline) securitySweep.update(delta);
     const cameraSeesPlayer = power.securityOnline && securitySweep.sees(camera.position);

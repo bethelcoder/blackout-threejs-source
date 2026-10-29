@@ -8,6 +8,8 @@ import { buildTerminalStation } from './terminalStation.js';
 import { buildOfficeChair } from './officeChair.js';
 import { buildServerRacks } from './serverRacks.js';
 import { buildVenatorSmallDoor } from './venatorSmallDoor.js';
+import { createRoutingHologram } from '../shaders/routingHologram.js';
+import { createRackDataStream } from '../shaders/rackDataStream.js';
 
 /**
  * LEVEL 2 — CONTROL
@@ -148,6 +150,27 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
   const officeChair = buildOfficeChair({ scene, colliders, hud, onSit: onChairSit, isSeated: isPlayerSeated });
   cleanup.push(() => officeChair.dispose());
 
+  // Floor routing schematic on the open deck beside the walkway.
+  const routingHologram = createRoutingHologram({
+    position: new THREE.Vector3(-3.4, 0.015, 0.6),
+    radius: 1.6,
+    color: 0x4fe3ff,
+    intensity: 1,
+  });
+  scene.add(routingHologram.group);
+  cleanup.push(() => routingHologram.dispose());
+
+  // Data-traffic monitor on the face of the near server rack.
+  const rackStream = createRackDataStream({
+    position: new THREE.Vector3(5.33, 1.62, -1.4),
+    rotationY: -Math.PI / 2,
+    width: 0.82,
+    height: 1.5,
+    intensity: 1,
+  });
+  scene.add(rackStream.group);
+  cleanup.push(() => rackStream.dispose());
+
   let solved = false;
   terminalUI.onSolved = () => {
     if (solved || laserSecurity.isActive()) return;
@@ -179,6 +202,8 @@ export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecuri
 
   function update(delta, camera) {
     laserSecurity.update(delta, camera);
+    routingHologram.update(delta);
+    rackStream.update(delta);
     smallDoor.update(delta, solved);
     design.update(delta, camera);
     if (solved) {

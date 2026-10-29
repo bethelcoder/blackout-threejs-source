@@ -12,6 +12,8 @@ import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
 import { preloadLevel2Models } from './systems/modelCache.js';
+import { createShockOverlay } from './shaders/shockOverlay.js';
+import { createCctvFeed } from './shaders/cctvFeed.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { inventory } from './systems/inventory.js';
 import { PickupSystem } from './systems/pickupSystem.js';
@@ -36,14 +38,21 @@ renderer.toneMappingExposure = 1.35;
 const cctvCanvas = document.getElementById('cctv-canvas');
 const cctvContainer = document.getElementById('cctv-container');
 let cctvRenderer = null;
+let cctvFeed = null;
 if (cctvCanvas) {
   cctvRenderer = new THREE.WebGLRenderer({ canvas: cctvCanvas, antialias: false });
   cctvRenderer.setSize(240, 135);
   cctvRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  cctvRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  cctvRenderer.toneMappingExposure = 1.35;
+  cctvFeed = createCctvFeed({ width: 240, height: 135 });
 }
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x1a2634, 0.005);
+
+// Full-screen electrical hit feedback, drawn over whichever camera is active.
+const shockOverlay = createShockOverlay();
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
 const PLAYER_HEIGHT = 1.7;
@@ -291,6 +300,13 @@ function loadPlayerModel() {
       playerModel = model;
       model.userData.ignoreInteraction = true;
 
+      // The clips rotate the armature -90 degrees, which leaves every skinned
+      // mesh's bounding volume lying on the floor while the body renders upright.
+      // Frustum culling then hides parts individually (the head most visibly).
+      model.traverse((object) => {
+        if (object.isMesh) object.frustumCulled = false;
+      });
+
       model.scale.set(1.2, 1.2, 1.2);
       model.position.copy(camera.position);
       model.position.y = 0;
@@ -331,6 +347,9 @@ function loadPlayerModel() {
             // Ignore animations belonging to a model that was replaced.
             if (playerModel !== model) return;
 
+            console.log('Loaded animation:', name, path);
+            console.log('Animation clips:', fbx.animations.map(clip => clip.name));
+
             const sourceClip = fbx.animations[0];
 
             if (!sourceClip) {
@@ -338,53 +357,29 @@ function loadPlayerModel() {
               return;
             }
 
-            // Keep the working fix: exclude Armature and Hips tracks.
+            // Every Mixamo clip rotates its Armature node -90 degrees about X and
+            // authors the bone rotations in that space, so the Armature track must be
+            // kept; dropping it tips the whole character onto the floor.
+            const validTracks = sourceClip.tracks
+              .filter((track) => boneNames.has(track.name.split('.')[0]))
+              .map((track) => {
+                if (track.name !== 'Hips.position') return track;
 
-            if (name === 'crouchIdle') {
-              console.log(
-                'Crouch idle tracks:',
-                sourceClip.tracks.map((track) => track.name)
-              );
-            }
+                // The clips travel through world space while the game drives movement,
+                // so pin the hips' horizontal components to the first keyframe.
+                // In that -90 degree armature space, local X/Y are horizontal and
+                // local Z is height, which must stay for crouching and jumping.
+                const values = track.values;
+                const startX = values[0];
+                const startY = values[1];
 
-            console.log(
-              'Crouch foot position tracks:',
-              sourceClip.tracks
-                .filter((track) =>
-                  /Foot|Toe/i.test(track.name) &&
-                  /\.position$/.test(track.name)
-                )
-                .map((track) => track.name)
-            );
+                for (let i = 0; i < values.length; i += 3) {
+                  values[i] = startX;
+                  values[i + 1] = startY;
+                }
 
-            const validTracks = sourceClip.tracks.filter((track) => {
-              const parts = track.name.split('.');
-              const nodeName = parts[0];
-              const property = parts[1];
-
-              const isCrouchAnimation =
-                name === 'crouchIdle' || name === 'crouchWalk';
-
-              const isVerticalPositionTrack =
-                property === 'position' &&
-                isCrouchAnimation;
-
-
-              const isHipsTrack = nodeName === 'Hips';
-
-              // Keep the existing Hips exclusion for other animations,
-              // but allow Hips rotation during crouching.
-              return (
-                boneNames.has(nodeName) &&
-                nodeName !== 'Armature' &&
-                nodeName !== 'Hips' &&
-                !isVerticalPositionTrack
-              );
-
-            });
-
-
-
+                return track;
+              });
 
             if (validTracks.length === 0) {
               console.error(`No compatible tracks found for ${name}`);
@@ -562,7 +557,10 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
     onSurgeHit: () => securityRun.strike('surge'), // CHANGED: new callback used by Level 3's shockwaves
-    onShock: (position) => playerControls.teleport(position),
+    onShock: (position) => {
+      playerControls.teleport(position);
+      shockOverlay.trigger();
+    },
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
     isPlayerSeated: () => playerControls.isSeated,
     onVentEnter: () => { playerControls.enabled = false; interaction.reset(); },
@@ -1130,7 +1128,13 @@ function tick() {
       .addScaledVector(horizontalDirection, -1.8)
       .add(new THREE.Vector3(0, 0.5, 0));
 
-    thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+    // Snap on the frame the view changes, otherwise the camera flies in from
+    // wherever it was last left (the origin on the first switch).
+    if (previousCameraMode === "third") {
+      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
+    } else {
+      thirdPersonCamera.position.copy(thirdPersonPosition);
+    }
 
     // Preserve the existing limited mouse-look angle.
     const horizontalAngle = Math.atan2(direction.x, direction.z);
@@ -1179,6 +1183,9 @@ function tick() {
   // Render primary camera view.
   renderer.render(scene, activeCamera);
 
+  shockOverlay.update(delta);
+  shockOverlay.render(renderer);
+
   // Render secondary CCTV Camera PiP view if active.
   const cctvEnabled = !!currentLevel?.cctvCamera && currentLevel.cctvEnabled !== false;
   cctvContainer?.classList.toggle('hidden', !cctvEnabled);
@@ -1190,7 +1197,7 @@ function tick() {
     const wasVisible = playerModel?.visible;
     if (playerModel) playerModel.visible = true;
     try {
-      cctvRenderer.render(scene, currentLevel.cctvCamera);
+      cctvFeed.render(cctvRenderer, scene, currentLevel.cctvCamera, delta);
     } finally {
       if (playerModel) playerModel.visible = wasVisible;
     }
