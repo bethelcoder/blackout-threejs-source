@@ -5,6 +5,7 @@ import { createShockwaveFloorMaterial, MAX_WAVES } from '../shaders/shockwaveFlo
 import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
 import { createSparkParticles } from '../systems/particles.js';
 import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
+import { buildCoreRoomProps } from './coreRoomProps.js';
 import { sound } from '../systems/audio.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
@@ -78,7 +79,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
   // ---------- Room ----------
   const { group: room, colliders: wallColliders } = buildRoom({
-    width: 14, depth: 14, height: 5.5, wallColor: 0x5a3e3e,
+    width: 14, depth: 14, height: 5.5, wallColor: 0x8a5c56, industrialFinishes: true,
   });
   add(room);
   colliders.push(...wallColliders);
@@ -237,20 +238,134 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     breakers[spot_.id] = b;
   }
 
-  // ---------- Maintenance schedule (the clue) ----------
-  const hintDesk = buildProp({
-    geometry: new THREE.BoxGeometry(1.0, 0.9, 0.5),
-    material: new THREE.MeshStandardMaterial({ color: 0x3d4855 }),
-    position: [5.0, 0.45, 4.0],
-  });
+  // ---------- Overhead feeder conduits ----------
+  // Each breaker is fed from a hub above the core, so isolating one kills a
+  // visible branch of the grid instead of only flipping a lever. Everything
+  // hangs at y 4.75: above the corruption panel (top edge 4.15) and below the
+  // ceiling pipes at 5.05, clear of the innermost core ring at 4.15.
+  const HUB_Y = 4.75;
+  const CONDUIT_RADIUS = 0.05;
+  const hardwareMat = new THREE.MeshStandardMaterial({ color: 0x2a3138, metalness: 0.6, roughness: 0.45 });
+
+  function feederTagTexture(id) {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#0b1418'; g.fillRect(0, 0, 128, 64);
+    g.strokeStyle = '#2bd4ff'; g.lineWidth = 4; g.strokeRect(2, 2, 124, 60);
+    g.fillStyle = '#2bd4ff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'bold 30px monospace'; g.fillText(`FDR ${id}`, 64, 34);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  function conduitPath(group, mat, points) {
+    const up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = new THREE.Vector3(...points[i]);
+      const b = new THREE.Vector3(...points[i + 1]);
+      const len = a.distanceTo(b);
+      if (len < 1e-4) continue;
+      const run = new THREE.Mesh(new THREE.CylinderGeometry(CONDUIT_RADIUS, CONDUIT_RADIUS, len, 8), mat);
+      run.position.copy(a).lerp(b, 0.5);
+      run.quaternion.setFromUnitVectors(up, b.sub(a).normalize());
+      group.add(run);
+    }
+    for (const p of points.slice(1, -1)) {
+      const coupling = new THREE.Mesh(new THREE.SphereGeometry(CONDUIT_RADIUS * 1.8, 10, 8), hardwareMat);
+      coupling.position.set(...p);
+      group.add(coupling);
+    }
+  }
+
+  const hub = new THREE.Group();
+  hub.position.set(0, HUB_Y, 0);
+  hub.add(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.24, 0.62), hardwareMat));
+  for (const [x, z] of [[-0.2, -0.2], [-0.2, 0.2], [0.2, -0.2], [0.2, 0.2]]) {
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.63, 6), hardwareMat);
+    rod.position.set(x, 0.43, z);
+    hub.add(rod);
+  }
+  add(hub);
+
+  const feeders = {};
+  for (const spot_ of BREAKER_SPOTS) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x1b2026, metalness: 0.55, roughness: 0.5,
+      emissive: 0xff2a18, emissiveIntensity: 0.55,
+    });
+    const lampMat = new THREE.MeshStandardMaterial({ color: 0x220000, emissive: 0xff2a18, emissiveIntensity: 1.4 });
+    const g = new THREE.Group();
+    g.name = `Feeder ${spot_.id}`;
+
+    const path = [[0, HUB_Y, 0]];
+    if (Math.abs(spot_.x) > 1e-4) path.push([spot_.x, HUB_Y, 0]);
+    path.push([spot_.x, HUB_Y, spot_.z]);
+    conduitPath(g, mat, path);
+
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.3), hardwareMat);
+    box.position.set(spot_.x, HUB_Y - 0.16, spot_.z);
+    g.add(box);
+
+    const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 8), mat);
+    stub.position.set(spot_.x, HUB_Y - 0.44, spot_.z);
+    g.add(stub);
+
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), lampMat);
+    lamp.position.set(spot_.x, HUB_Y - 0.63, spot_.z);
+    g.add(lamp);
+
+    const tag = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.22, 0.11),
+      new THREE.MeshBasicMaterial({ map: feederTagTexture(spot_.id) })
+    );
+    tag.position.set(spot_.x, HUB_Y - 0.16, spot_.z + 0.151);
+    g.add(tag);
+
+    add(g);
+    const setLive = (live) => {
+      mat.emissive.set(live ? 0xff2a18 : 0x101314);
+      mat.emissiveIntensity = live ? 0.55 : 0;
+      lampMat.emissive.set(live ? 0xff2a18 : 0x2bff6f);
+      lampMat.emissiveIntensity = live ? 1.4 : 0.8;
+    };
+    g.userData.setLive = setLive;
+    feeders[spot_.id] = { group: g, setLive };
+  }
+
+  // ---------- Maintenance schedule desk (the clue) ----------
+  const deskFrameMat = new THREE.MeshStandardMaterial({ color: 0x59646f, metalness: 0.1, roughness: 0.6 });
+  const deskTopMat = new THREE.MeshStandardMaterial({ color: 0x7b8794, metalness: 0.1, roughness: 0.55 });
+  const hintDesk = new THREE.Group();
+  hintDesk.name = 'Maintenance desk';
+  hintDesk.position.set(4.95, 0, 4.0);
+  hintDesk.add(buildProp({
+    geometry: new THREE.BoxGeometry(1.15, 0.06, 0.65),
+    material: deskTopMat,
+    position: [0, 0.75, 0],
+  }));
+  for (const x of [-0.5, 0.5]) {
+    hintDesk.add(buildProp({
+      geometry: new THREE.BoxGeometry(0.09, 0.72, 0.58),
+      material: deskFrameMat,
+      position: [x, 0.36, 0],
+    }));
+  }
+  hintDesk.add(buildProp({
+    geometry: new THREE.BoxGeometry(0.95, 0.05, 0.5),
+    material: deskFrameMat,
+    position: [0, 0.18, 0],
+  }));
   add(hintDesk);
+  hintDesk.updateMatrixWorld(true);
   colliders.push(new THREE.Box3().setFromObject(hintDesk));
 
   const hintProp = new THREE.Mesh(
     new THREE.BoxGeometry(0.5, 0.08, 0.35),   // thicker than before so the crosshair can hit it
     new THREE.MeshStandardMaterial({ color: 0xe8d9a0, roughness: 0.4 })
   );
-  hintProp.position.set(5.0, 0.94, 4.0);
+  hintProp.position.set(4.95, 0.82, 4.0);
   Object.assign(hintProp.userData, {
     interactable: true,
     label: 'Read maintenance schedule',
@@ -260,6 +375,12 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     },
   });
   add(hintProp);
+
+  // ---------- Perimeter dressing ----------
+  // Wall-hugging only: the shockwave ring needs the floor clear to dodge in.
+  const roomProps = buildCoreRoomProps();
+  add(roomProps.group);
+  colliders.push(...roomProps.colliders);
 
   // ---------- Shockwave state ----------
   const waves = Array.from({ length: MAX_WAVES }, () => ({ active: false, r: 0, gap: 0 }));
@@ -292,6 +413,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
 
     if (correctOrder[progress] === id) {
       breakers[id].lock(true);
+      feeders[id].setLive(false);
       progress++;
       sound.playAccessGranted();
       if (progress === correctOrder.length) { beginIsolation(); return; }
@@ -299,6 +421,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
       hud.setObjective(`Feeder ${id} isolated (${progress}/${correctOrder.length}). The core is escalating — keep moving!`);
     } else {
       for (const b of Object.values(breakers)) b.lock(false);
+      for (const f of Object.values(feeders)) f.setLive(true);
       progress = 0;
       applyPhase();
       aiState.raise(30);
@@ -420,6 +543,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   }
 
   function dispose() {
+    roomProps.dispose();
     for (const obj of roots) { scene.remove(obj); disposeTree(obj); }
     roots.length = 0;
   }
