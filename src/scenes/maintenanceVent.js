@@ -43,7 +43,7 @@ function makeNoiseTexture(kind, repeat) {
   return texture;
 }
 
-export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
+export function buildMaintenanceVent({ aiState, hud, onEnter, onExit, onToolTaken = () => {}, getHeldToolId = () => null }) {
   const group = new THREE.Group();
   group.name = 'Maintenance vent route';
 
@@ -178,48 +178,49 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   // Piano-style rear hinge.
   cyl(lidHinge, 'Lid hinge pin', 0, 0, -0.005, 0.012, 1.46, chrome, 'x');
 
-  let heldTool = null;
   let toolboxOpen = false;
   const tools = [];
   const toolsExposed = () => toolboxOpen && lidHinge.rotation.x < -1.1;
   function refreshTools() {
     for (const tool of tools) {
-      tool.visible = toolsExposed() && heldTool !== tool.name;
+      tool.visible = toolsExposed() && !tool.userData.taken;
       tool.userData.interactable = tool.visible;
     }
   }
   toolbox.userData.interactable = true;
   toolbox.userData.getLabel = () => !toolboxOpen ? 'Open toolbox' :
-    !toolsExposed() ? 'Opening toolbox...' : heldTool ? `Return ${heldTool} to toolbox` : 'Choose a tool from the tray';
+    !toolsExposed() ? 'Opening toolbox...' : 'Choose a tool from the tray';
   toolbox.userData.onInteract = () => {
-    if (!toolboxOpen) { toolboxOpen = true; sound.playSwitch(); return; }
-    if (!toolsExposed()) return;
-    if (heldTool) { heldTool = null; refreshTools(); sound.playInteract(); }
+    if (toolboxOpen) return;
+    toolboxOpen = true;
+    sound.playSwitch();
   };
-  function toolModel(name, z) {
+  function toolModel(itemId, label, z) {
     const tool = new THREE.Group();
-    tool.name = name;
+    tool.name = label;
     tool.position.set(0, 0.9, z);
+    tool.userData.taken = false;
     toolbox.add(tool);
     tools.push(tool);
     tool.visible = false;
-    tool.userData.getLabel = () => heldTool ? `Return ${heldTool} before taking ${name}` : `Take ${name}`;
+    tool.userData.getLabel = () => `Take ${label}`;
     tool.userData.onInteract = () => {
-      if (!toolsExposed()) return;
-      if (heldTool) {
-        hud.setObjective(`You can carry one tool. Return the ${heldTool.toLowerCase()} to the toolbox first.`);
-        return;
-      }
-      heldTool = name;
+      if (!toolsExposed() || tool.userData.taken) return;
+      // Taking is permanent for this level: the tray slot empties and the tool
+      // lives in the backpack from here on, so it can be re-held with [B].
+      tool.userData.taken = true;
       refreshTools();
       sound.playInteract();
-      hud.setObjective(`${name} equipped. Try it on the vent, or return it to choose another tool.`);
+      onToolTaken(itemId);
+      hud.setObjective(itemId === 'screwdriver'
+        ? `${label} equipped. Hold E on the maintenance vent to unscrew the grille.`
+        : `${label} equipped. It will not fit the vent screws - open the backpack [B] to switch tools.`);
     };
     return tool;
   }
 
   // Screwdriver: ribbed plastic handle, round steel shaft, flat tip.
-  const screwdriver = toolModel('Screwdriver', -0.25);
+  const screwdriver = toolModel('screwdriver', 'Screwdriver', -0.25);
   cyl(screwdriver, 'Screwdriver grip', -0.2, 0, 0, 0.034, 0.25, handle, 'x');
   cyl(screwdriver, 'Screwdriver grip end', -0.335, 0, 0, 0.038, 0.03, handle, 'x');
   for (const x of [-0.27, -0.2, -0.13]) cyl(screwdriver, 'Screwdriver grip rib', x, 0, 0, 0.037, 0.02, black, 'x');
@@ -228,7 +229,7 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   box(screwdriver, 'Flat screwdriver tip', 0.235, 0, 0, 0.04, 0.012, 0.03, steel);
 
   // Hammer: wooden handle, forged head with face and claw.
-  const hammer = toolModel('Hammer', -0.08);
+  const hammer = toolModel('hammer', 'Hammer', -0.08);
   cyl(hammer, 'Hammer handle', -0.03, 0, 0, 0.02, 0.4, wood, 'x');
   cyl(hammer, 'Hammer handle end', -0.235, 0, 0, 0.026, 0.04, black, 'x');
   box(hammer, 'Hammer head', 0.19, 0, 0, 0.075, 0.07, 0.11, steel);
@@ -237,14 +238,14 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   claw.rotation.x = 0.0;
 
   // Wrench: flat forged shaft with open jaw.
-  const wrench = toolModel('Wrench', 0.1);
+  const wrench = toolModel('wrench', 'Wrench', 0.1);
   box(wrench, 'Wrench shaft', -0.04, 0, 0, 0.45, 0.022, 0.05, steel);
   box(wrench, 'Wrench jaw base', 0.2, 0, 0, 0.07, 0.024, 0.14, steel);
   for (const z of [-0.055, 0.055]) box(wrench, 'Open wrench jaw', 0.255, 0, z, 0.075, 0.024, 0.03, steel);
   cyl(wrench, 'Wrench hang hole boss', -0.27, 0, 0, 0.032, 0.022, steel, 'y');
 
   // Pliers: steel jaws with dipped rubber grips and a riveted pivot.
-  const pliers = toolModel('Pliers', 0.27);
+  const pliers = toolModel('pliers', 'Pliers', 0.27);
   for (const side of [-1, 1]) {
     const grip = box(pliers, 'Blue pliers grip', -0.14, 0, side * 0.045, 0.27, 0.04, 0.035, blueGrip);
     grip.rotation.y = side * 0.18;
@@ -344,15 +345,15 @@ export function buildMaintenanceVent({ aiState, hud, onEnter, onExit }) {
   let scrapeTime = 0;
   vent.userData.interactable = true;
   vent.userData.getLabel = () => open ? (scheduleTaken ? 'Schedule recovered' : 'Read the rolled paper inside') :
-    heldTool === 'Screwdriver' ? `Hold E to unscrew grille - ${Math.floor(progress / 4 * 100)}%` :
-    heldTool ? `Try ${heldTool} on vent` : 'Maintenance duct - screws require a tool';
+    getHeldToolId() === 'screwdriver' ? `Hold E to unscrew grille - ${Math.floor(progress / 4 * 100)}%` :
+    getHeldToolId() ? 'Screws need a flat-head screwdriver' : 'Maintenance duct - screws require a tool';
   vent.userData.onInteract = () => {
-    if (open || !heldTool || heldTool === 'Screwdriver') return;
+    if (open || getHeldToolId() === 'screwdriver') return;
     sound.playInteract();
-    hud.setObjective(`The ${heldTool.toLowerCase()} cannot loosen these screws. Return it to the toolbox and try another tool.`);
+    hud.setObjective('Only a flat-head screwdriver fits these screws. Open the backpack [B] and pick the one from the toolbox.');
   };
   vent.userData.onHold = delta => {
-    if (heldTool !== 'Screwdriver' || open) return;
+    if (getHeldToolId() !== 'screwdriver' || open) return;
     progress = Math.min(4, progress + delta);
     aiState.raise(delta * 18);
     scrapeTime += delta;

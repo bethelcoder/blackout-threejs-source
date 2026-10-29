@@ -26,6 +26,7 @@ import { createCircuitPuzzle } from '../systems/circuitPuzzle.js';
 import { createLogbookPuzzle } from '../systems/logbookPuzzle.js';
 import { buildInvisibleInk } from './invisibleInk.js';
 import { createComponentAssembly } from '../systems/componentAssembly.js';
+import { DetailLod } from '../systems/detailLod.js';
 
 // Free GPU memory for everything under `root` (brief section 6.1).
 // Safe even if an asset is shared elsewhere: three simply re-uploads it if reused.
@@ -49,6 +50,9 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   const colliders = [];
   const roots = [];                       // everything we add: removed + disposed in dispose()
   const add = (obj) => { scene.add(obj); roots.push(obj); return obj; };
+  // Imported set dressing is registered once loaded, then drawn at the detail
+  // its distance from the player allows.
+  const detailLod = new DetailLod();
 
   // ---------- Room ----------
   const { group: room, colliders: wallColliders, floor } = buildRoom({
@@ -300,6 +304,7 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
 
   function update(delta, camera) {
     leftWorkstation.update(delta);
+    detailLod.update(camera);
     earthHologram.update(delta);
     invisibleInk.update(camera);
     if (logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen) return;
@@ -332,9 +337,26 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
     aiState.decay(2 * delta);
   }
 
+  const ready = Promise.all([roomProps.ready, wetFloorSign.ready, pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready])
+    .then(() => {
+      detailLod.addByName(scene, [
+        'Level 3 right-wall supercomputer',
+        'Level 3 left-wall computer desk',
+        'Level 3 wooden crates',
+        'Level 3 organised equipment bays',
+        'Level 3 workstation chair',
+        'Level 3 stacked toolboxes',
+        'Level 3 wall-mounted fire extinguisher',
+        'Level 3 wall-mounted first aid box',
+        'Level 3 display terminal beside left desk',
+        'Core room perimeter dressing',
+      ]);
+    });
+
   function dispose() {
     invisibleInk.dispose();
     logbook.dispose();
+    detailLod.dispose();
     roomProps.dispose();
     robotRepair.dispose();
     assembly.dispose();
@@ -360,7 +382,7 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   }
 
   return {
-    ready: Promise.all([roomProps.ready, pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, wetFloorSign.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready]),
+    ready,
     colliders,
     get panelOpen() { return logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen; },
     get assemblyComplete() { return assembly.solved; },

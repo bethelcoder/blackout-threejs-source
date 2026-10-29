@@ -2128,6 +2128,29 @@ html, body {
   box-shadow: 0 0 8px rgba(0, 229, 255, 0.35);
 }
 
+/* Documents are held like tools, so reading gets its own corner chip. */
+.slot-read {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  z-index: 4;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  color: var(--amber-warn);
+  background: rgba(255, 210, 79, 0.1);
+  border: 1px solid rgba(255, 210, 79, 0.55);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.slot-read:hover {
+  background: rgba(255, 210, 79, 0.28);
+  box-shadow: 0 0 10px rgba(255, 210, 79, 0.45);
+}
+
 .backpack-slot.filled:hover {
   border-color: var(--cyan-primary);
   transform: translateY(-4px);

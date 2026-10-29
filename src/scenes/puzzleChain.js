@@ -58,7 +58,7 @@ function localBox(object) {
   return box.isEmpty() ? null : box;
 }
 
-export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {} }) {
+export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {}, onCarryChange = () => {} }) {
   const bayPlacement = layout.bay ?? SERVICE_BAY;
   const notePlacement = layout.note ?? STICKY_FALLBACK;
 
@@ -85,9 +85,17 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
   let elapsed = 0;
 
   // Single-handed pickup slot. Picking B while A is in hand returns A first.
+  // The slot is also mirrored into the visible hand; the bag is not involved.
   let heldReturn = null;
-  function holdItem(restore) { if (heldReturn) heldReturn(); heldReturn = restore; }
-  function releaseHeld() { heldReturn = null; }
+  function holdItem(restore, itemId) {
+    if (heldReturn) heldReturn();
+    heldReturn = restore;
+    onCarryChange(itemId);
+  }
+  function releaseHeld() {
+    heldReturn = null;
+    onCarryChange(null);
+  }
 
   const box = (parent, w, h, d, mat, x, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -128,7 +136,7 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
       state.hasCutters = false;
       cutterPivot.visible = true;
       cutterPivot.userData.interactable = true;
-    });
+    }, 'bolt_cutters');
     sound.playInteract();
     hud.setObjective(`Bolt cutters acquired.It will come in handy in locked items`);
   };
@@ -178,7 +186,7 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
       state.hasCrowbar = false;
       crowbarMount.visible = true;
       crowbarHit.userData.interactable = true;
-    });
+    }, 'crowbar');
     sound.playInteract();
     hud.setObjective('Crowbar acquired.');
   };
@@ -330,7 +338,7 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
             lay.visible = true;
             holder.userData.interactable = true;
             entry.pick.userData.interactable = true;
-          });
+          }, slot.tool);
           sound.playInteract();
           hud.setObjective(`Hang the ${slot.tool} on its painted outline on the tool shadow board.`);
         };
@@ -558,7 +566,7 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
       caseWrench.visible = true;
       wrenchHit.userData.interactable = true;
       wrenchHit.visible = true;
-    });
+    }, 'wrench');
     sound.playInteract();
     hud.setObjective('Wrench acquired. Hang it on the one outline still empty on the tool shadow board.');
   };
@@ -659,7 +667,7 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
       module.visible = true;
       moduleHit.userData.interactable = true;
       moduleHit.visible = true;
-    });
+    }, 'tx_core');
     sound.playInteract();
     hud.setObjective('TX-CORE module in hand. Seat it in the service bay on the wall above the terminal.');
   };
@@ -783,7 +791,7 @@ export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout = {
       lead.visible = true;
       leadHit.visible = true;
       leadHit.userData.interactable = true;
-    });
+    }, 'extension_lead');
     sound.playInteract();
     hud.setObjective('Feeder 2 extension lead in hand.');
   };

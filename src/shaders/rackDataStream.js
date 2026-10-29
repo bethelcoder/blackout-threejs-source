@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Prototype: server data-traffic panel.
+// Server data-traffic panel.
 //
 // The surface is divided into a grid of cells. Each column picks its own scroll
 // speed from a hash of its index, so the columns never sync up; a cell's
@@ -11,6 +11,14 @@ import * as THREE from 'three';
 // A slow scan band sweeps down the panel so the whole surface pulses, and the
 // head of each stream is pushed toward white while the tail stays in the panel
 // colour.
+//
+// Cost note: this is a transparent quad, so its price is paid per pixel and
+// grows as the player walks up to it. The per-cell variation therefore comes
+// from two hashes (one per column, one per cell) re-mixed with cheap fract()
+// maths, and the sweep is triangular rather than a gaussian, which keeps the
+// exp/pow out of the fragment. The grid is deliberately coarse: cells read at
+// arm's length, and fewer, bigger glyphs are what the panel needs at the
+// distance the player actually inspects it from.
 
 const vertexShader = /* glsl */`
   varying vec2 vUv;
@@ -30,7 +38,9 @@ const fragmentShader = /* glsl */`
   varying vec2 vUv;
 
   float hash21(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
   }
 
   void main() {
@@ -38,7 +48,7 @@ const fragmentShader = /* glsl */`
     vec2 cell = floor(g);
     vec2 f = fract(g);
 
-    // Per-column identity: scroll speed, phase and character.
+    // Per-column identity: scroll speed and phase.
     float colH = hash21(vec2(cell.x, 3.0));
     float phase = fract(cell.y / uGrid.y + uTime * (0.10 + colH * 0.26) + colH * 7.0);
 
@@ -46,19 +56,21 @@ const fragmentShader = /* glsl */`
     float trail = smoothstep(0.34, 0.0, phase);
 
     // One of two bar orientations per cell, picked by a hash of the cell.
-    float bit = hash21(cell + 17.3);
+    float cellH = hash21(cell);
     float horizontal = step(abs(f.y - 0.5), 0.045) * step(abs(f.x - 0.5), 0.20);
     float vertical = step(abs(f.x - 0.5), 0.045) * step(abs(f.y - 0.5), 0.20);
-    float glyph = mix(horizontal, vertical, step(0.5, bit));
+    float glyph = mix(horizontal, vertical, step(0.5, fract(cellH * 31.7)));
 
-    float on = step(0.35, hash21(cell + 99.1));
+    float on = step(0.35, fract(cellH * 17.3));
     float traffic = trail * (0.22 + 0.78 * glyph) * (0.4 + 0.6 * on);
 
     // Idle cells keep the panel alive between passes.
-    float idle = glyph * 0.07 * step(0.55, hash21(cell + 41.9));
+    float idle = glyph * 0.07 * step(0.55, fract(cellH * 53.9));
 
-    // Slow sweep down the whole face.
-    float band = exp(-pow(fract(vUv.y - uTime * 0.11) * 13.0, 2.0));
+    // Slow sweep down the whole face; a triangle reads the same as the old
+    // gaussian once bloom and tonemapping have had it.
+    float sweep = abs(fract(vUv.y - uTime * 0.11 + 0.5) - 0.5) * 2.0;
+    float band = 1.0 - smoothstep(0.0, 0.22, sweep);
 
     // Bezel: a thin frame plus longer ticks at the corners, so the effect
     // reads as a screen mounted on the rack rather than rack texture.
@@ -88,8 +100,8 @@ export function createRackDataStream({
   height = 1.4,
   color = 0x35ff9a,
   intensity = 1,
-  columns = 26,
-  rows = 40,
+  columns = 20,
+  rows = 30,
 } = {}) {
   const geometry = new THREE.PlaneGeometry(width, height);
   geometry.rotateY(rotationY);
