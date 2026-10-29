@@ -11,6 +11,7 @@ import { sound } from './systems/audio.js';
 import { buildLevel1 } from './scenes/level1.js';
 import { buildLevel2 } from './scenes/level2.js';
 import { buildLevel3 } from './scenes/level3.js';
+import { attachHardHat } from './scenes/hardHat.js';
 import { preloadLevel2Models } from './systems/modelCache.js';
 import { createShockOverlay } from './shaders/shockOverlay.js';
 import { createCctvFeed } from './shaders/cctvFeed.js';
@@ -272,7 +273,11 @@ function loadPlayerModel() {
   activeAction = null;
 
   gltfLoader.load(
-    './models/player.glb', // CHANGED: was '/models/player.glb' (absolute path 404s when hosted in a subfolder)
+    // CHANGED: was '/models/player.glb' (absolute path 404s when hosted in a subfolder).
+    // ?v= is manual cache-busting: public/ files are served under their original
+    // name, so Vite never hashes them and browsers keep the old avatar after deploy.
+    // Bump it whenever player.glb changes.
+    './models/player.glb?v=2',
 
     (gltf) => {
       if (modelGeneration !== loadGeneration) return;
@@ -300,6 +305,10 @@ function loadPlayerModel() {
 
       playerModel = model;
       model.userData.ignoreInteraction = true;
+
+      // Rigid hat, bone-parented before the model is scaled/moved so the offsets
+      // stay in the avatar's own metres.
+      attachHardHat(model);
 
       // The clips rotate the armature -90 degrees, which leaves every skinned
       // mesh's bounding volume lying on the floor while the body renders upright.
@@ -454,6 +463,58 @@ function playPlayerAnimation(name) {
 
 
 // ---------- Level manager ----------
+// Designated interior room boundary constraints (prevents cameras from escaping into the void)
+const LEVEL_BOUNDS = [
+  // Level 1: width 14 (±7), depth 20 (±10), height 6.8
+  { minX: -6.70, maxX: 6.70, minZ: -9.70, maxZ: 9.70, minY: 0.35, maxY: 6.50 },
+  // Level 2: width 14 (±7), depth 16 (±8), height 4.2
+  { minX: -6.70, maxX: 6.70, minZ: -7.70, maxZ: 7.70, minY: 0.35, maxY: 3.90 },
+  // Level 3: width 14 (±7), depth 14 (±7), height 5.5
+  { minX: -6.70, maxX: 6.70, minZ: -6.70, maxZ: 6.70, minY: 0.35, maxY: 5.20 },
+];
+
+function snapThirdPersonCamera() {
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const horizontalDirection = direction.clone();
+  horizontalDirection.y = 0;
+  horizontalDirection.normalize();
+
+  const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
+  const desiredTarget = camera.position.clone()
+    .addScaledVector(horizontalDirection, -1.8)
+    .add(new THREE.Vector3(0, 0.45, 0));
+
+  const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+  const desiredDist = toCameraVec.length();
+  const rayDir = toCameraVec.clone().normalize();
+
+  let safeDistance = desiredDist;
+  const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+  const hitPoint = new THREE.Vector3();
+
+  if (currentLevel?.colliders) {
+    for (const box of currentLevel.colliders) {
+      if (!box || box.isEmpty()) continue;
+      if (cameraRay.intersectBox(box, hitPoint)) {
+        const hitDist = cameraAnchor.distanceTo(hitPoint);
+        if (hitDist < safeDistance) safeDistance = hitDist;
+      }
+    }
+  }
+
+  const buffer = Math.min(0.20, safeDistance * 0.4);
+  const finalDist = safeDistance < desiredDist ? Math.max(0.05, safeDistance - buffer) : desiredDist;
+  const targetPos = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+  const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+  targetPos.x = THREE.MathUtils.clamp(targetPos.x, bounds.minX, bounds.maxX);
+  targetPos.y = THREE.MathUtils.clamp(targetPos.y, bounds.minY, bounds.maxY);
+  targetPos.z = THREE.MathUtils.clamp(targetPos.z, bounds.minZ, bounds.maxZ);
+
+  thirdPersonCamera.position.copy(targetPos);
+}
+
 const LEVEL_BUILDERS = [buildLevel1, buildLevel2, buildLevel3];
 let currentLevel = null;
 let currentLevelIndex = 0;
@@ -471,6 +532,7 @@ const securityRun = new SecurityRun({
   onStrike: (source) => {
     playerControls.teleport(currentLevel.spawn);
     previousPlayerPosition.copy(camera.position);
+    snapThirdPersonCamera();
     aiState.reset();
     interaction.reset();
     // CHANGED: added the 'surge' case for the Level 3 core shockwaves
@@ -560,6 +622,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
     onSurgeHit: () => securityRun.strike('surge'), // CHANGED: new callback used by Level 3's shockwaves
     onShock: (position) => {
       playerControls.teleport(position);
+      snapThirdPersonCamera();
       shockOverlay.trigger();
     },
     onChairSit: ({ position, target, onStand }) => playerControls.sit(position, target, onStand),
@@ -579,6 +642,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   previousPlayerPosition.copy(camera.position);
+  snapThirdPersonCamera();
 
   aiState.reset();
 
@@ -737,32 +801,85 @@ function startFacilityGame() {
   playerControls.lock();
 }
 
-// Start game triggers: Click opens the tactical guidance screen
-el('btn-play')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  showOnly(guidanceModal);
-});
-el('btn-hero-play')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  showOnly(guidanceModal);
-});
+function isGameActive() {
+  return currentLevel !== null && hudRoot && !hudRoot.classList.contains('hidden');
+}
 
-// Guidance modal action triggers
-el('btn-start-infiltration')?.addEventListener('click', () => {
-  startFacilityGame();
-});
+function openGuidanceModal() {
+  const btnStart = el('btn-start-infiltration');
+  const btnClose = el('btn-guidance-close');
+  const textSpan = btnStart?.querySelector('.btn-text');
+  const closeTextSpan = btnClose?.querySelector('.btn-text');
 
-el('btn-guidance-close')?.addEventListener('click', () => {
-  if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
-    guidanceModal?.classList.add('hidden');
+  if (isGameActive()) {
+    // In-game mode: User opened guidance with [H] or clicked objective panel
+    if (textSpan) {
+      textSpan.textContent = 'RESUME INFILTRATION [ENTER]';
+    } else if (btnStart) {
+      btnStart.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">RESUME INFILTRATION [ENTER]</span>';
+    }
+    btnStart?.classList.remove('primary');
+    btnStart?.classList.add('resume-start');
+
+    if (closeTextSpan) {
+      closeTextSpan.textContent = 'CLOSE DOSSIER [ESC]';
+    } else if (btnClose) {
+      btnClose.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">CLOSE DOSSIER [ESC]</span>';
+    }
+  } else {
+    // Main menu mode: User clicked "MISSION DOSSIER" or pressed Enter on title screen
+    if (textSpan) {
+      textSpan.textContent = 'COMMENCE INFILTRATION [ENTER]';
+    } else if (btnStart) {
+      btnStart.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">COMMENCE INFILTRATION [ENTER]</span>';
+    }
+    btnStart?.classList.add('primary');
+    btnStart?.classList.remove('resume-start');
+
+    if (closeTextSpan) {
+      closeTextSpan.textContent = 'BACK TO MENU';
+    } else if (btnClose) {
+      btnClose.innerHTML = '<span class="btn-arrow">&#9658;</span> <span class="btn-text">BACK TO MENU</span>';
+    }
+  }
+
+  showOnly(guidanceModal);
+}
+
+function closeGuidanceModal() {
+  guidanceModal?.classList.add('hidden');
+  if (isGameActive()) {
     playerControls.lock();
   } else {
     showOnly(mainMenu);
   }
+}
+
+// Start game triggers: Click opens the tactical guidance screen
+el('btn-play')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openGuidanceModal();
+});
+el('btn-hero-play')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openGuidanceModal();
+});
+
+// Guidance modal action triggers
+el('btn-start-infiltration')?.addEventListener('click', () => {
+  if (isGameActive()) {
+    closeGuidanceModal();
+  } else {
+    startFacilityGame();
+  }
+});
+
+el('btn-guidance-close')?.addEventListener('click', () => {
+  closeGuidanceModal();
 });
 
 // Real video game UI hover sound effects
-document.querySelectorAll('.game-menu-btn, .btn-guidance-start').forEach((btn) => {
+document.querySelectorAll('.game-menu-btn, .btn-guidance-start, .tactical-btn').forEach((btn) => {
   btn.addEventListener('mouseenter', () => {
     sound.playKeypadBeep();
   });
@@ -790,19 +907,19 @@ window.addEventListener('keydown', tryPlayMusic, { once: true });
 // Navigation Bar & Modal Listeners
 el('nav-mission')?.addEventListener('click', (e) => {
   e.preventDefault();
-  showOnly(guidanceModal);
+  openGuidanceModal();
 });
 
 el('btn-hero-brief')?.addEventListener('click', (e) => {
   e.preventDefault();
-  showOnly(guidanceModal);
+  openGuidanceModal();
 });
 
 el('objective-panel')?.addEventListener('click', () => {
   if (playerControls.isLocked) {
     playerControls.unlock();
   }
-  showOnly(guidanceModal);
+  openGuidanceModal();
 });
 
 el('nav-controls')?.addEventListener('click', (e) => {
@@ -879,7 +996,7 @@ el('btn-lose-menu')?.addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
   // If on main menu, Enter opens guidance modal
   if (!mainMenu.classList.contains('hidden') && e.code === 'Enter') {
-    showOnly(guidanceModal);
+    openGuidanceModal();
     return;
   }
   // If Lose screen is showing, pressing [R] or Enter restarts the level immediately
@@ -889,30 +1006,28 @@ document.addEventListener('keydown', (e) => {
     playerControls.lock();
     return;
   }
-  // If Guidance modal is showing, pressing [Enter] commences infiltration
+  // If Guidance modal is showing, pressing [Enter] commences or resumes infiltration
   if (guidanceModal && !guidanceModal.classList.contains('hidden') && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
-    startFacilityGame();
+    if (isGameActive()) {
+      closeGuidanceModal();
+    } else {
+      startFacilityGame();
+    }
     return;
   }
   // In-game: Press [H] to toggle Guidance & Riddle modal
   if (e.code === 'KeyH' && !e.repeat) {
     if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
-      guidanceModal.classList.add('hidden');
-      if (currentLevel) playerControls.lock();
-    } else if (playerControls.isLocked) {
-      playerControls.unlock();
-      showOnly(guidanceModal);
+      closeGuidanceModal();
+    } else if (isGameActive()) {
+      if (playerControls.isLocked) playerControls.unlock();
+      openGuidanceModal();
     }
     return;
   }
   if (e.code !== 'Escape') return;
   if (guidanceModal && !guidanceModal.classList.contains('hidden')) {
-    guidanceModal.classList.add('hidden');
-    if (currentLevel && hudRoot && !hudRoot.classList.contains('hidden')) {
-      playerControls.lock();
-    } else {
-      showOnly(mainMenu);
-    }
+    closeGuidanceModal();
     return;
   }
   if (controlsModal && !controlsModal.classList.contains('hidden')) {
@@ -996,8 +1111,10 @@ function bootSequence() {
       loadingLabel.textContent = 'Substation systems ready.';
       setTimeout(() => {
         loadingScreen.style.opacity = '0';
+        loadingScreen.style.pointerEvents = 'none';
         setTimeout(() => {
           loadingScreen.classList.add('hidden');
+          loadingScreen.style.display = 'none';
           showOnly(mainMenu);
         }, 600);
       }, 250);
@@ -1115,7 +1232,7 @@ function tick() {
 
 
 
-    // Make the third-person camera follow behind the player.
+    // Make the third-person camera follow behind the player with spring-arm obstacle avoidance.
     const direction = new THREE.Vector3();
     camera.getWorldDirection(direction);
 
@@ -1124,17 +1241,65 @@ function tick() {
     horizontalDirection.y = 0;
     horizontalDirection.normalize();
 
-    // Follow the physical eye height; PlayerControls applies crouch once.
-    const thirdPersonPosition = camera.position.clone()
-      .addScaledVector(horizontalDirection, -1.8)
-      .add(new THREE.Vector3(0, 0.5, 0));
+    // The anchor point on the player (head/chest level)
+    const cameraAnchor = camera.position.clone().add(new THREE.Vector3(0, -0.25, 0));
 
-    // Snap on the frame the view changes, otherwise the camera flies in from
-    // wherever it was last left (the origin on the first switch).
-    if (previousCameraMode === "third") {
-      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.10);
-    } else {
+    // Desired camera target in open space (1.8m back, 0.45m up)
+    const desiredTarget = camera.position.clone()
+      .addScaledVector(horizontalDirection, -1.8)
+      .add(new THREE.Vector3(0, 0.45, 0));
+
+    // Vector from anchor to desired camera position
+    const toCameraVec = desiredTarget.clone().sub(cameraAnchor);
+    const desiredDist = toCameraVec.length();
+    const rayDir = toCameraVec.clone().normalize();
+
+    // Check collision against all level colliders (walls, cupboards, shelves, server racks)
+    let safeDistance = desiredDist;
+    const cameraRay = new THREE.Ray(cameraAnchor, rayDir);
+    const hitPoint = new THREE.Vector3();
+
+    if (currentLevel?.colliders) {
+      for (const box of currentLevel.colliders) {
+        if (!box || box.isEmpty()) continue;
+        if (cameraRay.intersectBox(box, hitPoint)) {
+          const hitDist = cameraAnchor.distanceTo(hitPoint);
+          if (hitDist < safeDistance) {
+            safeDistance = hitDist;
+          }
+        }
+      }
+    }
+
+    // Maintain a safe buffer in front of any hit surface so camera near plane never clips into obstacles
+    let finalDist = desiredDist;
+    if (safeDistance < desiredDist) {
+      const buffer = Math.min(0.20, safeDistance * 0.4);
+      finalDist = Math.max(0.05, safeDistance - buffer);
+    }
+    const thirdPersonPosition = cameraAnchor.clone().addScaledVector(rayDir, finalDist);
+
+    // Hard clamp within designated room space for the active level
+    const bounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+    thirdPersonPosition.x = THREE.MathUtils.clamp(thirdPersonPosition.x, bounds.minX, bounds.maxX);
+    thirdPersonPosition.y = THREE.MathUtils.clamp(thirdPersonPosition.y, bounds.minY, bounds.maxY);
+    thirdPersonPosition.z = THREE.MathUtils.clamp(thirdPersonPosition.z, bounds.minZ, bounds.maxZ);
+
+    if (playerControls.cameraMode === "third" && previousCameraMode === "first") {
       thirdPersonCamera.position.copy(thirdPersonPosition);
+    } else {
+      thirdPersonCamera.position.lerp(thirdPersonPosition, 0.25);
+    }
+
+    // Hard clamp thirdPersonCamera.position after lerping so it can NEVER leave designated room space
+    thirdPersonCamera.position.x = THREE.MathUtils.clamp(thirdPersonCamera.position.x, bounds.minX, bounds.maxX);
+    thirdPersonCamera.position.y = THREE.MathUtils.clamp(thirdPersonCamera.position.y, bounds.minY, bounds.maxY);
+    thirdPersonCamera.position.z = THREE.MathUtils.clamp(thirdPersonCamera.position.z, bounds.minZ, bounds.maxZ);
+
+    // If camera is squeezed very close to player against a wall, hide player model so it doesn't obstruct view
+    // When in first-person mode, player model must remain hidden to avoid first-person clipping
+    if (playerModel) {
+      playerModel.visible = playerControls.cameraMode === "third" && finalDist > 0.45;
     }
 
     // Preserve the existing limited mouse-look angle.
@@ -1163,9 +1328,27 @@ function tick() {
       camera.position.z
     ).addScaledVector(lookDirection, 5);
 
-
     thirdPersonCamera.lookAt(lookTarget);
-    }
+  }
+
+  // Ensure first-person camera / player position stays within interior level bounds
+  const currentBounds = LEVEL_BOUNDS[currentLevelIndex] || LEVEL_BOUNDS[0];
+  const clampedX = THREE.MathUtils.clamp(camera.position.x, currentBounds.minX, currentBounds.maxX);
+  const clampedY = THREE.MathUtils.clamp(camera.position.y, currentBounds.minY, currentBounds.maxY);
+  const clampedZ = THREE.MathUtils.clamp(camera.position.z, currentBounds.minZ, currentBounds.maxZ);
+
+  if (clampedX !== camera.position.x) {
+    camera.position.x = clampedX;
+    playerControls.velocity.x = 0;
+  }
+  if (clampedY !== camera.position.y) {
+    camera.position.y = clampedY;
+    playerControls.fallSpeed = 0;
+  }
+  if (clampedZ !== camera.position.z) {
+    camera.position.z = clampedZ;
+    playerControls.velocity.z = 0;
+  }
 
   // Animate viewmodel sway & breathing in first person mode
   const isMoving =

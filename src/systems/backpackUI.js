@@ -80,29 +80,46 @@ export class BackpackUI {
     const filledCount = inventory.slots.filter(Boolean).length;
     const headerTitle = this.overlayEl?.querySelector('.backpack-header h2');
     if (headerTitle) {
-      headerTitle.textContent = `🎒 FIELD BACKPACK (${filledCount} / ${inventory.capacity})`;
+      headerTitle.textContent = `FIELD BACKPACK (${filledCount} / ${inventory.capacity})`;
+    }
+
+    const meterFill = this.overlayEl?.querySelector('#backpack-meter-fill');
+    if (meterFill) {
+      const pct = (filledCount / inventory.capacity) * 100;
+      meterFill.style.width = `${pct}%`;
     }
 
     inventory.slots.forEach((item, index) => {
       const slotDiv = document.createElement('div');
       slotDiv.className = `backpack-slot ${item ? 'filled' : 'empty'}`;
+      const slotNum = String(index + 1).padStart(2, '0');
 
       if (item) {
         let statusBadge = item.type.toUpperCase();
+        let badgeClass = 'tool';
         if (item.id === 'torch' || item.id === 'uv_flashlight') {
           const isTorchActive = this.equipment?.equippedTool === item.id && this.equipment?.torchOn;
-          statusBadge = isTorchActive ? 'EQUIPPED [LIGHT ON]' : 'IN BAG [LIGHT OFF]';
+          statusBadge = isTorchActive ? 'EQUIPPED [ACTIVE BEAM]' : 'IN RIG [BEAM OFF]';
+          badgeClass = isTorchActive ? 'active-torch' : 'idle-torch';
         } else if (item.type === 'document') {
-          statusBadge = 'READABLE [CLICK]';
+          statusBadge = 'CLASSIFIED [READ]';
+          badgeClass = 'doc';
         } else if (item.type === 'tool') {
-          statusBadge = 'TOOL';
+          statusBadge = 'OPERATIVE TOOL';
+          badgeClass = 'tool';
         }
 
         slotDiv.innerHTML = `
+          <div class="slot-corner tl"></div>
+          <div class="slot-corner tr"></div>
+          <div class="slot-corner bl"></div>
+          <div class="slot-corner br"></div>
+          <div class="slot-index">${slotNum}</div>
+          <div class="item-hologram-aura"></div>
           <div class="item-icon">${item.icon || '📦'}</div>
           <div class="item-info">
             <div class="item-name">${item.name}</div>
-            <div class="item-type">${statusBadge}</div>
+            <div class="item-badge ${badgeClass}">${statusBadge}</div>
           </div>
         `;
 
@@ -111,7 +128,13 @@ export class BackpackUI {
         });
       } else {
         slotDiv.innerHTML = `
-          <div class="empty-label">EMPTY SLOT ${index + 1}</div>
+          <div class="slot-corner tl"></div>
+          <div class="slot-corner tr"></div>
+          <div class="slot-corner bl"></div>
+          <div class="slot-corner br"></div>
+          <div class="slot-index">${slotNum}</div>
+          <div class="slot-hatch-pattern"></div>
+          <div class="empty-label">STANDBY // EMPTY</div>
         `;
       }
 
@@ -152,8 +175,13 @@ export class BackpackUI {
 
   showDocReader(title, content) {
     if (!this.docReaderEl) return;
-    const titleEl = this.docReaderEl.querySelector('.doc-title');
-    if (titleEl) titleEl.textContent = title;
+    const titleSpan = this.docReaderEl.querySelector('.doc-title span:last-child');
+    if (titleSpan) {
+      titleSpan.textContent = title;
+    } else {
+      const titleEl = this.docReaderEl.querySelector('.doc-title');
+      if (titleEl) titleEl.textContent = title;
+    }
     if (this.docContentEl) this.docContentEl.textContent = content;
     this.docReaderEl.classList.remove('hidden');
     sound.playInteract();

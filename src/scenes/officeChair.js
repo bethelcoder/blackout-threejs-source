@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { loadModel } from '../systems/modelCache.js';
+import { CHAIR } from './level2Layout.js';
 
-export function arrangeOfficeChair(source) {
+export function arrangeOfficeChair(source, placement = CHAIR) {
   const group = new THREE.Group();
   group.name = 'Office chair in front of terminal desk';
-  // The supplied chair faces +X; turn the seat toward the desk at -Z.
-  source.rotation.y = Math.PI / 2;
+  // The supplied chair faces +X, which is what the moved workstation needs;
+  // any extra yaw goes on the group so the fit below stays axis-aligned.
+  source.rotation.y = 0;
   source.updateMatrixWorld(true);
   let bounds = new THREE.Box3().setFromObject(source);
   source.scale.setScalar(1.25 / bounds.getSize(new THREE.Vector3()).y);
@@ -17,12 +19,13 @@ export function arrangeOfficeChair(source) {
     if (object.isMesh) object.castShadow = object.receiveShadow = true;
   });
   group.add(source);
-  group.position.set(0.4, 0, -4.8);
+  group.position.set(placement.x, 0, placement.z);
+  group.rotation.y = placement.rotationY;
   group.updateMatrixWorld(true);
   return { group, collider: new THREE.Box3().setFromObject(group) };
 }
 
-export function buildOfficeChair({ scene, colliders, hud, onSit, isSeated }) {
+export function buildOfficeChair({ scene, colliders, hud, onSit, isSeated, placement = CHAIR }) {
   let disposed = false;
   let chair = null;
   const resources = new Set();
@@ -37,18 +40,20 @@ export function buildOfficeChair({ scene, colliders, hud, onSit, isSeated }) {
         }
       });
       if (disposed) { release(); return; }
-      chair = arrangeOfficeChair(gltf.scene);
+      chair = arrangeOfficeChair(gltf.scene, placement);
       chair.group.userData.interactable = true;
       chair.group.userData.label = 'Sit at desk';
       chair.group.userData.reach = 1.8;
       chair.group.userData.getLabel = () => isSeated?.() ? 'Seated - Space to stand' : 'Sit at desk';
       chair.group.userData.onInteract = () => {
         if (isSeated?.()) return;
-        const position = new THREE.Vector3(0.4, 1.32, -4.88);
-        const target = new THREE.Vector3(0.4, 1.3, -6);
-        const seated = onSit?.({ position, target, onStand: () => {
-          hud?.setObjective('Standing. Use the retro computer to access the grid terminal.');
-        } });
+        const seated = onSit?.({
+          position: placement.seatPosition.clone(),
+          target: placement.seatTarget.clone(),
+          onStand: () => {
+            hud?.setObjective('Standing. Use the retro computer to access the grid terminal.');
+          },
+        });
         if (seated) hud?.setObjective('Seated at desk. Look at the retro computer and press E to use it. Press Space to stand.');
       };
       scene.add(chair.group);

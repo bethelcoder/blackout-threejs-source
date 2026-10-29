@@ -92,15 +92,199 @@ function createOfficeTextures(height) {
   return { floorMap, wallMap };
 }
 
+// Painted concrete for the industrial core rooms. One tile spans 3.2 m across
+// but the whole storey height, so the dirt line, the rust bleeding from the
+// ceiling pipes and the formwork courses stay pinned to real heights instead
+// of repeating up the wall.
+const INDUSTRIAL_TILE_WIDTH = 3.2;
+
+function createIndustrialTextures(height) {
+  const W = 512;
+  const H = 1024;
+  const toY = (metresBelowCeiling) => (metresBelowCeiling / height) * H;
+  let seed = 4177;
+  const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = W;
+  colorCanvas.height = H;
+  const c = colorCanvas.getContext('2d');
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = W;
+  roughCanvas.height = H;
+  const r = roughCanvas.getContext('2d');
+
+  // Cured concrete base, kept neutral so the room's wall tint supplies the colour.
+  c.fillStyle = '#98918a';
+  c.fillRect(0, 0, W, H);
+  r.fillStyle = '#d2d2d2';
+  r.fillRect(0, 0, W, H);
+
+  // Aggregate grain, mirrored into the roughness pass so the sheen breaks up
+  // the same way the colour does.
+  for (let i = 0; i < 34000; i++) {
+    const x = random() * W;
+    const y = random() * H;
+    const v = 118 + Math.floor(random() * 66);
+    const a = 0.18 + random() * 0.35;
+    const s = 1 + random() * 2;
+    c.fillStyle = `rgba(${v},${v - 3},${v - 8},${a})`;
+    c.fillRect(x, y, s, s);
+    const rv = 176 + Math.floor(random() * 56);
+    r.fillStyle = `rgba(${rv},${rv},${rv},${a * 0.6})`;
+    r.fillRect(x, y, s, s);
+  }
+
+  // Pale stones showing through the thin paint.
+  for (let i = 0; i < 240; i++) {
+    const x = random() * W;
+    const y = random() * H;
+    const rad = 1.5 + random() * 4;
+    c.fillStyle = `rgba(${Math.floor(184 + random() * 40)},${Math.floor(180 + random() * 36)},${Math.floor(170 + random() * 30)},0.16)`;
+    c.beginPath();
+    c.ellipse(x, y, rad, rad * (0.6 + random() * 0.7), random() * Math.PI, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  // Damp patches: darker in colour, glossier in the roughness map, so the
+  // spotlight at the room centre picks them out. Drawn at the tile edges too,
+  // otherwise a patch clipped at the seam shows as a hard vertical line.
+  const drawDamp = (x, y, rad) => {
+    const damp = c.createRadialGradient(x, y, 0, x, y, rad);
+    damp.addColorStop(0, 'rgba(56,52,46,0.17)');
+    damp.addColorStop(1, 'rgba(56,52,46,0)');
+    c.fillStyle = damp;
+    c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    const gloss = r.createRadialGradient(x, y, 0, x, y, rad);
+    gloss.addColorStop(0, 'rgba(116,116,116,0.6)');
+    gloss.addColorStop(1, 'rgba(116,116,116,0)');
+    r.fillStyle = gloss;
+    r.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  };
+  for (let i = 0; i < 24; i++) {
+    const x = random() * W;
+    const y = toY(0.4) + random() * (H - toY(1.0));
+    const rad = 34 + random() * 120;
+    for (const dx of [-W, 0, W]) drawDamp(x + dx, y, rad);
+  }
+
+  // Broad value shifts, so the wall never reads as one flat plane at distance.
+  const drawBlot = (x, y, rad, pale) => {
+    const blot = c.createRadialGradient(x, y, 0, x, y, rad);
+    blot.addColorStop(0, pale ? 'rgba(214,206,194,0.1)' : 'rgba(48,44,39,0.15)');
+    blot.addColorStop(1, pale ? 'rgba(214,206,194,0)' : 'rgba(48,44,39,0)');
+    c.fillStyle = blot;
+    c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  };
+  for (let i = 0; i < 16; i++) {
+    const x = random() * W;
+    const y = random() * H;
+    const rad = 90 + random() * 220;
+    const pale = random() > 0.45;
+    for (const dx of [-W, 0, W]) drawBlot(x + dx, y, rad, pale);
+  }
+
+  // Formwork courses every 1.2 m, with the tie holes left in the concrete.
+  for (let m = 1.2; m < height - 0.05; m += 1.2) {
+    const y = toY(m);
+    c.fillStyle = 'rgba(54,49,44,0.22)';
+    c.fillRect(0, y - 1.5, W, 3);
+    c.fillStyle = 'rgba(236,230,220,0.14)';
+    c.fillRect(0, y + 1.5, W, 1);
+    const shade = c.createLinearGradient(0, y + 2, 0, y + 26);
+    shade.addColorStop(0, 'rgba(44,39,34,0.1)');
+    shade.addColorStop(1, 'rgba(44,39,34,0)');
+    c.fillStyle = shade;
+    c.fillRect(0, y + 2, W, 24);
+    r.fillStyle = 'rgba(214,214,214,0.5)';
+    r.fillRect(0, y - 1.5, W, 3);
+    for (const x of [64, 192, 320, 448]) {
+      c.fillStyle = 'rgba(46,42,38,0.3)';
+      c.beginPath();
+      c.ellipse(x + (random() - 0.5) * 6, y, 3, 2.2, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+
+  // Shutter joints at 1.6 m spacing.
+  for (const x of [0, W / 2]) {
+    c.fillStyle = 'rgba(54,49,44,0.16)';
+    c.fillRect(x - 1, 0, 2, H);
+    c.fillStyle = 'rgba(236,230,220,0.09)';
+    c.fillRect(x + 1, 0, 1, H);
+  }
+
+  // Rust bleeding down from the ceiling pipe runs.
+  const rustStreak = (x, y, len, w) => {
+    const steps = 30;
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const ww = w * (1 - t * 0.65);
+      c.fillStyle = `rgba(126,66,34,${(0.34 * (1 - t)).toFixed(3)})`;
+      c.fillRect(x - ww / 2 + (random() - 0.5) * 3, y + len * t, ww, len / steps + 1);
+    }
+  };
+  for (let i = 0; i < 26; i++) {
+    rustStreak(
+      20 + random() * (W - 40),
+      toY(0.25 + random() * 0.3),
+      toY(0.5 + random() * 1.8),
+      3 + random() * 9,
+    );
+  }
+
+  // Grime rising off the floor, then scuffs and chipped paint at hand height.
+  const dirtTop = H - toY(1.0);
+  const dirt = c.createLinearGradient(0, dirtTop, 0, H);
+  dirt.addColorStop(0, 'rgba(40,35,30,0)');
+  dirt.addColorStop(1, 'rgba(40,35,30,0.34)');
+  c.fillStyle = dirt;
+  c.fillRect(0, dirtTop, W, H - dirtTop);
+  const dirtRough = r.createLinearGradient(0, dirtTop, 0, H);
+  dirtRough.addColorStop(0, 'rgba(238,238,238,0)');
+  dirtRough.addColorStop(1, 'rgba(238,238,238,0.9)');
+  r.fillStyle = dirtRough;
+  r.fillRect(0, dirtTop, W, H - dirtTop);
+
+  for (let i = 0; i < 130; i++) {
+    const y = H - toY(0.15 + random() * 1.35);
+    c.fillStyle = random() > 0.55
+      ? `rgba(214,208,198,${0.06 + random() * 0.12})`
+      : `rgba(40,36,32,${0.05 + random() * 0.1})`;
+    c.fillRect(random() * W, y, 6 + random() * 46, 1 + random() * 2);
+  }
+
+  for (let i = 0; i < 70; i++) {
+    const x = random() * W;
+    const y = H - toY(0.1 + random() * 2.2);
+    const rad = 2 + random() * 7;
+    c.fillStyle = `rgba(104,94,82,${0.14 + random() * 0.18})`;
+    c.beginPath();
+    c.ellipse(x, y, rad, rad * (0.5 + random() * 0.6), random() * Math.PI, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  const wallMap = new THREE.CanvasTexture(colorCanvas);
+  const wallRoughMap = new THREE.CanvasTexture(roughCanvas);
+  for (const tex of [wallMap, wallRoughMap]) {
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.anisotropy = 4;
+  }
+  wallMap.colorSpace = THREE.SRGBColorSpace;
+  return { wallMap, wallRoughMap };
+}
+
 // ---------------------------------------------------------------------------
 // MAIN ROOM BUILDER
 // ---------------------------------------------------------------------------
-export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeLeftCabinets = true, includeRightCabinets = true, includePlinths = true, includeRightPlinth = true, officeCeiling = false, officeFinishes = false, officeFloor = officeFinishes, leftCabinetMaxZ = Infinity, backDoorOpening = null }) {
+export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x505c68, includeLeftCabinets = true, includeRightCabinets = true, includePlinths = true, includeRightPlinth = true, officeCeiling = false, officeFinishes = false, officeFloor = officeFinishes, industrialFinishes = false, leftCabinetMaxZ = Infinity, backDoorOpening = null }) {
   const group = new THREE.Group();
   const colliders = [];
   const { wall: wTex, grate: gTex } = getSharedTextures();
 
   const officeTextures = officeFinishes || officeFloor ? createOfficeTextures(height) : null;
+  const industrialTextures = industrialFinishes && !officeFinishes ? createIndustrialTextures(height) : null;
 
   // 1. FLOOR & CATWALK GRATING
   gTex.repeat.set(width * 0.8, depth * 0.8);
@@ -129,9 +313,16 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
   // 2. WALLS & CEILING
   const wallMat = new THREE.MeshStandardMaterial({
     color: officeFinishes ? 0xffffff : wallColor,
-    map: officeFinishes ? officeTextures.wallMap : wTex.map,
-    bumpMap: officeFinishes ? null : wTex.bumpMap,
-    bumpScale: 0.04, roughness: officeFinishes ? 0.96 : 0.5, metalness: officeFinishes ? 0 : 0.2,
+    map: officeFinishes ? officeTextures.wallMap
+      : industrialTextures ? industrialTextures.wallMap
+      : wTex.map,
+    bumpMap: officeFinishes ? null
+      : industrialTextures ? industrialTextures.wallMap
+      : wTex.bumpMap,
+    bumpScale: industrialTextures ? 0.035 : 0.04,
+    roughnessMap: industrialTextures ? industrialTextures.wallRoughMap : null,
+    roughness: officeFinishes ? 0.96 : industrialTextures ? 1 : 0.5,
+    metalness: officeFinishes || industrialTextures ? 0 : 0.2,
   });
   const ceilMat = new THREE.MeshStandardMaterial({ color: officeCeiling ? 0x777b7c : 0x1a2128, roughness: 0.6, metalness: 0.4 });
 
@@ -169,6 +360,16 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
       material.map.repeat.set(w.size[0] / 3.2, w.size[1] / height);
       material.map.offset.y = (w.pos[1] - w.size[1] / 2) / height;
       material.map.needsUpdate = true;
+    } else if (industrialTextures) {
+      material = wallMat.clone();
+      const repeatX = w.size[0] / INDUSTRIAL_TILE_WIDTH;
+      material.map = industrialTextures.wallMap.clone();
+      material.map.repeat.set(repeatX, 1);
+      material.map.needsUpdate = true;
+      material.bumpMap = material.map;
+      material.roughnessMap = industrialTextures.wallRoughMap.clone();
+      material.roughnessMap.repeat.set(repeatX, 1);
+      material.roughnessMap.needsUpdate = true;
     }
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w.size[0], w.size[1]), material);
     mesh.name = 'Room wall';
@@ -186,6 +387,22 @@ export function buildRoom({ width = 14, depth = 20, height = 4.2, wallColor = 0x
     }
     colliders.push(box);
   }
+
+  // Ceiling collider to physically prevent camera or player escaping through top of room
+  const ceilingBox = new THREE.Box3();
+  ceilingBox.setFromCenterAndSize(
+    new THREE.Vector3(0, height + wallThickness / 2, 0),
+    new THREE.Vector3(width, wallThickness, depth)
+  );
+  colliders.push(ceilingBox);
+
+  // Floor collider to physically prevent camera escaping through bottom of room
+  const floorBox = new THREE.Box3();
+  floorBox.setFromCenterAndSize(
+    new THREE.Vector3(0, -wallThickness / 2, 0),
+    new THREE.Vector3(width, wallThickness, depth)
+  );
+  colliders.push(floorBox);
 
   // 3. OVERHEAD RED I-BEAMS & PIPE STRUCTURE
   const redBeamMat = new THREE.MeshStandardMaterial({ color: 0x8b1a1a, metalness: 0.7, roughness: 0.3 });
