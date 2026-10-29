@@ -89,8 +89,8 @@ export class BackpackUI {
 
       if (item) {
         let statusBadge = item.type.toUpperCase();
-        if (item.id === 'torch') {
-          const isTorchActive = this.equipment?.equippedTool === 'torch' && this.equipment?.torchOn;
+        if (item.id === 'torch' || item.id === 'uv_flashlight') {
+          const isTorchActive = this.equipment?.equippedTool === item.id && this.equipment?.torchOn;
           statusBadge = isTorchActive ? 'EQUIPPED [LIGHT ON]' : 'IN BAG [LIGHT OFF]';
         } else if (item.type === 'document') {
           statusBadge = 'READABLE [CLICK]';
@@ -122,12 +122,18 @@ export class BackpackUI {
   _handleItemClick(item, index) {
     sound.playKeypadBeep();
 
-    if (item.id === 'torch') {
-      const isOn = this.equipment?.toggleTorch();
+    if (item.id === 'torch' || item.id === 'uv_flashlight') {
+      let isOn;
+      if (this.equipment?.equippedTool !== item.id) {
+        this.equipment?.equipTool(item.id);
+        isOn = this.equipment?.torchOn;
+      } else {
+        isOn = this.equipment?.toggleTorch();
+      }
       const statusText = isOn ? 'ENABLED (BEAM ON)' : 'DISABLED (BEAM OFF)';
       const promptEl = document.getElementById('interact-prompt');
       if (promptEl) {
-        promptEl.textContent = `Inspection Torch ${statusText}`;
+        promptEl.textContent = `${item.name} ${statusText}`;
         promptEl.classList.remove('hidden');
         setTimeout(() => promptEl.classList.add('hidden'), 1600);
       }

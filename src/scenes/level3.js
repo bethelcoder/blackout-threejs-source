@@ -3,7 +3,6 @@ import { buildRoom, buildProp } from './roomBuilder.js';
 import { buildCoreHologramScreen } from './coreHologramScreen.js';
 import { createShockwaveFloorMaterial, MAX_WAVES } from '../shaders/shockwaveFloor.js';
 import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
-import { buildSecurityCamera, createRoomSecurityView, createSecuritySweep } from './securityCamera.js';
 import { sound } from '../systems/audio.js';
 import { buildCoreBase } from './coreBase.js';
 import { applyCoreWalls } from './coreWalls.js';
@@ -23,6 +22,8 @@ import { buildCoreDisplayTerminal } from './coreDisplayTerminal.js';
 import { buildCoreBot } from './coreBot.js';
 import { createRobotRepair } from '../systems/robotRepair.js';
 import { createCircuitPuzzle } from '../systems/circuitPuzzle.js';
+import { createLogbookPuzzle } from '../systems/logbookPuzzle.js';
+import { buildInvisibleInk } from './invisibleInk.js';
 
 const PLAYER_HEIGHT = 1.7;       // matches playerControls.js
 const WAVE_THICKNESS = 0.5;
@@ -88,7 +89,7 @@ function makeReadoutTexture(id, load) {
  * Boss fight: dodge/jump the core's shockwaves while isolating three feeders
  * in order of load (highest first). The order is shuffled every run.
  */
-export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
+export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeHit, createKeypadRenderer }) {
   const colliders = [];
   const roots = [];                       // everything we add: removed + disposed in dispose()
   const add = (obj) => { scene.add(obj); roots.push(obj); return obj; };
@@ -204,33 +205,12 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   waveFloor.rotation.x = -Math.PI / 2;
   waveFloor.position.y = 0.03;
   waveFloor.renderOrder = 1;
+  waveFloor.visible = false;
   add(waveFloor);
 
   // ---------- Floating wall telemetry ----------
   const hologramScreen = buildCoreHologramScreen();
   add(hologramScreen.group);
-
-  // ---------- Ceiling CCTV ----------
-  // Priority is being seen, not being caught: the cone only feeds suspicion,
-  // without adding another damage source. The shockwaves stay
-  // the single source of strikes so the room doesn't punish twice for one move.
-  const cctvView = createRoomSecurityView({
-    position: new THREE.Vector3(0, 4.85, -6.55),
-    target: new THREE.Vector3(0, 0.6, 2.5),
-    fov: 50,
-    far: 24,
-  });
-  const securityCamera = buildSecurityCamera();
-  securityCamera.group.position.copy(cctvView.position);
-  securityCamera.group.lookAt(0, 0.6, 2.5);
-  add(securityCamera.group);
-
-  const cameraStatus = new THREE.PointLight(0xff3322, 0.5, 1.6);
-  cameraStatus.position.copy(cctvView.position);
-  add(cameraStatus);
-
-  const securitySweep = createSecuritySweep(cctvView, securityCamera.group, colliders);
-  add(securitySweep.group);
 
   // ---------- Puzzle data (shuffled every run) ----------
   const loads = shuffle([34, 58, 91]);
@@ -240,9 +220,36 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   let progress = 0;
   let finished = false;
   let wavesDisabled = false;
+  const logbook = createLogbookPuzzle({
+    getKeypadModel: () => leftWorkstation.group.getObjectByName('Upper drawer code keypad'),
+    createKeypadRenderer,
+    onUnlock: () => {
+    leftWorkstation.openDrawer();
+    sound.playAccessGranted();
+    hud.setObjective('Drawer unlocked. Aim at the UV flashlight inside and press E to pick it up.');
+  }, onSolved: () => {
+    leftWorkstation.uvPickup.visible = false;
+    sound.playAccessGranted();
+    hud.setObjective('UV flashlight collected. Equip it from the backpack [B]. Shine it on the safety notice on the wall behind the entrance, then search the pressure poster, water inspection label, and maintenance floor tile for invisible ink.');
+  } });
+  const invisibleInk = buildInvisibleInk({ equipment, enabled: () => logbook.solved, hud, onSolved: () => {
+    sound.playAccessGranted();
+    hud.setObjective('Invisible Ink complete. Water-system keyword: VALVE. Next, talk to the robot beside the left desk. Type HELLO on its keypad to wake it and answer three riddles.');
+  } });
+  add(invisibleInk.group);
+  const requireLogbook = () => {
+    if (logbook.solved) {
+      if (invisibleInk.solved) return false;
+      hud.setObjective('Complete Invisible Ink first: equip the UV flashlight, record the wall cipher and three hidden fragments, then decode the water keyword at the safety notice.');
+      return true;
+    }
+    hud.setObjective('Start with the engineer’s logbook on the left computer desk. Trust the stamps. Unlock the drawer and collect the UV flashlight first.');
+    return true;
+  };
   const recoveredClue = () => hud.setObjective('ROBOT RECORD: the hologram circuit starts at 3V and must finish at 5V. Route through all three relays: R1 boosts +3V, R2 drains 2V, R3 boosts +1V. A connected wire alone is not enough.');
   const robotRepair = createRobotRepair({ onSolved: () => {
-    recoveredClue();
+    hologramScreen.setGuidance(true);
+    hud.setObjective('Robot riddles complete. Three parts collected. The wall hologram is glowing: it holds the shutdown circuit. Isolate the three feeders using the maintenance schedule to unlock it. Keep VALVE for the water puzzle.');
     sound.playAccessGranted();
   } });
   const coreOverride = createCircuitPuzzle({ onSolved: () => {
@@ -250,18 +257,20 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   } });
   Object.assign(deskBot.group.userData, {
     interactable: true,
-    label: 'Repair robot',
-    getLabel: () => !wavesDisabled ? 'Robot unsafe - disable shockwave feeders first' : robotRepair.solved ? 'Replay robot maintenance clue' : 'Repair robot',
+    label: 'Talk to robot',
+    getLabel: () => robotRepair.solved ? 'Replay robot maintenance clue' : 'Talk to robot / communication keypad',
     onInteract: () => {
-      if (!wavesDisabled) { hud.setObjective('Disable the shockwaves first: isolate the three feeders from highest load to lowest. Check the maintenance schedule.'); return; }
+      if (requireLogbook()) return;
       if (robotRepair.solved) recoveredClue(); else robotRepair.open();
     },
   });
   const openCircuit = () => {
+    if (requireLogbook()) return;
     if (finished) return;
     if (!wavesDisabled) { hud.setObjective('Circuit locked. Disable the shockwaves using the three feeders first.'); return; }
     if (!robotRepair.solved) { hud.setObjective('Repair the robot beside the desk to restore circuit access and recover the routing clue.'); return; }
     coreOverride.open();
+    hologramScreen.setGuidance(false);
   };
   Object.assign(hologramScreen.group.userData, {
     interactable: true,
@@ -272,9 +281,9 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   Object.assign(displayTerminal.group.userData, {
     interactable: true,
     label: 'Read circuit access status',
-    onInteract: () => hud.setObjective(robotRepair.solved
+    onInteract: () => { if (requireLogbook()) return; hud.setObjective(robotRepair.solved
       ? 'Circuit access restored. Use the large wall hologram to connect the shutdown route through all three relays at 5V.'
-      : 'Repair the robot beside this desk after disabling the shockwave feeders. It can restore access to the wall hologram circuit.'),
+      : 'Talk to the robot beside this desk. Type HELLO to wake it, then answer its three riddles to collect the parts.'); },
   });
   const phaseIndex = () => Math.min(progress, PHASES.length - 1);
 
@@ -356,6 +365,28 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   });
   add(hintProp);
 
+  // Keep the starting puzzle on the furnished left workstation.
+  const book = leftWorkstation.bookAnchor;
+  Object.assign(leftWorkstation.uvPickup.userData, {
+    interactable: true,
+    label: 'Pick up UV flashlight',
+    onInteract: () => {
+      if (!logbook.unlocked || logbook.solved) return;
+      if (!logbook.collect()) hud.setObjective('Backpack full. Free a slot, then pick up the UV flashlight.');
+    },
+  });
+  Object.assign(book.userData, { interactable: true, label: 'Read engineer’s logbook', onInteract: () => logbook.open() });
+  Object.assign(leftWorkstation.drawer.userData, {
+    interactable: true, label: 'Enter drawer code',
+    getLabel: () => logbook.solved ? 'Empty drawer' : logbook.unlocked ? 'Open drawer' : 'Enter drawer code',
+    onInteract: () => {
+      if (!logbook.unlocked) { logbook.open(true); return; }
+      hud.setObjective(logbook.solved ? 'The drawer is empty. UV flashlight already collected.' : 'Aim at the UV flashlight inside the drawer and press E to pick it up.');
+    },
+  });
+  const note = leftWorkstation.monitorNoteAnchor;
+  Object.assign(note.userData, { interactable: true, label: 'Read monitor sticky note', onInteract: () => hud.setObjective('“Trust the stamps.” Read the engineer’s logbook on the left computer desk. Use the four red-stamped entries to unlock its upper drawer.') });
+
   // ---------- Shockwave state ----------
   const waves = Array.from({ length: MAX_WAVES }, () => ({ active: false, r: 0, gap: 0 }));
   function spawnWave() {
@@ -374,7 +405,6 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   let chargeSounded = false;
   let dissolve = 0;
   let ended = false;
-  let cctvWarnTimer = 0;
 
   function applyPhase() {
     waveMat.uniforms.uGapWidth.value = PHASES[phaseIndex()].gap;
@@ -382,6 +412,8 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   applyPhase();
 
   function pull(id) {
+    if (requireLogbook()) return;
+    if (!robotRepair.solved) { hud.setObjective('Talk to the robot first. Wake it with HELLO on its communication keypad and answer all three riddles.'); return; }
     if (finished || breakers[id].locked) return;
     sound.playSwitch();
 
@@ -396,7 +428,7 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
         waveMat.uniforms.uCharge.value = 0;
         secondIn = -1;
         charge = 0;
-        hud.setObjective('Shockwaves disabled. The room is safe. Repair the robot beside the left desk to recover the core override clue.');
+        hud.setObjective('Shockwaves disabled. Use the wall hologram to route the shutdown circuit. The robot can replay the circuit clue.');
         return;
       }
       applyPhase();
@@ -424,13 +456,15 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   const lerpK = (delta, rate) => 1 - Math.exp(-delta * rate);   // frame-rate independent smoothing
 
   function update(delta, camera) {
+    leftWorkstation.update(delta);
     earthHologram.update(delta);
-    if (robotRepair.isOpen || coreOverride.isOpen) return;
+    invisibleInk.update(camera);
+    if (logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || coreOverride.isOpen) return;
     t += delta;
     const phase = PHASES[phaseIndex()];
 
     // --- Surge scheduler: charge (telegraph) -> fire ---
-    if (!finished && !wavesDisabled) {
+    if (robotRepair.solved && !finished && !wavesDisabled) {
       timeToNext -= delta;
       charge = timeToNext < CHARGE_TIME ? 1 - Math.max(timeToNext, 0) / CHARGE_TIME : 0;
       if (charge > 0 && !chargeSounded) { chargeSounded = true; sound.playDetectionWarning(0.35); }
@@ -474,6 +508,8 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
     }
     waveMat.uniforms.uTime.value = t;
     waveMat.uniforms.uCharge.value = charge;
+    // Skip the full-room transparent shader pass while there is no surge to draw.
+    waveFloor.visible = charge > 0 || waves.some(wave => wave.active);
 
     // --- Ending: dissolve the core, then hand over to the ending sequence ---
     if (finished) {
@@ -505,23 +541,12 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
       b.pivot.rotation.x += (b.leverTarget - b.pivot.rotation.x) * lerpK(delta, 10);
     }
 
-    // CCTV pressure: no strike, just suspicion (and the audio state that follows).
-    securitySweep.update(delta);
-    if (!finished && securitySweep.sees(camera.position)) {
-      aiState.raise(14 * delta);
-      cctvWarnTimer += delta;
-      if (cctvWarnTimer > 1.1) {
-        sound.playDetectionWarning(aiState.suspicion / 100);
-        cctvWarnTimer = 0;
-      }
-    } else {
-      cctvWarnTimer = 0;
-    }
-
     aiState.decay(2 * delta);
   }
 
   function dispose() {
+    invisibleInk.dispose();
+    logbook.dispose();
     robotRepair.dispose();
     coreOverride.dispose();
     deskBot.dispose();
@@ -546,13 +571,13 @@ export function buildLevel3({ scene, aiState, hud, onEnding, onSurgeHit }) {
   return {
     ready: Promise.all([pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready]),
     colliders,
-    get panelOpen() { return robotRepair.isOpen || coreOverride.isOpen; },
-    cctvCamera: cctvView,
+    get panelOpen() { return logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || coreOverride.isOpen; },
+    get waterKeyword() { return invisibleInk.waterKeyword; },
     update,
     dispose,
     spawn: new THREE.Vector3(0, 1.7, 5.5),
     title: 'LEVEL 3 — THE CORE',
     subtitle: 'Isolate the AI without cutting the stabilized municipal grid.',
-    objective: 'Disable shockwaves: read the maintenance schedule and isolate feeders from highest load to lowest. Then repair the robot and solve the circuit on the large wall hologram.',
+    objective: 'Read the engineer’s logbook on the left computer desk. Trust the stamps: find the four-digit drawer code and collect the UV flashlight.',
   };
 }

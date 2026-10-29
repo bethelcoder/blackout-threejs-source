@@ -4,6 +4,16 @@
  */
 
 export const ITEM_DEFS = {
+  robot_flow_module: { id: 'robot_flow_module', name: 'Flow Module', type: 'part', icon: '⚙', desc: 'Part released by the robot after solving its river riddle.' },
+  robot_motion_module: { id: 'robot_motion_module', name: 'Motion Module', type: 'part', icon: '⚙', desc: 'Part released by the robot after solving its footsteps riddle.' },
+  robot_interface_module: { id: 'robot_interface_module', name: 'Interface Module', type: 'part', icon: '⚙', desc: 'Part released by the robot after solving its keyboard riddle.' },
+  uv_flashlight: {
+    id: 'uv_flashlight',
+    name: 'UV Flashlight',
+    type: 'tool',
+    icon: '🔦',
+    desc: 'Ultraviolet inspection flashlight recovered from the engineer’s locked drawer.',
+  },
   torch: {
     id: 'torch',
     name: 'Inspection Torch',

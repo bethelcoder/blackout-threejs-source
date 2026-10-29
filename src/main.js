@@ -553,7 +553,7 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   const builder = LEVEL_BUILDERS[index];
-  const args = { scene, aiState, hud, terminalUI: terminal, onEnding: playEnding,
+  const args = { scene, aiState, hud, equipment, terminalUI: terminal, onEnding: playEnding,
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
