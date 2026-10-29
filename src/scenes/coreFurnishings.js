@@ -93,7 +93,7 @@ export function buildCoreFurnishings() {
   for (const x of [4.48, 5.52]) box(x, 0.5, 4, 0.045, 1, 0.56, silver);
   box(5, 0.92, 4.3, 1.1, 0.035, 0.025, cyan);
   box(5, 1.06, 3.82, 0.07, 0.3, 0.07, silver);
-  screen('FEEDER MAINTENANCE', ['READ THE SCHEDULE', 'VERIFY LOAD ORDER'], 5, 1.4, 3.84, 0.85, 0.5);
+  screen('FEEDER MAINTENANCE', ['READ THE SCHEDULE', 'VERIFY LOAD ORDER'], 5, 1.4, 3.84, 0.85, 0.5, Math.PI);
 
   // Neat overhead cable trays link equipment bays without floor-level obstacles.
   for (const x of [-6.88, 6.88]) {
