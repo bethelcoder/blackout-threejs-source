@@ -20,10 +20,22 @@
 
   <!-- Loading screen -->
   <div id="loading-screen">
-    <div class="loading-inner">
-      <h1>BLACKOUT</h1>
+    <div class="loading-inner tactical-modal">
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="tech-header-tag">
+        <span class="pulse-cyan-dot"></span>
+        <span>INITIALIZING TELEMETRY // ESKOM SUB-07</span>
+      </div>
+      <h1 class="loading-title">BLACKOUT</h1>
+      <div class="tech-divider"></div>
       <div class="loading-bar-track"><div id="loading-bar-fill"></div></div>
-      <p id="loading-label">Connecting to municipal substation telemetry...</p>
+      <div class="loading-footer-row">
+        <p id="loading-label">Connecting to municipal substation telemetry...</p>
+        <span class="loading-status-pct">SYS.SYNC</span>
+      </div>
     </div>
   </div>
 
@@ -146,13 +158,18 @@
 
   <!-- Level 1 Tactical Guidance & Directive Modal (GENERALIZED) -->
   <div id="guidance-modal" class="overlay hidden">
-    <div class="guidance-panel">
+    <div class="guidance-panel tactical-modal">
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
       <div class="guidance-header">
         <div class="guidance-badge-row">
           <span class="guidance-pill-tag">⚡ OPERATIONAL BRIEFING</span>
           <span class="guidance-meta">LEVEL 1 &bull; HIGH-VOLTAGE SUBSTATION CORRIDOR</span>
         </div>
         <h2 class="guidance-title">FACILITY INFILTRATION DIRECTIVE</h2>
+        <div class="tech-divider"></div>
       </div>
 
       <div class="guidance-body">
@@ -220,10 +237,14 @@
       </div>
 
       <div class="guidance-footer">
-        <button id="btn-start-infiltration" class="btn-guidance-start">
-          <span class="btn-arrow">&#9658;</span> COMMENCE INFILTRATION [ENTER]
+        <button id="btn-start-infiltration" class="tactical-btn primary btn-guidance-start">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">COMMENCE INFILTRATION [ENTER]</span>
         </button>
-        <button id="btn-guidance-close" class="btn-guidance-close">BACK TO MENU</button>
+        <button id="btn-guidance-close" class="tactical-btn neutral btn-guidance-close">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">BACK TO MENU</span>
+        </button>
       </div>
     </div>
   </div>
@@ -261,22 +282,62 @@
 
   <!-- Pause menu -->
   <div id="pause-menu" class="overlay hidden">
-    <div class="menu-panel">
-      <h2>PAUSED</h2>
-      <button id="btn-resume">RESUME</button>
-      <button id="btn-audio">AUDIO: ON</button>
-      <button id="btn-restart">RESTART GAME</button>
-      <button id="btn-quit-menu">MAIN MENU</button>
+    <div class="menu-panel tactical-modal">
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="tech-header-tag">
+        <span class="pulse-cyan-dot"></span>
+        <span>FACILITY PROTOCOL // SUSPENDED</span>
+      </div>
+      <h2 class="tactical-menu-title">PAUSED</h2>
+      <div class="tech-divider"></div>
+      <div class="tactical-menu-actions">
+        <button id="btn-resume" class="tactical-btn primary">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">RESUME</span>
+        </button>
+        <button id="btn-audio" class="tactical-btn">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">AUDIO: ON</span>
+        </button>
+        <button id="btn-restart" class="tactical-btn warn">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">RESTART GAME</span>
+        </button>
+        <button id="btn-quit-menu" class="tactical-btn neutral">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">MAIN MENU</span>
+        </button>
+      </div>
     </div>
   </div>
 
   <div id="lose-screen" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="lose-title">
-    <div class="menu-panel">
-      <h2 id="lose-title">CAUGHT</h2>
-      <p>The AI has secured the substation.</p>
-      <p id="lose-reason"></p>
-      <button id="btn-retry-level">RETRY LEVEL</button>
-      <button id="btn-lose-menu">MAIN MENU</button>
+    <div class="menu-panel tactical-modal alert-modal">
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="tech-header-tag alert">
+        <span class="pulse-red-dot"></span>
+        <span>SECURITY COMPROMISED // LETHAL AI DETECTED</span>
+      </div>
+      <h2 id="lose-title" class="tactical-menu-title alert">CAUGHT</h2>
+      <div class="tech-divider alert"></div>
+      <p class="lose-desc">The AI has secured the substation.</p>
+      <div id="lose-reason" class="alert-box"></div>
+      <div class="tactical-menu-actions">
+        <button id="btn-retry-level" class="tactical-btn alert">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">RETRY LEVEL</span>
+        </button>
+        <button id="btn-lose-menu" class="tactical-btn neutral">
+          <span class="btn-arrow">&#9658;</span>
+          <span class="btn-text">MAIN MENU</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -284,19 +345,29 @@
   <div id="hud" class="hidden">
     <div id="hazard-status" class="hidden" role="status" aria-live="polite"></div>
     <aside id="controls-guide" aria-label="Game controls">
-      <div class="controls-label">CONTROLS</div>
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="controls-header-row">
+        <div class="controls-label">
+          <span class="pulse-cyan-dot"></span>
+          <span>SYSTEM CONTROLS</span>
+        </div>
+        <span class="controls-status-tag">HUD v2.4</span>
+      </div>
       <div class="controls-list">
-        <span><kbd>W A S D</kbd> Move</span>
-        <span><kbd>Mouse</kbd> Look</span>
-        <span><kbd>Shift</kbd> Sprint</span>
-        <span><kbd>Space</kbd> Jump</span>
-        <span><kbd>C / Ctrl</kbd> Duck (hold)</span>
-        <span><kbd>V</kbd> Switch view</span>
-        <span><kbd>E</kbd> Interact</span>
-        <span><kbd>F</kbd> Pick up</span>
-        <span><kbd>B</kbd> Backpack</span>
-        <span><kbd>H</kbd> Guidance</span>
-        <span><kbd>Esc</kbd> Pause</span>
+        <span><kbd>W A S D</kbd> <label>Move</label></span>
+        <span><kbd>Mouse</kbd> <label>Look</label></span>
+        <span><kbd>Shift</kbd> <label>Sprint</label></span>
+        <span><kbd>Space</kbd> <label>Jump</label></span>
+        <span><kbd>C / Ctrl</kbd> <label>Duck</label></span>
+        <span><kbd>V</kbd> <label>View</label></span>
+        <span><kbd>E</kbd> <label>Interact</label></span>
+        <span><kbd>F</kbd> <label>Pick up</label></span>
+        <span><kbd>B</kbd> <label>Backpack</label></span>
+        <span><kbd>H</kbd> <label>Guidance</label></span>
+        <span><kbd>Esc</kbd> <label>Pause</label></span>
       </div>
     </aside>
     <div id="crosshair"></div>
@@ -305,8 +376,18 @@
     <div id="hud-toast" class="hidden"></div>
 
     <div id="ai-status-panel">
-      <div class="ai-status-label">AI SECURITY STATE</div>
-      <div id="ai-status-value">CALM</div>
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="ai-status-header">
+        <span class="pulse-amber-dot"></span>
+        <span class="ai-status-label">SENTINEL THREAT MATRIX</span>
+      </div>
+      <div class="ai-status-row">
+        <span class="ai-threat-label">STATE:</span>
+        <div id="ai-status-value">CALM</div>
+      </div>
       <div id="security-strikes" role="status" aria-live="polite">STRIKES: 0 / 3</div>
       <div id="camera-exposure" class="hidden" role="status"></div>
     </div>
@@ -324,18 +405,52 @@
     </div>
 
     <div id="objective-panel" title="Click or press [H] to review Guidance &amp; Riddle">
-      <div class="objective-label">OBJECTIVE &bull; [H] GUIDANCE</div>
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="objective-header-row">
+        <div class="objective-label">
+          <span class="pulse-cyan-dot"></span>
+          <span>OPERATIONAL DIRECTIVE</span>
+        </div>
+        <span class="objective-badge">[H] DOSSIER</span>
+      </div>
       <div id="objective-text">Explore the maintenance area.</div>
-      <div class="inventory-hint">[B] Backpack &middot; [F] Pick up &middot; [H] Mission Riddle</div>
+      <div class="inventory-hint">
+        <span class="hint-chip"><kbd>B</kbd> BACKPACK</span>
+        <span class="hint-chip"><kbd>F</kbd> PICK UP</span>
+        <span class="hint-chip highlight"><kbd>H</kbd> MISSION RIDDLE</span>
+      </div>
     </div>
   </div>
 
   <!-- Backpack UI Overlay -->
   <div id="backpack-overlay" class="overlay hidden">
-    <div class="backpack-panel">
+    <div class="backpack-panel tactical-modal">
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
       <div class="backpack-header">
-        <h2>🎒 FIELD BACKPACK</h2>
-        <span class="backpack-hint">Click item to use / inspect / toggle torch &middot; Press [B] or [ESC] to close</span>
+        <div class="backpack-meta-row">
+          <div class="backpack-tag">
+            <span class="pulse-cyan-dot"></span>
+            <span>TACTICAL OPERATIVE RIG // INVENTORY</span>
+          </div>
+          <span class="backpack-capacity-tag">CAPACITY 8 SLOTS</span>
+        </div>
+        <div class="backpack-title-row">
+          <h2>FIELD BACKPACK</h2>
+          <div class="backpack-meter-bar">
+            <div id="backpack-meter-fill" class="meter-fill" style="width: 12.5%;"></div>
+          </div>
+        </div>
+        <div class="backpack-hint">
+          <span><kbd class="mini-kbd">CLICK</kbd> EQUIP / INSPECT</span>
+          <span class="hint-sep">&bull;</span>
+          <span><kbd class="mini-kbd">B</kbd> / <kbd class="mini-kbd">ESC</kbd> CLOSE RIG</span>
+        </div>
       </div>
       <div id="backpack-slots" class="backpack-slots-grid">
       </div>
@@ -344,10 +459,20 @@
 
   <!-- Document Reader Overlay -->
   <div id="doc-reader" class="overlay hidden">
-    <div class="doc-reader-panel">
-      <div class="doc-title">DOCUMENT</div>
+    <div class="doc-reader-panel tactical-modal">
+      <div class="tech-corner tl"></div>
+      <div class="tech-corner tr"></div>
+      <div class="tech-corner bl"></div>
+      <div class="tech-corner br"></div>
+      <div class="doc-title">
+        <span class="pulse-amber-dot"></span>
+        <span>FACILITY TECHNICAL LOGBOOK</span>
+      </div>
       <pre id="doc-content" class="doc-content-text"></pre>
-      <button id="btn-close-doc" class="doc-close-btn">CLOSE [ESC]</button>
+      <button id="btn-close-doc" class="tactical-btn neutral">
+        <span class="btn-arrow">&#9658;</span>
+        <span class="btn-text">CLOSE [ESC]</span>
+      </button>
     </div>
   </div>
 
