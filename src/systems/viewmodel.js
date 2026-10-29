@@ -26,7 +26,10 @@ export class Viewmodel {
     // Palm centre measured from the rig's right-hand bones, so grips sit inside
     // the fist rather than floating below it.
     this.torchGroup.position.set(0.165, -0.05, -0.255);
-    this.torchGroup.rotation.set(0.05, -0.55, 0.10);
+    // Torch axis follows the fingers: the rig's finger chain runs forward, 20 deg
+    // down and 32 deg inboard of camera-forward, so the barrel leaves the fist
+    // that way instead of lying across the knuckles and out to the right.
+    this.torchGroup.rotation.set(-0.41, 0.52, 0.10);
     this.torchGroup.scale.setScalar(1.15);
 
     this.isArmsLoaded = false;
@@ -37,7 +40,7 @@ export class Viewmodel {
     // Non-torch tools share one grip transform so equipping never shifts the hand.
     this.toolGroup = new THREE.Group();
     this.toolGroup.position.copy(this.torchGroup.position);
-    this.toolGroup.rotation.copy(this.torchGroup.rotation);
+    this.toolGroup.rotation.set(0.05, -0.55, 0.10);
     this.toolGroup.scale.copy(this.torchGroup.scale);
     this.group.add(this.toolGroup);
     this.heldTools = new Map();
@@ -105,6 +108,10 @@ export class Viewmodel {
    */
   _buildTorch() {
     const torch = buildHeldTool('torch');
+    // The grip anchor sits on the knuckles, so a torch centred on it pokes its
+    // butt back into the wrist. Slide the barrel forward along its own axis and
+    // the fist closes near the back of the handle, body resting under the fingers.
+    torch.position.z = -0.035;
     this.torchMesh = torch;
     this.torchGroup.add(torch);
     this.isTorchLoaded = true;
