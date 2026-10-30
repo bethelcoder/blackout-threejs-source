@@ -1,192 +1,439 @@
 import * as THREE from 'three';
-import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
-import { createElectricCorruptionMaterial } from '../shaders/electricCorruption.js';
-import { createSparkParticles } from '../systems/particles.js';
+import { buildRoom, buildProp } from './roomBuilder.js';
+import { buildCoreHologramScreen } from './coreHologramScreen.js';
+import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
+import { createCoreContainmentMaterial } from '../shaders/coreContainment.js';
+import { buildCorePowerConduits } from './corePowerConduits.js';
+import { createCoreShockwaves } from '../systems/coreShockwaves.js';
+import { buildCoreFeeders } from './coreFeeders.js';
+import { buildCoreRoomProps } from './coreRoomProps.js';
 import { sound } from '../systems/audio.js';
+import { buildCoreBase } from './coreBase.js';
+import { applyCoreWalls } from './coreWalls.js';
+import { buildCoreCeiling } from './coreCeiling.js';
+import { buildCoreLamps } from './coreLamps.js';
+import { buildCorePillars } from './corePillars.js';
+import { buildRightSupercomputer } from './rightSupercomputer.js';
+import { buildLeftWorkstation } from './leftWorkstation.js';
+import { buildCoreCrates } from './coreCrates.js';
+import { buildEarthHologram } from './earthHologram.js';
+import { buildCoreFurnishings } from './coreFurnishings.js';
+import { buildCoreChair } from './coreChair.js';
+import { buildCoreToolboxes } from './coreToolboxes.js';
+import { buildCoreWetFloorSign } from './coreWetFloorSign.js';
+import { buildCoreExtinguisher } from './coreExtinguisher.js';
+import { buildCoreFirstAid } from './coreFirstAid.js';
+import { buildCoreDisplayTerminal } from './coreDisplayTerminal.js';
+import { buildCoreBot } from './coreBot.js';
+import { createRobotRepair } from '../systems/robotRepair.js';
+import { createCircuitPuzzle } from '../systems/circuitPuzzle.js';
+import { createLogbookPuzzle } from '../systems/logbookPuzzle.js';
+import { buildInvisibleInk } from './invisibleInk.js';
+import { createComponentAssembly } from '../systems/componentAssembly.js';
+import { DetailLod } from '../systems/detailLod.js';
+
+// Free GPU memory for everything under `root` (brief section 6.1).
+// Safe even if an asset is shared elsewhere: three simply re-uploads it if reused.
+function disposeTree(root) {
+  root.traverse(obj => {
+    obj.geometry?.dispose();
+    const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+    for (const m of mats) {
+      for (const v of Object.values(m)) if (v?.isTexture) v.dispose();
+      m.dispose();
+    }
+    obj.shadow?.dispose?.();
+  });
+}
 
 /**
- * LEVEL 3 — THE CORE
- * Environment: Central Infrastructure / AI Control Chamber
- * Signature Mechanics: Custom GLSL corruption shader + multi-switch isolation puzzle.
- * Narrative climax: Isolate the AI without losing the restored municipal grid.
+ * LEVEL 3 — THE CORE (Confront)
+ * Assemble the recovered components, then connect the AI shutdown circuit.
  */
-export function buildLevel3({ scene, aiState, hud, onEnding }) {
+export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeHit, createKeypadRenderer }) {
   const colliders = [];
-  const cleanup = [];
+  const roots = [];                       // everything we add: removed + disposed in dispose()
+  const add = (obj) => { scene.add(obj); roots.push(obj); return obj; };
+  // Imported set dressing is registered once loaded, then drawn at the detail
+  // its distance from the player allows.
+  const detailLod = new DetailLod();
 
-  const { group: room, colliders: wallColliders } = buildRoom({
-    width: 14, depth: 14, height: 5.5, wallColor: 0x5a3e3e, floorColor: 0x473232,
+  // ---------- Room ----------
+  const { group: room, colliders: wallColliders, floor } = buildRoom({
+    width: 14, depth: 14, height: 5.5, wallColor: 0x5a3e3e,
+    officeFloor: true,
+    officeCeiling: true,
+    includeLeftCabinets: false,
+    includeRightCabinets: false,
+    includePlinths: false,
   });
-  scene.add(room);
+  floor.name = 'Level 3 office floor';
+  applyCoreWalls(room);
+  add(room);
   colliders.push(...wallColliders);
+  const ceiling = buildCoreCeiling(room);
+  scene.add(ceiling.group);
+  const ceilingLamps = buildCoreLamps();
+  scene.add(ceilingLamps.group);
+  const cornerPillars = buildCorePillars();
+  scene.add(cornerPillars.group);
+  colliders.push(...cornerPillars.colliders);
+  const rightSupercomputer = buildRightSupercomputer();
+  scene.add(rightSupercomputer.group);
+  colliders.push(rightSupercomputer.collider);
+  const leftWorkstation = buildLeftWorkstation();
+  scene.add(leftWorkstation.group);
+  colliders.push(leftWorkstation.collider);
+  const woodenCrates = buildCoreCrates();
+  scene.add(woodenCrates.group);
+  colliders.push(woodenCrates.collider);
+  const earthHologram = buildEarthHologram();
+  scene.add(earthHologram.group);
+  colliders.push(earthHologram.collider);
+  const furnishings = buildCoreFurnishings();
+  scene.add(furnishings.group);
+  colliders.push(...furnishings.colliders);
+  const workstationChair = buildCoreChair();
+  scene.add(workstationChair.group);
+  colliders.push(workstationChair.collider);
+  const toolboxes = buildCoreToolboxes();
+  scene.add(toolboxes.group);
+  colliders.push(toolboxes.collider);
+  const wetFloorSign = buildCoreWetFloorSign();
+  scene.add(wetFloorSign.group);
+  colliders.push(wetFloorSign.collider);
+  const extinguisher = buildCoreExtinguisher();
+  scene.add(extinguisher.group);
+  colliders.push(extinguisher.collider);
+  const firstAid = buildCoreFirstAid();
+  scene.add(firstAid.group);
+  colliders.push(firstAid.collider);
+  const displayTerminal = buildCoreDisplayTerminal();
+  scene.add(displayTerminal.group);
+  colliders.push(displayTerminal.collider);
+  const deskBot = buildCoreBot();
+  scene.add(deskBot.group);
+  colliders.push(deskBot.collider);
 
-  // Core chamber atmospheric lighting
-  const hemiLight = new THREE.HemisphereLight(0xffcccc, 0x664444, 1.4);
-  scene.add(hemiLight);
-  cleanup.push(() => scene.remove(hemiLight));
+  // ---------- Lighting (one shadow caster, tight shadow frustum) ----------
+  add(new THREE.HemisphereLight(0xffcccc, 0x664444, 0.6));
+  add(new THREE.AmbientLight(0xffffff, 0.2));
+  const spot = new THREE.SpotLight(0xff9a8a, 60, 16, 1.0, 0.6, 1.2);
+  spot.position.set(0, 5.2, 0);
+  spot.castShadow = true;
+  spot.shadow.mapSize.set(1024, 1024);
+  spot.shadow.camera.near = 1;
+  spot.shadow.camera.far = 12;
+  spot.shadow.bias = -0.0005;
+  add(spot);
+  add(spot.target);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-  scene.add(ambient);
-  cleanup.push(() => scene.remove(ambient));
+  // ---------- Core: pedestal -> floating coreGroup -> orb + rings + light ----------
+  // Hierarchy: the rings, orb and light are children of coreGroup so they move,
+  // scale and dissolve as one unit; coreGroup sits on the pedestal under `core`.
+  const core = add(new THREE.Group());
 
-  // Central pulsating red AI core light
-  const coreLight = new THREE.PointLight(0xff2b2b, 16, 24, 1.0);
-  coreLight.position.set(0, 3.2, 0);
-  scene.add(coreLight);
-  cleanup.push(() => scene.remove(coreLight));
+  const pedestal = buildCoreBase();
+  core.add(pedestal.group);
 
-  // Central AI Core Reactor Prop
-  const coreGroup = new THREE.Group();
-  coreGroup.position.set(0, 2.5, 0);
-
-  // Central energy orb
-  const orbMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b });
-  const coreOrb = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 16), orbMat);
-  coreGroup.add(coreOrb);
-
-  // Rotating energy containment rings
-  const ringMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.2 });
-  const ring1 = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.05, 8, 32), ringMat);
-  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.05, 8, 32), ringMat);
-  const ring3 = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.05, 8, 32), ringMat);
-  coreGroup.add(ring1, ring2, ring3);
-
-  // Core pedestal base
-  const pedestal = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.2, 1.5, 1.2, 16),
-    new THREE.MeshStandardMaterial({ color: 0x2c3540, metalness: 0.7, roughness: 0.3 })
+  const hazardRing = new THREE.Mesh(
+    new THREE.RingGeometry(1.6, 2.0, 48),
+    new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.8 })
   );
-  pedestal.position.set(0, 0.6, 0);
-  pedestal.castShadow = true;
-  scene.add(pedestal);
-  colliders.push(new THREE.Box3().setFromObject(pedestal));
-  cleanup.push(() => scene.remove(pedestal));
+  hazardRing.rotation.x = -Math.PI / 2;
+  hazardRing.position.y = 0.012;
+  hazardRing.receiveShadow = true;
+  core.add(hazardRing);
 
-  scene.add(coreGroup);
-  cleanup.push(() => scene.remove(coreGroup));
+  const coreGroup = new THREE.Group();
+  coreGroup.position.y = 2.5;
+  core.add(coreGroup);
 
-  // Hazard warning perimeter around the AI core
-  const hazardCircle = buildHazardStrip({ width: 4.5, depth: 0.6, position: [0, 0.01, 2.4] });
-  scene.add(hazardCircle);
-  cleanup.push(() => scene.remove(hazardCircle));
+  const orbMat = createCoreOrbMaterial();
+  coreGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.55, 48, 32), orbMat));
 
-  // Corrupted wall panel running custom GLSL shader
-  const corruptionMat = createElectricCorruptionMaterial();
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(5, 3.5), corruptionMat);
-  panel.position.set(0, 2.4, -6.85);
-  scene.add(panel);
-  cleanup.push(() => scene.remove(panel));
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.2 });
+  const rings = [1.0, 1.3, 1.6].map(radius => {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.05, 8, 48), ringMat);
+    coreGroup.add(ring);
+    return ring;
+  });
 
-  // Sparks discharging around the corrupted conduit
-  const sparks = createSparkParticles({ origin: [0, 2.2, -6.5], color: 0xff5f4f, count: 100 });
-  scene.add(sparks);
-  cleanup.push(() => scene.remove(sparks));
+  const coreLight = new THREE.PointLight(0xff2b2b, 14, 24, 1.0);
+  coreGroup.add(coreLight);
 
-  // Three Isolation Switches (A, B, C)
-  const sequence = ['A', 'B', 'C'];
+  const containmentMat = createCoreContainmentMaterial();
+  const containmentField = new THREE.Mesh(new THREE.SphereGeometry(1.82, 64, 40), containmentMat);
+  containmentField.name = 'Core containment field';
+  coreGroup.add(containmentField);
+
+  core.updateMatrixWorld(true);
+  colliders.push(pedestal.collider);
+
+  // ---------- Floating wall telemetry ----------
+  const hologramScreen = buildCoreHologramScreen();
+  add(hologramScreen.group);
+  const powerConduits = buildCorePowerConduits();
+  add(powerConduits.group);
+  const shockwaves = createCoreShockwaves({
+    onHit: onSurgeHit,
+    onCharge: () => sound.playDetectionWarning(0.35),
+    onFire: () => sound.playGlitch(),
+  });
+  add(shockwaves.mesh);
+
   let progress = 0;
   let finished = false;
-  const switches = {};
-
-  const positions = { A: [-4.0, 0, -4.0], B: [0, 0, -4.5], C: [4.0, 0, -4.0] };
-
-  for (const key of sequence) {
-    const swDesk = buildProp({ width: 0.5, height: 1.1, depth: 0.4, color: 0x3d4855, position: positions[key] });
-    swDesk.mesh.position.y = 1.0;
-    swDesk.mesh.userData.interactable = true;
-    swDesk.mesh.userData.label = `Pull isolation breaker [${key}]`;
-
-    swDesk.mesh.userData.onInteract = () => {
-      if (finished) return;
-      sound.playSwitch();
-
-      if (sequence[progress] === key) {
-        progress++;
-        swDesk.mesh.material.emissive = new THREE.Color(0x2bff6f);
-        swDesk.mesh.material.emissiveIntensity = 1.8;
-        sound.playAccessGranted();
-        hud.setObjective(`Isolation sequence: ${progress}/${sequence.length} breakers locked.`);
-
-        if (progress === sequence.length) {
-          finished = true;
-          hud.setObjective('AI isolated! Grid stabilized. Initiating facility lockdown override...');
-          hud.markLevelComplete();
-          setTimeout(() => onEnding(), 1200);
-        }
-      } else {
-        // Wrong sequence order — reset switches and escalate AI suspicion
-        progress = 0;
-        for (const s of Object.values(switches)) {
-          s.mesh.material.emissive = new THREE.Color(0x000000);
-          s.mesh.material.emissiveIntensity = 0;
-        }
-        sound.playDetectionWarning(0.9);
-        aiState.raise(30);
-        hud.setObjective('INCORRECT SEQUENCE: Breakers reset! Inspect the maintenance schedule for correct shutdown order.');
-      }
-    };
-
-    scene.add(swDesk.mesh);
-    colliders.push(swDesk.box);
-    cleanup.push(() => scene.remove(swDesk.mesh));
-    switches[key] = swDesk;
-  }
-
-  // Maintenance schedule clue clipboard
-  const hintDesk = buildProp({ width: 1.0, height: 0.9, depth: 0.5, color: 0x3d4855, position: [5.0, 0, 4.0] });
-  scene.add(hintDesk.mesh);
-  colliders.push(hintDesk.box);
-  cleanup.push(() => scene.remove(hintDesk.mesh));
-
-  const hintProp = new THREE.Mesh(
-    new THREE.BoxGeometry(0.35, 0.02, 0.25),
-    new THREE.MeshStandardMaterial({ color: 0xe8d9a0, roughness: 0.4 })
-  );
-  hintProp.position.set(5.0, 0.92, 4.0);
-  hintProp.userData.interactable = true;
-  hintProp.userData.label = 'Read maintenance schedule';
-  hintProp.userData.onInteract = () => {
-    sound.playInteract();
-    hud.setObjective('Schedule found: safely isolate breakers in alphabetical order — [A] → [B] → [C].');
+  const logbook = createLogbookPuzzle({
+    getKeypadModel: () => leftWorkstation.group.getObjectByName('Upper drawer code keypad'),
+    createKeypadRenderer,
+    onUnlock: () => {
+    leftWorkstation.openDrawer();
+    sound.playAccessGranted();
+    hud.setObjective('Drawer unlocked. Aim at the UV flashlight inside and press E to pick it up.');
+  }, onSolved: () => {
+    leftWorkstation.uvPickup.visible = false;
+    sound.playAccessGranted();
+    hud.setObjective('UV flashlight collected. Equip it from the backpack [B]. Shine it on the safety notice on the wall behind the entrance, then search the service poster, inspection label, and maintenance floor tile for invisible ink.');
+  } });
+  const invisibleInk = buildInvisibleInk({ equipment, enabled: () => logbook.solved, hud, onSolved: () => {
+    sound.playAccessGranted();
+    hud.setObjective('UV answer accepted: RELAY. Core shockwaves activated! Isolate feeders A, B and C from HIGHEST MW load to LOWEST. Jump red rings or use the green gaps. Each isolated feeder makes the waves faster.');
+  } });
+  add(invisibleInk.group);
+  const feeders = buildCoreFeeders({
+    enabled: () => invisibleInk.solved && !finished,
+    hud,
+    onProgress: count => {
+      sound.playSwitch(); sound.playAccessGranted();
+      if (count === 3) { shockwaves.update(0, null, 0, true); charge = 0; }
+    },
+    onWrong: () => { aiState.raise(30); sound.playDetectionWarning(0.9); },
+  });
+  add(feeders.group);
+  colliders.push(...feeders.colliders);
+  const requireLogbook = () => {
+    if (logbook.solved) {
+      if (invisibleInk.solved) return false;
+      hud.setObjective('Complete Invisible Ink first: equip the UV flashlight, record the wall cipher and three hidden fragments, then decode the assembly access word at the safety notice.');
+      return true;
+    }
+    hud.setObjective('Start with the engineer’s logbook on the left computer desk. Trust the stamps. Unlock the drawer and collect the UV flashlight first.');
+    return true;
   };
-  scene.add(hintProp);
-  cleanup.push(() => scene.remove(hintProp));
+  const robotRepair = createRobotRepair({ onSolved: () => {
+    hologramScreen.setGuidance(true);
+    sound.playAccessGranted();
+    hud.setObjective('Three circuit components collected. Use the glowing wall hologram to assemble them. The UV access word unlocks the assembly station.');
+  } });
+  const assembly = createComponentAssembly({ onSolved: () => {
+    progress = 3;
+    hologramScreen.setGuidance(false);
+    sound.playAccessGranted();
+    hud.setObjective('Board assembled. Initializing the final circuit. Connect all three relays and finish at 5V to isolate the AI.');
+  }, onCircuitReady: host => coreOverride.open({ host }) });
+  const coreOverride = createCircuitPuzzle({ onSolved: () => {
+    if (assembly.solved && robotRepair.solved && !finished) beginIsolation();
+  } });
+  Object.assign(deskBot.group.userData, {
+    interactable: true,
+    label: 'Talk to robot',
+    getLabel: () => robotRepair.solved ? 'Chat with friendly robot' : 'Talk to robot / communication keypad',
+    onInteract: () => {
+      if (requireLogbook()) return;
+      robotRepair.open();
+    },
+  });
+  const openCircuit = () => {
+    if (requireLogbook() || finished) return;
+    if (!feeders.solved) { hud.setObjective('Isolate the three feeders from HIGHEST MW load to LOWEST before using the hologram.'); return; }
+    if (!robotRepair.solved) { hud.setObjective('Solve the robot riddles to collect all three circuit components.'); return; }
+    hologramScreen.setGuidance(false);
+    if (!assembly.solved) { assembly.open(); return; }
+    coreOverride.open();
+  };
+  Object.assign(hologramScreen.group.userData, {
+    interactable: true,
+    label: 'Connect hologram shutdown circuit',
+    getLabel: () => !assembly.solved ? 'Assemble circuit components' : 'Connect hologram shutdown circuit',
+    reach: 3.5,
+    onInteract: openCircuit,
+  });
+  // ---------- Maintenance desk ----------
+  const deskFrameMat = new THREE.MeshStandardMaterial({ color: 0x59646f, metalness: 0.1, roughness: 0.6 });
+  const deskTopMat = new THREE.MeshStandardMaterial({ color: 0x7b8794, metalness: 0.1, roughness: 0.55 });
+  const hintDesk = new THREE.Group();
+  hintDesk.name = 'Maintenance desk';
+  // Sized to the briefing-station trim in coreFurnishings: 1.0 m wide, 0.9 m top,
+  // so the side rails clear the tabletop and the light bar sits on its back edge.
+  hintDesk.position.set(5.0, 0, 4.0);
+  hintDesk.add(buildProp({
+    geometry: new THREE.BoxGeometry(1.0, 0.06, 0.65),
+    material: deskTopMat,
+    position: [0, 0.87, 0],
+  }));
+  for (const x of [-0.455, 0.455]) {
+    hintDesk.add(buildProp({
+      geometry: new THREE.BoxGeometry(0.09, 0.84, 0.58),
+      material: deskFrameMat,
+      position: [x, 0.42, 0],
+    }));
+  }
+  hintDesk.add(buildProp({
+    geometry: new THREE.BoxGeometry(0.85, 0.05, 0.5),
+    material: deskFrameMat,
+    position: [0, 0.22, 0],
+  }));
+  add(hintDesk);
+  hintDesk.updateMatrixWorld(true);
+  colliders.push(new THREE.Box3().setFromObject(hintDesk));
+
+  // Keep the starting puzzle on the furnished left workstation.
+  const book = leftWorkstation.bookAnchor;
+  Object.assign(leftWorkstation.uvPickup.userData, {
+    interactable: true,
+    label: 'Pick up UV flashlight',
+    onInteract: () => {
+      if (!logbook.unlocked || logbook.solved) return;
+      if (!logbook.collect()) hud.setObjective('Backpack full. Free a slot, then pick up the UV flashlight.');
+    },
+  });
+  Object.assign(book.userData, { interactable: true, label: 'Read engineer’s logbook', onInteract: () => logbook.open() });
+  Object.assign(leftWorkstation.drawer.userData, {
+    interactable: true, label: 'Enter drawer code',
+    getLabel: () => logbook.solved ? 'Empty drawer' : logbook.unlocked ? 'Open drawer' : 'Enter drawer code',
+    onInteract: () => {
+      if (!logbook.unlocked) { logbook.open(true); return; }
+      hud.setObjective(logbook.solved ? 'The drawer is empty. UV flashlight already collected.' : 'Aim at the UV flashlight inside the drawer and press E to pick it up.');
+    },
+  });
+  const note = leftWorkstation.monitorNoteAnchor;
+  Object.assign(note.userData, { interactable: true, label: 'Read monitor sticky note', onInteract: () => hud.setObjective('“Trust the stamps.” Read the engineer’s logbook on the left computer desk. Use the four red-stamped entries to unlock its upper drawer.') });
+  // ---------- Perimeter dressing ----------
+  // Keep the central route to the hologram clear.
+  const roomProps = buildCoreRoomProps();
+  scene.add(roomProps.group);
+  colliders.push(...roomProps.colliders);
 
   let t = 0;
+  let spin = 0;
+  let charge = 0;
+  let dissolve = 0;
+  let ended = false;
 
-  function update(delta) {
+  function beginIsolation() {
+    finished = true;
+    sound.playGlitch();
+    hud.setObjective('AI core isolated. Grid stable. Purging core memory...');
+    // Do NOT call hud.markLevelComplete(): main.js would trigger the ending
+    // after ~1.75 s and cut the dissolve short. We call onEnding() ourselves.
+  }
+
+  const lerpK = (delta, rate) => 1 - Math.exp(-delta * rate);   // frame-rate independent smoothing
+
+  function update(delta, camera) {
+    leftWorkstation.update(delta);
+    detailLod.update(camera);
+    earthHologram.update(delta);
+    invisibleInk.update(camera);
+    if (logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen) return;
     t += delta;
+    feeders.update(delta);
+    shockwaves.update(delta, camera, feeders.count, finished || feeders.solved, invisibleInk.solved);
+    charge = shockwaves.charge;
+    powerConduits.update(delta, t, invisibleInk.solved, robotRepair.solved, assembly.solved, finished);
+    // --- Ending: dissolve the core, then hand over to the ending sequence ---
+    if (finished) {
+      dissolve += delta / 2.2;
+      orbMat.uniforms.uDissolve.value = dissolve;
+      const s = Math.max(0.001, 1 - dissolve);
+      rings.forEach(r => r.scale.setScalar(s));
+      if (dissolve >= 1.05 && !ended) { ended = true; onEnding(); }
+    }
 
-    // Rotate core energy containment rings
-    ring1.rotation.x = t * 0.8;
-    ring1.rotation.y = t * 0.5;
-    ring2.rotation.y = t * 0.9;
-    ring2.rotation.z = t * 0.6;
-    ring3.rotation.z = t * 1.1;
-    ring3.rotation.x = t * 0.7;
+    // --- Core visuals driven by game state ---
+    spin += delta * (1 + progress * 0.6 + charge * 3);
+    rings[0].rotation.set(spin * 0.8, spin * 0.5, 0);
+    rings[1].rotation.set(0, spin * 0.9, spin * 0.6);
+    rings[2].rotation.set(spin * 0.7, 0, spin * 1.1);
 
-    // Core light pulse
-    coreLight.intensity = 14 + Math.sin(t * 5.0) * 4.0;
+    const fade = finished ? Math.max(0, 1 - dissolve) : 1;
+    coreLight.intensity = (14 + Math.sin(t * 5.0) * 4.0 + charge * 10) * fade;
 
-    // Update custom shader uniforms
-    corruptionMat.uniforms.uTime.value += delta;
-    corruptionMat.uniforms.uIntensity.value = THREE.MathUtils.lerp(
-      corruptionMat.uniforms.uIntensity.value,
-      0.35 + aiState.suspicion / 120,
-      0.08
-    );
+    const orbU = orbMat.uniforms;
+    orbU.uTime.value = t;
+    const agitationTarget = finished ? 0.2 : 0.3 + progress * 0.3 + charge * 0.5;
+    orbU.uAgitation.value += (agitationTarget - orbU.uAgitation.value) * lerpK(delta, 6);
 
-    sparks.userData.update(delta);
+    const fieldU = containmentMat.uniforms;
+    fieldU.uTime.value = t;
+    const instabilityTarget = THREE.MathUtils.clamp(aiState.suspicion / 100, 0, 1);
+    fieldU.uInstability.value += (instabilityTarget - fieldU.uInstability.value) * lerpK(delta, 4);
+    const collapse = THREE.MathUtils.clamp(dissolve / 0.7, 0, 1);
+    fieldU.uCollapse.value = collapse;
+    containmentField.scale.setScalar(Math.max(0.001, 1 - collapse));
+    containmentField.visible = collapse < 1;
+
+    hologramScreen.update(t, progress, charge);
+
     aiState.decay(2 * delta);
   }
 
+  const ready = Promise.all([roomProps.ready, wetFloorSign.ready, pedestal.ready, ceiling.ready, ceilingLamps.ready, cornerPillars.ready, rightSupercomputer.ready, leftWorkstation.ready, woodenCrates.ready, earthHologram.ready, workstationChair.ready, toolboxes.ready, extinguisher.ready, firstAid.ready, displayTerminal.ready, deskBot.ready])
+    .then(() => {
+      detailLod.addByName(scene, [
+        'Level 3 right-wall supercomputer',
+        'Level 3 left-wall computer desk',
+        'Level 3 wooden crates',
+        'Level 3 organised equipment bays',
+        'Level 3 workstation chair',
+        'Level 3 stacked toolboxes',
+        'Level 3 wall-mounted fire extinguisher',
+        'Level 3 wall-mounted first aid box',
+        'Level 3 display terminal beside left desk',
+        'Core room perimeter dressing',
+      ]);
+    });
+
+  function dispose() {
+    invisibleInk.dispose();
+    logbook.dispose();
+    detailLod.dispose();
+    roomProps.dispose();
+    robotRepair.dispose();
+    assembly.dispose();
+    coreOverride.dispose();
+    deskBot.dispose();
+    displayTerminal.dispose();
+    firstAid.dispose();
+    extinguisher.dispose();
+    toolboxes.dispose();
+    wetFloorSign.dispose();
+    workstationChair.dispose();
+    furnishings.dispose();
+    earthHologram.dispose();
+    woodenCrates.dispose();
+    leftWorkstation.dispose();
+    rightSupercomputer.dispose();
+    cornerPillars.dispose();
+    ceilingLamps.dispose();
+    ceiling.dispose();
+    pedestal.dispose();
+    for (const obj of roots) { scene.remove(obj); disposeTree(obj); }
+    roots.length = 0;
+  }
+
   return {
+    ready,
     colliders,
+    get panelOpen() { return logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen; },
+    get assemblyComplete() { return assembly.solved; },
+    get accessKeyword() { return invisibleInk.accessKeyword; },
     update,
-    dispose: () => cleanup.forEach(fn => fn()),
+    dispose,
     spawn: new THREE.Vector3(0, 1.7, 5.5),
     title: 'LEVEL 3 — THE CORE',
     subtitle: 'Isolate the AI without cutting the stabilized municipal grid.',
-    objective: 'Locate the maintenance schedule to isolate the core breakers in sequence.',
+    objective: 'Read the engineer’s logbook on the left computer desk. Trust the stamps: find the four-digit drawer code and collect the UV flashlight. Jump the red shockwaves or move through their green gaps.',
   };
 }

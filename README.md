@@ -17,10 +17,13 @@ the BLACKOUT concept brief (first-person AI-controlled substation escape).
 - **Fictional terminal command system** — the Level 2 signature mechanic
   from the story brief: `STATUS`, `SCAN GRID`, `AUTH <code>`,
   `ROUTE <node>`, `OVERRIDE WATER` (`src/systems/terminal.js`).
-- **Custom shader** — `src/shaders/electricCorruption.js`, a hand-written
-  vertex+fragment ShaderMaterial (scanlines, animated vein noise, time- and
-  suspicion-driven vertex flicker) covering the Shaders rubric line item —
-  make sure every teammate can explain it before the demo.
+- **Custom shaders** — seven hand-written GLSL `ShaderMaterial`s in
+  `src/shaders/`, all procedural (no textures): vent haze and electrified
+  water in Level 1, a floor routing hologram and a rack data stream in Level 2,
+  the AI corruption panel in Level 3, plus two full-screen passes — an
+  electrical shock overlay and a treated CCTV picture-in-picture feed.
+  `docs/shader-notes.md` explains what each one does, why it suits its room,
+  and its limits, for the report and the demo.
 - **Three genuinely different levels**, each with its own mechanic per the
   story brief:
   - Level 1 (Infiltration): security camera detection cone + access-code puzzle.
@@ -65,10 +68,10 @@ roughly in the order the rubric rewards them:
    actually chases the player once LOCKDOWN is reached.
 4. Add sound design — ambient hum, terminal beeps, alarm stingers — the
    rubric calls this out explicitly under Gameplay & Experience.
-5. Second and third custom shaders if you want to push further into the
-   top band of the Shaders category (currently there's one).
-6. Multiple camera views (e.g. a security-camera picture-in-picture) for
-   the Viewing category's top band.
+
+The shader set and the security-camera picture-in-picture are already in
+place: seven custom `ShaderMaterial`s across the three levels and two
+full-screen passes, documented in `docs/shader-notes.md`.
 
 ## Credits already included
 

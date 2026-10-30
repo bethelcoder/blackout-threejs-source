@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { arrangeOfficeChair, buildOfficeChair } from '../src/scenes/officeChair.js';
+import { CHAIR } from '../src/scenes/level2Layout.js';
+
+globalThis.self = globalThis;
+globalThis.createImageBitmap = async () => ({ width: 1024, height: 1024, close() {} });
+const bytes = fs.readFileSync('src/assets/models/office-chair.glb');
+const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+function stats(root) {
+  let meshes = 0, triangles = 0;
+  const materials = new Set();
+  root.traverse(mesh => {
+    if (!mesh.isMesh) return;
+    meshes++;
+    triangles += (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+    materials.add(mesh.material);
+  });
+  return { meshes, triangles, materials };
+}
+const before = stats(gltf.scene);
+const original = gltf.scene.clone(true);
+original.rotation.y = 0;
+original.updateMatrixWorld(true);
+let bounds = new THREE.Box3().setFromObject(original);
+original.scale.setScalar(1.25 / bounds.getSize(new THREE.Vector3()).y);
+original.updateMatrixWorld(true);
+bounds.setFromObject(original);
+const center = bounds.getCenter(new THREE.Vector3());
+original.position.add(new THREE.Vector3(-center.x, -bounds.min.y, -center.z));
+const expected = new THREE.Group();
+expected.add(original);
+expected.position.set(CHAIR.x, 0, CHAIR.z);
+expected.rotation.y = CHAIR.rotationY;
+expected.updateMatrixWorld(true);
+const expectedBounds = new THREE.Box3().setFromObject(expected);
+const chair = arrangeOfficeChair(gltf.scene.clone(true));
+const after = stats(chair.group);
+assert.ok(after.meshes < before.meshes);
+assert.equal(after.triangles, before.triangles);
+assert.deepEqual(after.materials, before.materials);
+assert.ok(chair.collider.min.distanceTo(expectedBounds.min) < 1e-5);
+assert.ok(chair.collider.max.distanceTo(expectedBounds.max) < 1e-5);
+assert.ok(Math.abs(chair.collider.min.y) < 1e-5);
+assert.ok(Math.abs(chair.collider.max.y - 1.25) < 1e-5);
+const load = GLTFLoader.prototype.loadAsync;
+GLTFLoader.prototype.loadAsync = async () => ({ scene: gltf.scene.clone(true) });
+try {
+  const scene = new THREE.Scene(), colliders = [];
+  let seat = null;
+  const loaded = buildOfficeChair({ scene, colliders, onSit: request => { seat = request; return true; } });
+  await loaded.ready;
+  assert.equal(colliders.length, 1);
+  scene.children[0].userData.onInteract();
+  assert.deepEqual(seat.position, CHAIR.seatPosition);
+  assert.deepEqual(seat.target, CHAIR.seatTarget);
+  let disposed = 0;
+  scene.traverse(mesh => mesh.geometry?.addEventListener('dispose', () => disposed++));
+  loaded.dispose();
+  assert.equal(disposed, after.meshes);
+  assert.equal(scene.children.length, 0);
+  assert.equal(colliders.length, 0);
+  const cancelled = buildOfficeChair({ scene, colliders });
+  cancelled.dispose();
+  await cancelled.ready;
+  assert.equal(scene.children.length, 0);
+} finally { GLTFLoader.prototype.loadAsync = load; }
+console.log(`Chair: ${before.meshes} -> ${after.meshes} draw calls; same triangles, materials, bounds, seating and cleanup.`);

@@ -1,36 +1,51 @@
-import * as THREE from 'three';
+import { InteractionTarget } from './interactionTarget.js';
 
 const REACH = 3.2;
 
 /**
- * Casts a ray from the centre of the screen each frame and finds the
- * nearest object tagged .userData.interactable within reach.
+ * Finds visible interactable objects within reach, with a small aiming
+ * tolerance around the centre of the screen.
  * Objects register a callback: obj.userData.onInteract = () => {...}
  */
 export class InteractionSystem {
-  constructor(camera, scene, promptEl) {
+  constructor(camera, scene, promptEl, isEnabled = () => true) {
     this.camera = camera;
     this.scene = scene;
     this.promptEl = promptEl;
-    this.raycaster = new THREE.Raycaster();
-    this.center = new THREE.Vector2(0, 0);
+    this.targeting = new InteractionTarget();
     this.current = null;
+    this.isEnabled = isEnabled;
+    this.held = false;
+    this.scanDelay = 0;
 
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyE' && this.current) {
+      if (e.code === 'KeyE' && !e.repeat && this.isEnabled() && this.current) {
+        this.held = true;
         this.current.userData.onInteract?.(this.current);
       }
     });
+    document.addEventListener('keyup', e => { if (e.code === 'KeyE') this.held = false; });
+    document.addEventListener('pointerlockchange', () => this.reset());
   }
 
-  update() {
-    this.raycaster.setFromCamera(this.center, this.camera);
-    const hits = this.raycaster.intersectObjects(this.scene.children, true);
-    const hit = hits.find(h => h.distance <= REACH && this._interactableAncestor(h.object));
+  reset() {
+    this.current = null;
+    this.held = false;
+    this.scanDelay = 0;
+    this.promptEl?.classList.add('hidden');
+  }
 
-    const target = hit ? this._interactableAncestor(hit.object) : null;
+  update(delta = 0) {
+    if (!this.isEnabled()) { this.reset(); return; }
+    this.scanDelay -= delta;
+    let target = this.current;
+    if (this.scanDelay <= 0) {
+      this.scanDelay = 0.08;
+      target = this.targeting.find(this.camera, this.scene, REACH, object => object.userData?.interactable);
+    }
 
     if (target !== this.current) {
+      this.held = false;
       this.current = target;
       if (this.promptEl) {
         this.promptEl.classList.toggle('hidden', !target);
@@ -39,14 +54,12 @@ export class InteractionSystem {
         }
       }
     }
+    if (this.current && this.held) this.current.userData.onHold?.(delta);
+    if (this.current && this.promptEl) {
+      const label = this.current.userData.getLabel?.() || this.current.userData.label;
+      const action = this.current.userData.promptAction ?? '[E]';
+      this.promptEl.textContent = `${action} ${label}`;
+    }
   }
 
-  _interactableAncestor(obj) {
-    let o = obj;
-    while (o) {
-      if (o.userData?.interactable) return o;
-      o = o.parent;
-    }
-    return null;
-  }
 }

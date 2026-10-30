@@ -1,25 +1,124 @@
 import * as THREE from 'three';
 import { buildRoom, buildProp, buildHazardStrip } from './roomBuilder.js';
-import { createServerRackTexture } from '../systems/textures.js';
 import { sound } from '../systems/audio.js';
+import { buildLevel2Design } from './design.js';
+import { buildPuzzleChain } from './puzzleChain.js';
+import { buildLaserSecurity } from './laserSecurity.js';
+import { buildVenatorRoom } from './venatorRoom.js';
+import { buildTerminalStation } from './terminalStation.js';
+import { buildOfficeChair } from './officeChair.js';
+import { buildPaperRack } from './paperRack.js';
+import { buildServerRacks } from './serverRacks.js';
+import { buildVenatorSmallDoor } from './venatorSmallDoor.js';
+import { loadModel } from '../systems/modelCache.js';
+import { fitModel } from '../systems/fitModel.js';
+import { createRoutingHologram } from '../shaders/routingHologram.js';
+import { createRackDataStream } from '../shaders/rackDataStream.js';
+import { DetailLod } from '../systems/detailLod.js';
+import { SERVICE_BAY, STICKY_FALLBACK, COMPUTER } from './level2Layout.js';
 
 /**
  * LEVEL 2 — CONTROL
  * Environment: Main Power-Grid Control Room & Server Banks
  * Signature Mechanic: Fictional interactive command-line terminal system.
- * Narrative progression: Restore water infrastructure, alerting the AI.
+ *
+ * All placement comes from level2Layout.js. If you change the terminal's
+ * rotation, the service bay's height, the supply crate's position or the
+ * chair's spot, do it there — this file reads the shared anchors and
+ * derives its own positions from them, so nothing needs to be duplicated
+ * here.
  */
-export function buildLevel2({ scene, aiState, hud, terminalUI }) {
+export function buildLevel2({ scene, aiState, hud, terminalUI, onShock, onSecurityHit, onChairSit, isPlayerSeated, onCarryChange }) {
   const colliders = [];
   const cleanup = [];
 
+  // =====================================================================
+  // ROOM
+  // =====================================================================
   const { group: room, colliders: wallColliders } = buildRoom({
     width: 14, depth: 16, height: 4.2, wallColor: 0x5a6d80, floorColor: 0x485868,
+    includeLeftCabinets: false,
+    includeRightCabinets: false,
+    includePlinths: false,
+    includeRightPlinth: false,
+    officeFloor: true,
+    officeCeiling: true,
+    backDoorOpening: { width: 1.86, height: 2.78 },
   });
   scene.add(room);
+
+  const originalRoomSurfaces = room.children.filter(object => ['Room wall', 'Room ceiling'].includes(object.name));
+  const originalLightFixtures = [];
+  const venatorRoom = buildVenatorRoom({ scene, onReady: () => {
+    [...originalRoomSurfaces, ...originalLightFixtures].forEach(object => { object.visible = false; });
+  } });
+  cleanup.push(() => venatorRoom.dispose());
+
+  // ---- VENT COVER (GLB replacing the grey box) ----
+  const ventPromise = loadModel(new URL('../assets/models/vent.glb', import.meta.url).href)
+    .then(gltf => {
+      const vent = gltf.scene.clone(true);
+      fitModel(vent, { h: 1.1 }, -Math.PI / 2);
+      vent.position.set(6.85, 0.15, 5.8);
+      vent.name = 'Maintenance duct exit';
+      scene.add(vent);
+      return vent;
+    })
+    .catch(err => { console.warn('Vent cover failed to load:', err); return null; });
+
   colliders.push(...wallColliders);
 
-  // Bright server room illumination
+  // =====================================================================
+  // DESIGN DRESSING
+  // =====================================================================
+  const design = buildLevel2Design({ scene, hud, includeRightFurniture: false, includeCeiling: false });
+  colliders.push(...design.colliders);
+  cleanup.push(() => design.dispose());
+
+  // =====================================================================
+  // CEILING FIXTURE MATERIALS — declared BEFORE laserSecurity
+  // =====================================================================
+  const ceilingLights = [];
+  const lightPanelGeo = new THREE.BoxGeometry(2.0, 0.08, 0.5);
+  const lightPanelMat = new THREE.MeshBasicMaterial({ color: 0x33ff66 });
+
+  // =====================================================================
+  // LASER SECURITY
+  // =====================================================================
+  const rackOccluders = [];
+  const laserSecurity = buildLaserSecurity({
+    scene, aiState, hud, sound, rackOccluders,
+    externalOccluders: design.colliders,
+    includeLeftBank: false,
+    onHit: onSecurityHit ?? onShock,
+    onDisabled: () => {
+      venatorRoom.setLaserActive(false);
+      ceilingLights.forEach(light => light.color.setHex(0xffffff));
+      lightPanelMat.color.setHex(0xebf8ff);
+    },
+  });
+  cleanup.push(() => laserSecurity.dispose());
+
+  // =====================================================================
+  // DOCUMENT RACK — holds the equipment register that names TX-03
+  // =====================================================================
+  const paperRack = buildPaperRack({ scene, colliders, hud });
+  cleanup.push(() => paperRack.dispose());
+
+  // =====================================================================
+  // PUZZLE CHAIN
+  // =====================================================================
+  const puzzleLayout = {
+    bay: SERVICE_BAY,
+    note: STICKY_FALLBACK,
+    sheetAnchor: paperRack.sheetAnchor,
+  };
+  const puzzleChain = buildPuzzleChain({ scene, hud, sound, colliders, layout: puzzleLayout, onCarryChange });
+  cleanup.push(() => puzzleChain.dispose());
+
+  // =====================================================================
+  // LIGHTING
+  // =====================================================================
   const hemiLight = new THREE.HemisphereLight(0xe8f4ff, 0x556677, 1.6);
   scene.add(hemiLight);
   cleanup.push(() => scene.remove(hemiLight));
@@ -28,96 +127,131 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
   scene.add(ambient);
   cleanup.push(() => scene.remove(ambient));
 
-  // Overhead ceiling light fixtures
-  const lightPanelGeo = new THREE.BoxGeometry(2.0, 0.08, 0.5);
-  const lightPanelMat = new THREE.MeshBasicMaterial({ color: 0xebf8ff });
-
   const lightPositions = [
     [0, 4.0, 4],
     [0, 4.0, -2],
   ];
-
   for (const pos of lightPositions) {
     const fixture = new THREE.Mesh(lightPanelGeo, lightPanelMat);
     fixture.position.set(pos[0], pos[1], pos[2]);
     scene.add(fixture);
+    originalLightFixtures.push(fixture);
     cleanup.push(() => scene.remove(fixture));
 
-    const pLight = new THREE.PointLight(0x6be0ff, 14, 20, 1.0);
+    const pLight = new THREE.PointLight(0x33ff66, 14, 20, 1.0);
+    ceilingLights.push(pLight);
     pLight.position.set(pos[0], pos[1] - 0.2, pos[2]);
     scene.add(pLight);
     cleanup.push(() => scene.remove(pLight));
   }
 
-  // Console green ambient glow
   const consoleLight = new THREE.PointLight(0x2bff8f, 12, 16, 1.0);
-  consoleLight.position.set(0, 2.4, -5.0);
+  consoleLight.position.set(COMPUTER.x - 1.2, 2.4, COMPUTER.z);
   scene.add(consoleLight);
   cleanup.push(() => scene.remove(consoleLight));
 
-  // Server rack texture & material
-  const rackTex = createServerRackTexture();
-  const rackMat = new THREE.MeshStandardMaterial({
-    map: rackTex,
-    roughness: 0.4,
-    metalness: 0.6,
+  // =====================================================================
+  // SERVER RACKS
+  // =====================================================================
+  const serverRacks = buildServerRacks({ scene, colliders, rackOccluders, onReady: () => laserSecurity.refreshOccluders() });
+  cleanup.push(() => serverRacks.dispose());
+
+  // =====================================================================
+  // TERMINAL
+  // Placeholder desk + screen stand in for the imported workstation until
+  // its GLBs land, and stay as the fallback if they never do. They sit where
+  // level2Layout.js says the real station sits, so the chair, the service
+  // bay and the maintenance tag all line up either way.
+  //
+  // COMPUTER is derived from TERMINAL (rotationY = PI), which puts it at
+  // (6.459, 1.044, -5.6). The placeholder screen faces -x, i.e. into the
+  // room toward the chair, which is what you want for a PI-rotated station.
+  // =====================================================================
+  const consoleDesk = buildProp({
+    geometry: new THREE.BoxGeometry(0.9, 1.0, 2.0),
+    material: new THREE.MeshStandardMaterial({ color: 0x3d4b59 }),
+    position: [COMPUTER.x - 0.45, 0.5, COMPUTER.z],
   });
+  scene.add(consoleDesk);
+  const originalDeskCollider = new THREE.Box3().setFromObject(consoleDesk);
+  colliders.push(originalDeskCollider);
+  cleanup.push(() => scene.remove(consoleDesk));
 
-  // Banks of server racks on left and right sides
-  const rackLeds = [];
-  for (let i = -2; i <= 2; i++) {
-    // Left bank
-    const rackL = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.7), rackMat);
-    rackL.position.set(-4.8, 1.3, i * 2.2);
-    rackL.castShadow = true;
-    rackL.receiveShadow = true;
-    scene.add(rackL);
-    colliders.push(new THREE.Box3().setFromObject(rackL));
-    cleanup.push(() => scene.remove(rackL));
-
-    // Right bank
-    const rackR = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.7), rackMat);
-    rackR.position.set(4.8, 1.3, i * 2.2);
-    rackR.castShadow = true;
-    rackR.receiveShadow = true;
-    scene.add(rackR);
-    colliders.push(new THREE.Box3().setFromObject(rackR));
-    cleanup.push(() => scene.remove(rackR));
-  }
-
-  // Terminal console desk
-  const consoleDesk = buildProp({ width: 2.0, height: 1.0, depth: 0.8, color: 0x3d4b59, position: [0, 0, -6.0] });
-  scene.add(consoleDesk.mesh);
-  colliders.push(consoleDesk.box);
-  cleanup.push(() => scene.remove(consoleDesk.mesh));
-
-  // Glowing green CRT terminal monitor
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(1.0, 0.6),
     new THREE.MeshBasicMaterial({ color: 0x1aff75 })
   );
-  screen.position.set(0, 1.7, -6.38);
+  screen.position.set(COMPUTER.x - 0.02, 1.7, COMPUTER.z);
+  screen.rotation.y = -Math.PI / 2;   // faces into the room, like the real monitor
   screen.userData.interactable = true;
   screen.userData.label = 'Use grid terminal';
-  screen.userData.onInteract = () => terminalUI.show();
+  screen.userData.getLabel = () => puzzleChain.getTerminalLabel(laserSecurity);
+  screen.userData.onInteract = () => {
+    puzzleChain.handleTerminalUse(laserSecurity, terminalUI);
+  };
+
   scene.add(screen);
   cleanup.push(() => scene.remove(screen));
 
+  const terminalStation = buildTerminalStation({
+    scene, colliders,
+    onInteract: screen.userData.onInteract,
+    getLabel: screen.userData.getLabel,
+    onReady: () => {
+      consoleDesk.visible = false;
+      screen.visible = false;
+      screen.userData.interactable = false;
+      originalDeskCollider.makeEmpty();
+    },
+  });
+  cleanup.push(() => terminalStation.dispose());
+
+  // The maintenance tag belongs on the machine, not on the wall beside it.
+  terminalStation.ready.then(() => puzzleChain.attachStickyNote(terminalStation.computer));
+
+  const officeChair = buildOfficeChair({ scene, colliders, hud, onSit: onChairSit, isSeated: isPlayerSeated });
+  cleanup.push(() => officeChair.dispose());
+
+  // Floor routing schematic on the open deck beside the walkway.
+  const routingHologram = createRoutingHologram({
+    position: new THREE.Vector3(-3.4, 0.015, 0.6),
+    radius: 1.6,
+    color: 0x4fe3ff,
+    intensity: 1,
+  });
+  scene.add(routingHologram.group);
+  cleanup.push(() => routingHologram.dispose());
+
+  // Data-traffic monitor on the face of the near server rack.
+  const rackStream = createRackDataStream({
+    position: new THREE.Vector3(5.33, 1.62, -1.4),
+    rotationY: -Math.PI / 2,
+    width: 0.82,
+    height: 1.5,
+    intensity: 1,
+  });
+  scene.add(rackStream.group);
+  cleanup.push(() => rackStream.dispose());
+
+  // =====================================================================
+  // LEVEL COMPLETION
+  // =====================================================================
   let solved = false;
   terminalUI.onSolved = () => {
-    if (solved) return;
+    if (solved || laserSecurity.isActive()) return;
     solved = true;
     hud.setObjective('Water infrastructure restored! AI alert triggered — proceed to the Core.');
     hud.markLevelComplete();
     aiState.raise(40);
   };
 
-  // Hazard stripe in front of exit door
+  // =====================================================================
+  // EXIT DOOR
+  // =====================================================================
   const hazardStrip = buildHazardStrip({ width: 3.0, depth: 0.8, position: [0, 0.01, -7.0] });
   scene.add(hazardStrip);
   cleanup.push(() => scene.remove(hazardStrip));
 
-  // Blast door forward
   const doorMesh = new THREE.Mesh(
     new THREE.BoxGeometry(2.4, 3.2, 0.2),
     new THREE.MeshStandardMaterial({ color: 0x485868, metalness: 0.6, roughness: 0.35 })
@@ -130,18 +264,48 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
   colliders.push(doorCollider);
   cleanup.push(() => scene.remove(doorMesh));
 
-  function update(delta) {
-    if (solved && doorMesh.visible) {
+  const smallDoor = buildVenatorSmallDoor({ scene, colliders, onReady: () => { doorMesh.visible = false; } });
+  cleanup.push(() => smallDoor.dispose());
+
+  // =====================================================================
+  // UPDATE LOOP
+  // =====================================================================
+
+  // Imported furniture is the heaviest geometry in this room, so it is registered
+  // once its GLBs have landed and then drawn at the detail its distance allows.
+  const detailLod = new DetailLod();
+  cleanup.push(() => detailLod.dispose());
+  function update(delta, camera) {
+    detailLod.update(camera);
+    laserSecurity.update(delta, camera);
+    routingHologram.update(delta);
+    rackStream.update(delta);
+    smallDoor.update(delta, solved);
+    design.update(delta, camera);
+    puzzleChain.update(delta);
+    if (solved) {
       doorMesh.visible = false;
-      doorCollider.min.set(1000, 1000, 1000);
-      doorCollider.max.set(1001, 1001, 1001);
+      doorCollider.makeEmpty();
     }
-    // Ambient suspicion decay while working quietly
     if (!terminalUI.open) aiState.decay(3 * delta);
   }
 
+  const ready = Promise.all([
+    venatorRoom.ready, serverRacks.ready, terminalStation.ready, officeChair.ready, smallDoor.ready,
+    ventPromise, design.ready, puzzleChain.ready,
+  ]).then(() => {
+    detailLod.addByName(scene, [
+      'Data Center Server Rack',
+      'Server Racking System',
+      'Imported terminal workstation',
+      'Office chair in front of terminal desk',
+    ]);
+  });
+
   return {
+    ready,
     colliders,
+    serviceSpawn: new THREE.Vector3(5.95, 1.7, 5.8),
     update,
     dispose: () => {
       terminalUI.onSolved = null;
@@ -150,6 +314,6 @@ export function buildLevel2({ scene, aiState, hud, terminalUI }) {
     spawn: new THREE.Vector3(0, 1.7, 6.0),
     title: 'LEVEL 2 — CONTROL',
     subtitle: 'Restore municipal power & water routing from the central terminal.',
-    objective: 'Access the terminal and authenticate using technician credentials.',
+    objective: 'Disable the AI laser security (shutdown button midway along the right wall). The terminal at the new workstation is offline — read the maintenance tag stuck to the computer.',
   };
 }

@@ -46,6 +46,7 @@ export class Terminal {
   close() {
     this.open = false;
     this.overlayEl.classList.add('hidden');
+    this.inputEl.blur?.();
   }
 
   _print(line) {

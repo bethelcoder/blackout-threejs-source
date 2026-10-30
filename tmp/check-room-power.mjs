@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { createRoomPower } from '../src/systems/roomPower.js';
+import { buildLightSwitch } from '../src/scenes/lightSwitch.js';
+import { InteractionTarget } from '../src/systems/interactionTarget.js';
+
+const light = new THREE.PointLight();
+let switched = 0, online = 0, brightness = -1;
+const power = createRoomPower({ lights: [{ light, off: 0, on: 4 }],
+  onBrightness: value => { brightness = value; }, onSwitch: () => switched++, onSecurityOnline: () => online++ });
+assert.equal(light.intensity, 0);
+power.update(30);
+assert.equal(power.securityOnline, false, 'No security timer before finding switch');
+power.activate();
+power.activate();
+assert.equal(switched, 1, 'Repeated activation does not reset startup');
+power.update(0.1);
+const first = brightness;
+power.update(0.1);
+assert.ok(brightness < first, 'Lights flicker during startup');
+power.update(1.3);
+assert.equal(brightness, 1);
+assert.equal(online, 0, 'Player gets a moment before CCTV activates');
+power.update(1.6);
+assert.equal(power.securityOnline, true);
+assert.equal(online, 1);
+power.update(20);
+assert.equal(online, 1);
+assert.equal(light.intensity, 4);
+
+globalThis.document = { createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, set src(_) {} }) };
+const wallSwitch = buildLightSwitch({ onActivate: () => switched++, isOn: () => false });
+assert.equal(wallSwitch.group.children.filter(child => child.isMesh).length, 6, 'Five imported parts plus indicator');
+const bounds = new THREE.Box3().setFromObject(wallSwitch.group);
+assert.ok(bounds.getSize(new THREE.Vector3()).y > 0.31 && bounds.getSize(new THREE.Vector3()).y < 0.33);
+wallSwitch.group.position.set(6.93, 1.45, 8.4);
+wallSwitch.group.rotation.y = -Math.PI / 2;
+const scene = new THREE.Scene();
+scene.add(wallSwitch.group);
+const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 100);
+camera.position.set(5, 1.7, 8.4);
+camera.lookAt(wallSwitch.group.position);
+scene.add(camera);
+scene.updateMatrixWorld(true);
+assert.equal(new InteractionTarget().find(camera, scene, 3.2, object => object.userData.interactable), wallSwitch.group,
+  'Mounted imported switch can be selected from the room');
+wallSwitch.group.userData.onInteract();
+assert.equal(switched, 2);
+wallSwitch.dispose();
+assert.equal(scene.children.includes(wallSwitch.group), false);
+console.log('Room power checks passed: dark start, one-shot flicker, delayed CCTV, imported switch scale/reach and cleanup.');

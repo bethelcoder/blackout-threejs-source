@@ -7,15 +7,12 @@ class SoundEngine {
     this.ctx = null;
     this.masterGain = null;
     this.ambientGain = null;
-    this.alarmGain = null;
     this.isMuted = false;
     this.initialized = false;
 
     // Ambient oscillator references
     this.droneOsc1 = null;
     this.droneOsc2 = null;
-    this.alarmOsc = null;
-    this.alarmLfo = null;
   }
 
   init() {
@@ -25,11 +22,13 @@ class SoundEngine {
       this.ctx = new AudioCtx();
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+      this.masterGain.gain.exponentialRampToValueAtTime(0.7, this.ctx.currentTime + 0.35);
       this.masterGain.connect(this.ctx.destination);
 
       this.ambientGain = this.ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+      this.ambientGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+      this.ambientGain.gain.exponentialRampToValueAtTime(0.25, this.ctx.currentTime + 1.2);
       this.ambientGain.connect(this.masterGain);
 
       this._startAmbientDrone();
@@ -89,50 +88,94 @@ class SoundEngine {
     const targetFreq = 55 + (suspicionLevel / 100) * 20;
     this.droneOsc1.frequency.setTargetAtTime(targetFreq, now, 0.5);
 
-    // If in HUNTING or LOCKDOWN, pulse emergency siren
-    if (suspicionLevel >= 75 && !this.alarmOsc) {
-      this._startAlarmSiren();
-    } else if (suspicionLevel < 75 && this.alarmOsc) {
-      this._stopAlarmSiren();
-    }
   }
 
-  _startAlarmSiren() {
-    if (!this.ctx || this.alarmOsc) return;
+
+/** Short metallic scrape when the cargo crate moves. */
+playCrateMove() {
+  if (!this.ctx || this.isMuted) return;
+
+  const now = this.ctx.currentTime;
+  const osc = this.ctx.createOscillator();
+  const filter = this.ctx.createBiquadFilter();
+  const gain = this.ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(125, now);
+  osc.frequency.exponentialRampToValueAtTime(65, now + 0.16);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(900, now);
+  filter.Q.setValueAtTime(1.2, now);
+
+  gain.gain.setValueAtTime(0.001, now);
+  gain.gain.linearRampToValueAtTime(0.09, now + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(this.masterGain);
+
+  osc.onended = () => {
+    osc.disconnect();
+    filter.disconnect();
+    gain.disconnect();
+  };
+
+  osc.start(now);
+  osc.stop(now + 0.19);
+}
+
+/** Heavy metallic clunk when the crate is blocked. */
+playCrateImpact() {
+  if (!this.ctx || this.isMuted) return;
+
+  const now = this.ctx.currentTime;
+  const osc = this.ctx.createOscillator();
+  const gain = this.ctx.createGain();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(105, now);
+  osc.frequency.exponentialRampToValueAtTime(38, now + 0.13);
+
+  gain.gain.setValueAtTime(0.22, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+  osc.connect(gain);
+  gain.connect(this.masterGain);
+
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
+
+  osc.start(now);
+  osc.stop(now + 0.17);
+}
+
+
+  /** Brief metal-on-metal scrape while removing the maintenance grille. */
+  playVentScrape() {
+    if (!this.ctx || this.isMuted) return;
     const now = this.ctx.currentTime;
-
-    this.alarmGain = this.ctx.createGain();
-    this.alarmGain.gain.setValueAtTime(0.12, now);
-    this.alarmGain.connect(this.masterGain);
-
-    this.alarmOsc = this.ctx.createOscillator();
-    this.alarmOsc.type = 'sawtooth';
-    this.alarmOsc.frequency.setValueAtTime(600, now);
-
-    // LFO to modulate siren pitch (woop-woop effect)
-    this.alarmLfo = this.ctx.createOscillator();
-    this.alarmLfo.type = 'sine';
-    this.alarmLfo.frequency.setValueAtTime(1.5, now);
-
-    const lfoGain = this.ctx.createGain();
-    lfoGain.gain.setValueAtTime(250, now);
-
-    this.alarmLfo.connect(lfoGain);
-    lfoGain.connect(this.alarmOsc.frequency);
-
-    this.alarmOsc.connect(this.alarmGain);
-    this.alarmLfo.start();
-    this.alarmOsc.start();
-  }
-
-  _stopAlarmSiren() {
-    if (!this.alarmOsc) return;
-    try {
-      this.alarmOsc.stop();
-      this.alarmLfo.stop();
-    } catch (_) {}
-    this.alarmOsc = null;
-    this.alarmLfo = null;
+    const osc = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(170, now);
+    osc.frequency.linearRampToValueAtTime(95, now + 0.18);
+    filter.type = 'bandpass';
+    filter.frequency.value = 1700;
+    filter.Q.value = 0.7;
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.07, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+    osc.start(now);
+    osc.stop(now + 0.21);
   }
 
   /** Footstep sound */
