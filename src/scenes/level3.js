@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { buildRoom, buildProp } from './roomBuilder.js';
 import { buildCoreHologramScreen } from './coreHologramScreen.js';
 import { createCoreOrbMaterial } from '../shaders/coreOrb.js';
+import { createCoreContainmentMaterial } from '../shaders/coreContainment.js';
+import { buildCorePowerConduits } from './corePowerConduits.js';
+import { createCoreShockwaves } from '../systems/coreShockwaves.js';
+import { buildCoreFeeders } from './coreFeeders.js';
 import { buildCoreRoomProps } from './coreRoomProps.js';
 import { sound } from '../systems/audio.js';
 import { buildCoreBase } from './coreBase.js';
@@ -158,12 +162,25 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   const coreLight = new THREE.PointLight(0xff2b2b, 14, 24, 1.0);
   coreGroup.add(coreLight);
 
+  const containmentMat = createCoreContainmentMaterial();
+  const containmentField = new THREE.Mesh(new THREE.SphereGeometry(1.82, 64, 40), containmentMat);
+  containmentField.name = 'Core containment field';
+  coreGroup.add(containmentField);
+
   core.updateMatrixWorld(true);
   colliders.push(pedestal.collider);
 
   // ---------- Floating wall telemetry ----------
   const hologramScreen = buildCoreHologramScreen();
   add(hologramScreen.group);
+  const powerConduits = buildCorePowerConduits();
+  add(powerConduits.group);
+  const shockwaves = createCoreShockwaves({
+    onHit: onSurgeHit,
+    onCharge: () => sound.playDetectionWarning(0.35),
+    onFire: () => sound.playGlitch(),
+  });
+  add(shockwaves.mesh);
 
   let progress = 0;
   let finished = false;
@@ -181,9 +198,20 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   } });
   const invisibleInk = buildInvisibleInk({ equipment, enabled: () => logbook.solved, hud, onSolved: () => {
     sound.playAccessGranted();
-    hud.setObjective('Invisible Ink complete. Assembly access word: RELAY. Next, talk to the robot beside the left desk. Type HELLO on its keypad to wake it and answer three riddles.');
+    hud.setObjective('UV answer accepted: RELAY. Core shockwaves activated! Isolate feeders A, B and C from HIGHEST MW load to LOWEST. Jump red rings or use the green gaps. Each isolated feeder makes the waves faster.');
   } });
   add(invisibleInk.group);
+  const feeders = buildCoreFeeders({
+    enabled: () => invisibleInk.solved && !finished,
+    hud,
+    onProgress: count => {
+      sound.playSwitch(); sound.playAccessGranted();
+      if (count === 3) { shockwaves.update(0, null, 0, true); charge = 0; }
+    },
+    onWrong: () => { aiState.raise(30); sound.playDetectionWarning(0.9); },
+  });
+  add(feeders.group);
+  colliders.push(...feeders.colliders);
   const requireLogbook = () => {
     if (logbook.solved) {
       if (invisibleInk.solved) return false;
@@ -200,10 +228,10 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   } });
   const assembly = createComponentAssembly({ onSolved: () => {
     progress = 3;
-    hologramScreen.setGuidance(true);
+    hologramScreen.setGuidance(false);
     sound.playAccessGranted();
-    hud.setObjective('Board assembled. Use the hologram again to connect the final circuit and isolate the AI.');
-  } });
+    hud.setObjective('Board assembled. Initializing the final circuit. Connect all three relays and finish at 5V to isolate the AI.');
+  }, onCircuitReady: host => coreOverride.open({ host }) });
   const coreOverride = createCircuitPuzzle({ onSolved: () => {
     if (assembly.solved && robotRepair.solved && !finished) beginIsolation();
   } });
@@ -218,6 +246,7 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   });
   const openCircuit = () => {
     if (requireLogbook() || finished) return;
+    if (!feeders.solved) { hud.setObjective('Isolate the three feeders from HIGHEST MW load to LOWEST before using the hologram.'); return; }
     if (!robotRepair.solved) { hud.setObjective('Solve the robot riddles to collect all three circuit components.'); return; }
     hologramScreen.setGuidance(false);
     if (!assembly.solved) { assembly.open(); return; }
@@ -288,7 +317,7 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
 
   let t = 0;
   let spin = 0;
-  const charge = 0;
+  let charge = 0;
   let dissolve = 0;
   let ended = false;
 
@@ -309,6 +338,10 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
     invisibleInk.update(camera);
     if (logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen) return;
     t += delta;
+    feeders.update(delta);
+    shockwaves.update(delta, camera, feeders.count, finished || feeders.solved, invisibleInk.solved);
+    charge = shockwaves.charge;
+    powerConduits.update(delta, t, invisibleInk.solved, robotRepair.solved, assembly.solved, finished);
     // --- Ending: dissolve the core, then hand over to the ending sequence ---
     if (finished) {
       dissolve += delta / 2.2;
@@ -331,6 +364,15 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
     orbU.uTime.value = t;
     const agitationTarget = finished ? 0.2 : 0.3 + progress * 0.3 + charge * 0.5;
     orbU.uAgitation.value += (agitationTarget - orbU.uAgitation.value) * lerpK(delta, 6);
+
+    const fieldU = containmentMat.uniforms;
+    fieldU.uTime.value = t;
+    const instabilityTarget = THREE.MathUtils.clamp(aiState.suspicion / 100, 0, 1);
+    fieldU.uInstability.value += (instabilityTarget - fieldU.uInstability.value) * lerpK(delta, 4);
+    const collapse = THREE.MathUtils.clamp(dissolve / 0.7, 0, 1);
+    fieldU.uCollapse.value = collapse;
+    containmentField.scale.setScalar(Math.max(0.001, 1 - collapse));
+    containmentField.visible = collapse < 1;
 
     hologramScreen.update(t, progress, charge);
 
@@ -392,6 +434,6 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
     spawn: new THREE.Vector3(0, 1.7, 5.5),
     title: 'LEVEL 3 — THE CORE',
     subtitle: 'Isolate the AI without cutting the stabilized municipal grid.',
-    objective: 'Read the engineer’s logbook on the left computer desk. Trust the stamps: find the four-digit drawer code and collect the UV flashlight.',
+    objective: 'Read the engineer’s logbook on the left computer desk. Trust the stamps: find the four-digit drawer code and collect the UV flashlight. Jump the red shockwaves or move through their green gaps.',
   };
 }

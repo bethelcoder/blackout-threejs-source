@@ -68,6 +68,8 @@ export function createShockwaveFloorMaterial() {
 
         vec3 col = uDanger * (danger + tele) + uSafe * safe;
         gl_FragColor = vec4(col, clamp(danger + tele + safe, 0.0, 1.0));
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }
     `,
   });
