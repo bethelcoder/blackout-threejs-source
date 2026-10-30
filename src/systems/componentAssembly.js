@@ -7,10 +7,12 @@ export const ASSEMBLY_PARTS = [
   { id: 'robot_interface_module', shape: '⬡', socket: 'Control', rotation: 2 },
 ];
 
-export function createComponentAssembly({ onSolved }) {
+export function createComponentAssembly({ onSolved, onCircuitReady }) {
   let overlay = null, selected = null, rotation = 0;
+  let loadingTimer = null;
   const placed = new Set();
   function close(resume = true) {
+    clearInterval(loadingTimer); loadingTimer = null;
     if (!overlay) return;
     overlay.remove(); overlay = null;
     document.removeEventListener('keydown', keydown, true);
@@ -23,6 +25,43 @@ export function createComponentAssembly({ onSolved }) {
     overlay = terminal.overlay; overlay.id = 'component-assembly-overlay';
     overlay.addEventListener('keydown', event => event.stopPropagation());
     const panel = terminal.panel;
+    function loadCircuit() {
+      // Keep the same modal mounted and the world paused throughout the handoff.
+      while (panel.firstChild) panel.removeChild(panel.firstChild);
+      const heading = document.createElement('h2'); heading.textContent = 'ASSEMBLY VERIFIED';
+      const label = document.createElement('p'); label.textContent = 'Initializing shutdown circuit...';
+      label.setAttribute('role', 'status');
+      const meter = document.createElement('div');
+      meter.setAttribute('role', 'progressbar');
+      meter.setAttribute('aria-label', 'Initializing shutdown circuit');
+      meter.setAttribute('aria-valuemin', '0'); meter.setAttribute('aria-valuemax', '100');
+      meter.style.cssText = 'display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:5px;padding:14px;border:1px solid #26778b;background:#06141e;margin:24px 0';
+      const bars = Array.from({ length: 24 }, () => {
+        const bar = document.createElement('span');
+        bar.style.cssText = 'display:block;height:36px;background:#12313e;border-radius:2px;transition:background 80ms,box-shadow 80ms';
+        meter.append(bar); return bar;
+      });
+      const percentage = document.createElement('p');
+      percentage.style.cssText = 'color:#8eefff;font:14px monospace;text-align:right';
+      panel.append(heading, label, meter, percentage);
+      let filled = 0;
+      meter.setAttribute('aria-valuenow', '0'); percentage.textContent = '0%';
+      loadingTimer = setInterval(() => {
+        if (filled < bars.length) {
+          bars[filled].style.background = '#63e9ff';
+          bars[filled].style.boxShadow = '0 0 10px #26c9eb66';
+          filled++;
+          const percent = Math.round(filled / bars.length * 100);
+          meter.setAttribute('aria-valuenow', String(percent)); percentage.textContent = `${percent}%`;
+          return;
+        }
+        clearInterval(loadingTimer); loadingTimer = null;
+        const host = overlay;
+        overlay = null;
+        document.removeEventListener('keydown', keydown, true);
+        onCircuitReady(host);
+      }, 90);
+    }
     const status = document.createElement('p'); status.setAttribute('role', 'status');
     const summary = document.createElement('div'); summary.className = 'terminal-progress';
     const board = document.createElement('div'); board.style.cssText = 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:20px 0';
@@ -49,9 +88,12 @@ export function createComponentAssembly({ onSolved }) {
         const slot = inventory.slots.findIndex(item => item?.id === part.id);
         if (slot < 0) { status.textContent = 'Collect this component from the robot first.'; return; }
         inventory.removeItem(slot); placed.add(part.id); selected = null;
-        status.textContent = placed.size === 3 ? 'Assembly complete. Return to the hologram to connect the shutdown circuit.' : 'Component seated. Connection stable.';
-        if (placed.size === 3) onSolved();
+        status.textContent = placed.size === 3 ? 'Assembly complete. Initializing shutdown circuit...' : 'Component seated. Connection stable.';
         draw();
+        if (placed.size === 3) {
+          onSolved();
+          if (onCircuitReady) loadCircuit();
+        }
       });
       socket.style.cssText = 'min-height:110px;margin:0;padding:14px 8px;font-size:13px;white-space:normal';
       sockets.push({ part, button: socket });

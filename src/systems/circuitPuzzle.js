@@ -53,9 +53,10 @@ export function createCircuitPuzzle({onSolved}) {
   function keydown(e){if(e.code==='Escape'){e.stopImmediatePropagation();close();}}
   return {
     get isOpen(){return !!overlay;},
-    open(){
+    open({ host = null } = {}){
       if(overlay||solved)return;
-      overlay=document.createElement('div');overlay.id='core-circuit-overlay';
+      overlay=host ?? document.createElement('div');overlay.id='core-circuit-overlay';
+      while(overlay.firstChild)overlay.removeChild(overlay.firstChild);
       overlay.style.cssText='position:fixed;inset:0;z-index:10000;overflow:auto;background:#020c14f5;color:#b8f4ff;display:grid;place-items:center;padding:16px;font:15px monospace;box-sizing:border-box';
       const panel=document.createElement('section');panel.style.cssText='width:min(500px,100%);padding:20px;border:1px solid #27bdd7;background:#061c28;box-sizing:border-box';
       panel.innerHTML='<h2 style="margin:0;color:#5eeaff">CIRCUIT OVERRIDE</h2><p>Connect IN to OUT through all 3 relays. Finish at 5V.</p><p>Click a tile to rotate.</p>';
@@ -88,8 +89,9 @@ export function createCircuitPuzzle({onSolved}) {
       action('Reset circuit',()=>{tiles.forEach((t,i)=>{t.rotation=initial[i].rotation;});draw();});
       action('Authorize shutdown',()=>{const state=evaluateCircuit(tiles);if(!state.solved){status.textContent=state.reason;return;}solved=true;close();onSolved();});
       action('Return to room',()=>close());
-      panel.append(status,board,actions);overlay.append(panel);document.body.append(overlay);
+      panel.append(status,board,actions);overlay.append(panel);if(!host)document.body.append(overlay);
       document.addEventListener('keydown',keydown,true);document.exitPointerLock?.();draw();
+      buttons.find(button=>!button.disabled)?.focus();
     },
     dispose(){close(false);},
   };

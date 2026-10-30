@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const context = texts => new Proxy({}, { get: (_, key) => key === 'fillText' ? text => texts.push(text)
   : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {} });
 class Element {
+  get firstChild() { return this.children[0] ?? null; }
   constructor(tag) { this.tag=tag;this.children=[];this.style={};this.events={};this.texts=[];this.value=''; }
   getContext() { return context(this.texts); }
   append(...items) { this.children.push(...items);items.forEach(x=>x.parent=this); }
@@ -65,9 +66,14 @@ assert.ok(walls.every(wall => wall.material === walls[0].material), 'Four walls 
 assert.ok(walls[0].material.bumpMap, 'Panel seams have surface relief');
 const camera = new THREE.PerspectiveCamera(); camera.position.copy(level.spawn);
 assert.equal(scene.getObjectByName('Hologram guidance glow').visible, false, 'Hologram cue starts off');
+camera.position.y += 0.5;
 for (let frame = 0; frame < 1200; frame++) level.update(1 / 60, camera);
-assert.equal(surges, 0, 'Logbook starting puzzle is safe from shockwaves');
-assert.ok(!scene.children.some(object => object.material?.uniforms?.uRadius), 'Removed shockwave game stays absent');
+camera.position.y -= 0.5;
+assert.equal(surges, 0, 'No shockwaves before UV answer');
+assert.ok(scene.getObjectByName('Core shockwave floor'), 'Core shockwave shader is present');
+assert.equal(scene.getObjectByName('Core shockwave floor').visible, false, 'Shockwaves hidden until UV solved');
+scene.getObjectByName('Feeder A').userData.onInteract();
+assert.ok(!scene.getObjectByName('Feeder A').userData.getLabel().includes('ISOLATED'), 'Feeders locked before UV answer');
 const startingHologram = scene.getObjectByName('Core holographic wall screen');
 startingHologram.userData.onInteract(); assert.ok(!level.panelOpen, 'Final puzzles locked before logbook and UV clues');
 scene.getObjectByName('Engineer logbook').userData.onInteract();
@@ -144,6 +150,19 @@ document.body.querySelectorAll('button').find(b => b.textContent === 'Decode key
 assert.equal(level.accessKeyword, 'RELAY', 'Decoding records keyword for assembly puzzle');
 document.body.querySelectorAll('button').find(b => b.textContent === 'Return to room [Esc]').click();
 const bot = scene.getObjectByName('Level 3 bot beside left desk');
+const feederStations = ['A', 'B', 'C'].map(id => scene.getObjectByName(`Feeder ${id}`));
+const sortedFeeders = [...feederStations].sort((a,b) => Number(b.userData.getLabel().match(/(\d+) MW/)[1]) - Number(a.userData.getLabel().match(/(\d+) MW/)[1]));
+sortedFeeders[0].userData.onInteract();
+assert.ok(sortedFeeders[0].userData.getLabel().includes('ISOLATED'));
+sortedFeeders[2].userData.onInteract();
+assert.ok(feederStations.every(f => !f.userData.getLabel().includes('ISOLATED')), 'Wrong order resets feeder progress');
+for (const feeder of sortedFeeders) feeder.userData.onInteract();
+assert.ok(feederStations.every(f => f.userData.getLabel().includes('ISOLATED')), 'Highest-to-lowest order isolates all feeders');
+camera.position.y += 0.5;
+for(let frame=0;frame<120;frame++)level.update(1/60,camera);
+camera.position.y -= 0.5;
+assert.equal(scene.getObjectByName('Core shockwave floor').visible, false, 'All feeders isolated disables shockwaves');
+assert.ok(scene.getObjectByName('Core shockwave floor').material.uniforms.uRadius.value.every(r => r === -10), 'No lingering rings after feeder isolation');
 bot.userData.onInteract(); assert.ok(level.panelOpen, 'Robot is available immediately after Invisible Ink');
 function message(value) {
   document.body.querySelectorAll('input')[0].value = value;
@@ -182,11 +201,15 @@ clickText('Return to room'); hologram.userData.onInteract();
 clickText('Control Chip'); clickText('Rotate selected part'); clickText('Rotate selected part'); clickText('Control / NOTCH');
 assert.equal(level.assemblyComplete,true,'All parts assembled');
 assert.equal(inventory.slots.filter(item => item?.type === 'part').length,0,'Components consumed only on correct fit');
-assert.equal(scene.getObjectByName('Hologram guidance glow').visible,true,'Completed assembly highlights circuit');
-clickText('Return to room');
+assert.equal(scene.getObjectByName('Hologram guidance glow').visible,false,'Assembly continues inside the hologram');
+const assemblyHost = document.getElementById('component-assembly-overlay');
+assert.ok(assemblyHost, 'Assembly overlay stays mounted while loading');
+assert.equal(assemblyHost.querySelectorAll('div').find(node => node.role === 'progressbar').children.length,24,'Loading indicator uses discrete bars');
+assert.ok(level.panelOpen, 'Loading keeps gameplay paused');
 assert.equal(endings,0,'Assembly alone does not shut down the AI');
-hologram.userData.onInteract();
+await new Promise(resolve => setTimeout(resolve, 2500));
 assert.ok(document.getElementById('core-circuit-overlay'),'Existing circuit remains final puzzle');
+assert.equal(document.getElementById('core-circuit-overlay'),assemblyHost,'Circuit reuses the same overlay without exiting');
 assert.equal(scene.getObjectByName('Hologram guidance glow').visible,false);
 let buttons;
 buttons=document.body.querySelectorAll('button');
