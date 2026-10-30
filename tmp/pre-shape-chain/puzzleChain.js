@@ -1,0 +1,512 @@
+import * as THREE from 'three';
+import {
+  buildCrowbar, buildPadlock, buildTXModule, buildStickyNote3D,
+  canvasTexture, disposeTree, std, paintedDoorTexture, shadowBoardTexture,
+  foamTexture, assignmentSheetTexture,
+} from './puzzleItems.js';
+import { loadModel } from '../systems/modelCache.js';
+import { fitModel } from '../systems/fitModel.js';
+import { showStickyNote } from '../riddles/stickyNote.js';
+import { showAssignmentBoard, RACK_ASSIGNMENTS, STARRED_LOCKER } from '../riddles/rackAssignments.js';
+
+// Level 2 puzzle chain:
+//   bolt cutters (GLB, workbench) -> padlock on TX-03 tool locker door -> crowbar
+//   -> TX PARTS crate (GLB, front-left corner) -> TX-CORE module
+//   -> service bay above the terminal -> terminal boots.
+//
+// World anchors:
+//   TX-03 tall cabinet (from design.js): x = -6.5, z = -4.1, face at x = -6.0
+//   TX PARTS crate (collider from design.js): (-5.1, 0.4, 7.2), size 0.8, ry -0.25
+//   Notice board on the right wall: centre (6.91, 2.05, 5.8)
+
+const CAB_FACE_X = -5.985;               // 1.5 cm in front of tall cabinet face (-6.0)
+const CAB_Z = -4.1;
+const DOOR_W = 1.2;
+const DOOR_H = 1.8;
+const DOOR_T = 0.022;
+const DOOR_Y0 = 0.5;
+const CRATE = { x: -5.1, y: 0.4, z: 7.2, size: 0.8, ry: -0.25 };
+const BENCH_CUTTERS = new THREE.Vector3(-6.22, 0.97, 1.43);
+const BOARD_SHEET = new THREE.Vector3(6.855, 1.7, 5.8);
+
+const ease = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+
+export function buildPuzzleChain({ scene, hud, sound, colliders = [], layout }) {
+  const state = {
+    hasCutters: false,
+    padlockCut: false,
+    hasCrowbar: false,
+    crateOpened: false,
+    carryingModule: false,
+    moduleInstalled: false,
+  };
+  const root = new THREE.Group(); root.name = 'Level 2 puzzle chain';
+  scene.add(root);
+  const invisible = new THREE.MeshBasicMaterial({ visible: false });
+  let elapsed = 0;
+
+  const box = (parent, w, h, d, mat, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z); parent.add(m); return m;
+  };
+  const cyl = (parent, r, len, mat, x, y, z, rx = 0, ry = 0, rz = 0, seg = 12) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), mat);
+    m.position.set(x, y, z); m.rotation.set(rx, ry, rz); parent.add(m); return m;
+  };
+  const proxy = (parent, w, h, d, x, y, z) => box(parent, w, h, d, invisible, x, y, z);
+
+  // Shared materials
+  const steel = std(0xb8c0c8, 0.4, 0.5);
+  const dark  = std(0x23272b, 0.6, 0.4);
+  const innerMat = std(0x1c2024, 0.85, 0.15);
+  const bodyMat  = std(0x4a534e, 0.65, 0.3);
+
+  // ====================================================================
+  // BOLT CUTTERS on the workbench — REAL GLB
+  // ====================================================================
+  const cutterPivot = new THREE.Group();
+  cutterPivot.position.copy(BENCH_CUTTERS);
+  cutterPivot.rotation.y = 1.42;
+  root.add(cutterPivot);
+
+  proxy(cutterPivot, 0.62, 0.14, 0.16, 0, 0.02, 0);
+  cutterPivot.userData.interactable = true;
+  cutterPivot.userData.reach = 2.0;
+  cutterPivot.userData.getLabel = () => (state.hasCutters ? 'Bolt cutters taken' : 'Take bolt cutters');
+  cutterPivot.userData.onInteract = () => {
+    if (state.hasCutters) return;
+    state.hasCutters = true;
+    cutterPivot.visible = false;
+    cutterPivot.userData.interactable = false;
+    sound.playInteract();
+    hud.setObjective(`Bolt cutters acquired. Find the \u2605 locker on the assignment board \u2014 ${STARRED_LOCKER} \u2014 and cut its padlock.`);
+  };
+
+  loadModel(new URL('../assets/models/bolt_cutter_low-poly.glb', import.meta.url).href)
+    .then(gltf => {
+      const cutters = gltf.scene.clone(true);
+      fitModel(cutters, { max: 0.6 }, -Math.PI / 2);
+      cutters.position.set(0, 0.02, 0);
+      cutterPivot.add(cutters);
+    })
+    .catch(err => console.warn('Bolt cutters failed to load:', err));
+
+  // ====================================================================
+  // TX-03 DOOR — hinged flush onto the existing tall cabinet.
+  // No protruding mini-cabinet. A flat door + hasp + padlock is the
+  // only thing that sticks out from the cabinet face.
+  // ====================================================================
+  // Dark interior behind the door (visible when open)
+  const interior = new THREE.Mesh(
+    new THREE.PlaneGeometry(DOOR_W - 0.04, DOOR_H - 0.06),
+    innerMat
+  );
+  interior.position.set(CAB_FACE_X - 0.002, DOOR_Y0 + DOOR_H / 2, CAB_Z);
+  interior.rotation.y = Math.PI / 2;
+  root.add(interior);
+
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(DOOR_W - 0.06, DOOR_H - 0.1),
+    new THREE.MeshStandardMaterial({ map: shadowBoardTexture(), roughness: 0.85 })
+  );
+  board.position.set(CAB_FACE_X, DOOR_Y0 + DOOR_H / 2, CAB_Z);
+  board.rotation.y = Math.PI / 2;
+  root.add(board);
+
+  // Crowbar hooks
+  const hookY = DOOR_Y0 + DOOR_H * 0.6;
+  for (const s of [-1, 1]) {
+    const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 8), steel);
+    hook.position.set(CAB_FACE_X + 0.04, hookY, CAB_Z + s * 0.28);
+    hook.rotation.z = Math.PI / 2;
+    root.add(hook);
+  }
+
+  // Hung crowbar
+  const crowbarMount = new THREE.Group();
+  crowbarMount.position.set(CAB_FACE_X + 0.05, hookY + 0.02, CAB_Z);
+  crowbarMount.rotation.y = -Math.PI / 2;
+  const hungCrowbar = buildCrowbar();
+  crowbarMount.add(hungCrowbar);
+  root.add(crowbarMount);
+  proxy(crowbarMount, 0.9, 0.12, 0.12, 0, 0.03, 0);
+  crowbarMount.userData.reach = 2.0;
+  crowbarMount.userData.label = 'Take crowbar';
+  crowbarMount.userData.interactable = false;
+
+  // Hinged door
+  const hinge = new THREE.Group();
+  hinge.position.set(CAB_FACE_X + DOOR_T + 0.002, DOOR_Y0 + DOOR_H / 2, CAB_Z - DOOR_W / 2 + 0.005);
+  root.add(hinge);
+
+  const leafW = DOOR_W - 0.02;
+  const leafH = DOOR_H - 0.03;
+  const doorFace = new THREE.MeshStandardMaterial({ map: paintedDoorTexture(), roughness: 0.6, metalness: 0.3 });
+  const leaf = new THREE.Mesh(
+    new THREE.BoxGeometry(DOOR_T, leafH, leafW),
+    [doorFace, innerMat, bodyMat, bodyMat, bodyMat, bodyMat]
+  );
+  leaf.position.set(DOOR_T / 2, 0, leafW / 2);
+  hinge.add(leaf);
+
+  for (const y of [-0.7, 0, 0.7]) {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.1, 10), steel);
+    barrel.position.set(0.005, y, 0);
+    hinge.add(barrel);
+  }
+
+  const slotZ = leafW - 0.05;
+  const hStaple = 0.3;
+  const haspMat = std(0xb8c0c8, 0.4, 0.5);
+  const haspSlot = std(0x23272b, 0.6, 0.4);
+  box(hinge, 0.008, 0.18, 0.08, haspMat, DOOR_T + 0.02, hStaple, slotZ);
+  box(hinge, 0.009, 0.06, 0.014, haspSlot, DOOR_T + 0.02, hStaple, slotZ);
+
+  const handleStem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.04, 10), haspSlot);
+  handleStem.position.set(DOOR_T + 0.03, -0.1, slotZ - 0.1);
+  handleStem.rotation.z = Math.PI / 2;
+  hinge.add(handleStem);
+  box(hinge, 0.022, 0.15, 0.026, haspMat, DOOR_T + 0.05, -0.1, slotZ - 0.1);
+
+  // Staple
+  const stapleY = DOOR_Y0 + DOOR_H / 2 + hStaple;
+  const stapleZ = CAB_Z - DOOR_W / 2 + 0.005 + slotZ;
+  const stapleX = CAB_FACE_X + DOOR_T + 0.04;
+  const stapleCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(stapleX - 0.014, stapleY - 0.016, stapleZ),
+    new THREE.Vector3(stapleX + 0.004, stapleY - 0.016, stapleZ),
+    new THREE.Vector3(stapleX + 0.016, stapleY, stapleZ),
+    new THREE.Vector3(stapleX + 0.004, stapleY + 0.016, stapleZ),
+    new THREE.Vector3(stapleX - 0.014, stapleY + 0.016, stapleZ),
+  ]);
+  root.add(new THREE.Mesh(new THREE.TubeGeometry(stapleCurve, 16, 0.004, 8, false), steel));
+
+  // Padlock
+  const padlock = buildPadlock();
+  padlock.position.set(stapleX + 0.02, stapleY - 0.087, stapleZ);
+  padlock.rotation.y = Math.PI / 2;
+  root.add(padlock);
+  const padlockHit = proxy(root, 0.12, 0.2, 0.16, stapleX + 0.02, stapleY - 0.06, stapleZ);
+  padlockHit.userData.interactable = true;
+  padlockHit.userData.reach = 2.0;
+
+  colliders.push(new THREE.Box3(
+    new THREE.Vector3(CAB_FACE_X, DOOR_Y0, CAB_Z - DOOR_W / 2),
+    new THREE.Vector3(CAB_FACE_X + DOOR_T + 0.05, DOOR_Y0 + DOOR_H, CAB_Z + DOOR_W / 2)
+  ));
+
+  const doorHit = leaf;
+  doorHit.userData.interactable = true;
+  doorHit.userData.reach = 2.0;
+  doorHit.userData.getLabel = () => {
+    if (state.hasCrowbar) return `${STARRED_LOCKER} locker (empty)`;
+    if (!state.padlockCut) return state.hasCutters ? `${STARRED_LOCKER} locker \u2014 cut the padlock` : `${STARRED_LOCKER} locker \u2014 padlocked (need bolt cutters)`;
+    return `${STARRED_LOCKER} locker \u2014 open`;
+  };
+  doorHit.userData.onInteract = () => {
+    if (state.padlockCut) return;
+    sound.playDetectionWarning(0.3);
+    hud.setObjective(state.hasCutters
+      ? 'Cut the brass padlock hanging on the TX-03 door hasp.'
+      : 'The padlock is hardened steel. Bolt cutters from the workbench could shear it.');
+  };
+
+  padlockHit.userData.getLabel = () => {
+    if (state.padlockCut) return 'Padlock (cut)';
+    return state.hasCutters ? 'Cut padlock with bolt cutters' : 'Padlock \u2014 need bolt cutters';
+  };
+  padlockHit.userData.onInteract = () => {
+    if (state.padlockCut) return;
+    if (!state.hasCutters) {
+      sound.playDetectionWarning(0.3);
+      hud.setObjective('The padlock is hardened steel. Find bolt cutters on the workbench (left wall).');
+      return;
+    }
+    state.padlockCut = true;
+    padlockHit.userData.interactable = false;
+    padlock.userData.cut();
+    root.attach(padlock);
+    falling.push({ obj: padlock, vy: 0, vx: 0.35, vz: 0.1, floorY: 0.027, bounces: 0, target: new THREE.Euler(-Math.PI / 2, 0.6, 0.2) });
+    sound.playAccessGranted();
+    hud.setObjective('Padlock cut. The TX-03 door swings open \u2014 take the crowbar.');
+  };
+
+  crowbarMount.userData.onInteract = () => {
+    if (state.hasCrowbar || doorAngle < 0.9) return;
+    state.hasCrowbar = true;
+    crowbarMount.visible = false;
+    crowbarMount.userData.interactable = false;
+    sound.playInteract();
+    hud.setObjective('Crowbar acquired. Pry open the TX PARTS crate on the floor in the front-left corner.');
+  };
+
+  // ====================================================================
+  // ASSIGNMENT SHEET
+  // ====================================================================
+  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.5),
+    new THREE.MeshStandardMaterial({ map: assignmentSheetTexture(RACK_ASSIGNMENTS, STARRED_LOCKER), roughness: 1 }));
+  sheet.position.copy(BOARD_SHEET); sheet.rotation.y = -Math.PI / 2; sheet.rotation.z = 0.04;
+  const pinMat = std(0xb3261e, 0.4, 0.2);
+  const pin = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), pinMat); pin.position.set(0, 0.2, 0.012); sheet.add(pin);
+  sheet.userData.interactable = true;
+  sheet.userData.reach = 2.0;
+  sheet.userData.label = 'Read rack assignment board';
+  sheet.userData.onInteract = () => {
+    sound.playInteract();
+    showAssignmentBoard();
+    hud.setObjective(`Assignment board: \u2605 ${STARRED_LOCKER} holds the crowbar. Find its padlock and cut it with the workbench bolt cutters.`);
+  };
+  root.add(sheet);
+
+  // ====================================================================
+  // TX PARTS CRATE — crate_box.glb visual + puzzleChain rim/foam/lid/module
+  // ====================================================================
+  const half = CRATE.size / 2, rimH = 0.16;
+  const crate = new THREE.Group();
+  crate.position.set(CRATE.x, CRATE.y, CRATE.z);
+  crate.rotation.y = CRATE.ry;
+  root.add(crate);
+
+  // Visual shell: crate_box.glb, fitted to 0.8, base at crate group's local y=-half
+  loadModel(new URL('../assets/models/crate_box.glb', import.meta.url).href)
+    .then(gltf => {
+      const crateVis = gltf.scene.clone(true);
+      fitModel(crateVis, { max: CRATE.size });
+      crateVis.position.set(0, -half, 0);
+      crate.add(crateVis);
+    })
+    .catch(err => console.warn('Crate visual failed:', err));
+
+  // Rim (raised wooden lip)
+  const woodMat = std(0x8a6a45, 0.9, 0);
+  const rimCenter = half + rimH / 2, rimOuter = CRATE.size - 0.04, tb = 0.03;
+  box(crate, rimOuter, rimH, tb, woodMat, 0, rimCenter, rimOuter / 2 - tb / 2);
+  box(crate, rimOuter, rimH, tb, woodMat, 0, rimCenter, -(rimOuter / 2 - tb / 2));
+  box(crate, tb, rimH, rimOuter - 2 * tb, woodMat, rimOuter / 2 - tb / 2, rimCenter, 0);
+  box(crate, tb, rimH, rimOuter - 2 * tb, woodMat, -(rimOuter / 2 - tb / 2), rimCenter, 0);
+
+  // Foam
+  const foam = new THREE.MeshStandardMaterial({ map: foamTexture(), roughness: 1 });
+  const pit = rimOuter - 2 * tb, pocketX = 0.33, pocketZ = 0.27, foamBase = half + 0.025, foamTop = half + 0.05 + 0.05;
+  box(crate, pit, 0.05, pit, foam, 0, foamBase, 0);
+  for (const s of [-1, 1]) {
+    box(crate, (pit - pocketX) / 2, 0.1, pit, foam, s * (pocketX / 2 + (pit - pocketX) / 4), foamTop, 0);
+    box(crate, pocketX, 0.1, (pit - pocketZ) / 2, foam, 0, foamTop, s * (pocketZ / 2 + (pit - pocketZ) / 4));
+  }
+
+  // TX-CORE module inside foam
+  const module = buildTXModule();
+  module.position.set(0, half + 0.05 + 0.0425, 0);
+  crate.add(module);
+  proxy(module, 0.4, 0.2, 0.3, 0, 0.03, 0);
+  module.userData.interactable = false;
+  module.userData.reach = 2.0;
+  module.userData.label = 'Take TX-CORE module';
+
+  // Lid
+  const lidHinge = new THREE.Group(); lidHinge.position.set(0, half + rimH + 0.02, 0.43); crate.add(lidHinge);
+  const lid = new THREE.Group(); lid.position.set(0, 0, -0.43); lidHinge.add(lid);
+  box(lid, 0.86, 0.04, 0.86, woodMat, 0, 0, 0);
+  for (const x of [-0.3, 0.3]) {
+    box(lid, 0.09, 0.025, 0.86, woodMat, x, 0.032, 0);
+    for (let i = 0; i < 6; i++) cyl(lid, 0.006, 0.008, std(0x6a6f74, 0.5, 0.5), x, 0.047, -0.36 + i * 0.144, 0, 0, 0, 6);
+  }
+
+  // Pry wedge (visual crowbar used to open the lid)
+  const wedge = new THREE.Group(); wedge.visible = false; root.add(wedge);
+  const wedgeBar = buildCrowbar(); wedgeBar.rotation.y = -Math.PI / 2; wedge.add(wedgeBar);
+
+  const crateHit = proxy(crate, 0.95, 0.95, 0.95, 0, 0, 0);
+  crateHit.userData.interactable = true;
+  crateHit.userData.reach = 2.0;
+  crateHit.userData.getLabel = () => {
+    if (state.crateOpened) return 'TX PARTS crate (open)';
+    return state.hasCrowbar ? 'Pry open TX PARTS crate' : 'Sealed TX PARTS crate \u2014 need crowbar';
+  };
+  crateHit.userData.onInteract = () => {
+    if (state.crateOpened) return;
+    if (!state.hasCrowbar) {
+      sound.playDetectionWarning(0.3);
+      hud.setObjective('The lid is nailed shut. A crowbar would pry it open.');
+      return;
+    }
+    state.crateOpened = true;
+    crateHit.userData.interactable = false;
+    crateAnim.phase = 'pry'; crateAnim.t = 0;
+    wedge.visible = true;
+    const p = crate.localToWorld(new THREE.Vector3(0.2, half + rimH + 0.2, -1.0));
+    wedge.position.copy(p);
+    wedge.rotation.set(0.61, CRATE.ry, 0);
+    sound.playSwitch();
+    hud.setObjective('Prying the lid...');
+  };
+
+  module.userData.onInteract = () => {
+    if (!module.userData.interactable || state.carryingModule) return;
+    state.carryingModule = true;
+    module.visible = false;
+    module.userData.interactable = false;
+    sound.playInteract();
+    hud.setObjective('TX-CORE module in hand. Seat it in the service bay on the wall above the terminal.');
+  };
+
+  // ====================================================================
+  // SERVICE BAY + STICKY NOTE
+  // ====================================================================
+  const bay = new THREE.Group(); bay.position.copy(layout.bay.position); bay.rotation.y = layout.bay.yaw; root.add(bay);
+  const bayMat = std(0x6d7782, 0.55, 0.35);
+  const bw = 0.5, bh = 0.30, bd = 0.34;
+  box(bay, bw, 0.02, bd, bayMat, 0, bh / 2 - 0.01, bd / 2);
+  box(bay, bw, 0.02, bd, bayMat, 0, -bh / 2 + 0.01, bd / 2);
+  for (const s of [-1, 1]) box(bay, 0.02, bh, bd, bayMat, s * (bw / 2 - 0.01), 0, bd / 2);
+  box(bay, bw, bh, 0.02, innerMat, 0, 0, 0.01);
+  const slotW = 0.27, slotH = 0.1, slotY = -0.02;
+  box(bay, bw, (bh / 2 + slotY) - slotH / 2, 0.012, bayMat, 0, (bh / 2 + slotY + slotH / 2) / 2 + slotH / 2 * 0 + (bh / 2 - (bh / 2 + slotY - slotH / 2)) / 2 * 0 + ((slotY + slotH / 2 + bh / 2) / 2), bd + 0.006);
+  box(bay, bw, (bh / 2 - (slotY + slotH / 2)) * 0 + (-bh / 2 + (slotY - slotH / 2)) * -1, 0.012, bayMat, 0, (-bh / 2 + (slotY - slotH / 2)) / 2, bd + 0.006);
+  for (const s of [-1, 1]) box(bay, (bw - slotW) / 2, slotH, 0.012, bayMat, s * (slotW / 2 + (bw - slotW) / 4), slotY, bd + 0.006);
+  const ledMat = new THREE.MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false });
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.009, 10, 8), ledMat); led.position.set(bw / 2 - 0.05, bh / 2 - 0.04, bd + 0.016); bay.add(led);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.05), new THREE.MeshStandardMaterial({
+    map: canvasTexture(256, 44, (g, w, h) => { g.fillStyle = '#1b2025'; g.fillRect(0, 0, w, h); g.fillStyle = '#d8dcd6'; g.font = 'bold 20px monospace'; g.textAlign = 'center'; g.fillText('TX-CORE SERVICE BAY', w / 2, 29); }),
+    roughness: 0.6 }));
+  plate.position.set(-0.05, bh / 2 - 0.04, bd + 0.0125); bay.add(plate);
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) cyl(bay, 0.008, 0.01, steel, sx * (bw / 2 - 0.02), sy * (bh / 2 - 0.02), bd + 0.012, Math.PI / 2, 0, 0, 8);
+  proxy(bay, 0.56, 0.36, 0.5, 0, 0, 0.2);
+  const bayHit = bay.children[bay.children.length - 1];
+  bayHit.userData.interactable = true;
+  bayHit.userData.reach = 2.6;
+  bayHit.userData.getLabel = () => {
+    if (state.moduleInstalled) return 'TX-CORE bay (module seated)';
+    return state.carryingModule ? 'Install TX-CORE module' : 'TX-CORE bay \u2014 module missing';
+  };
+  bayHit.userData.onInteract = () => {
+    if (state.moduleInstalled) return;
+    if (!state.carryingModule) {
+      sound.playDetectionWarning(0.3);
+      hud.setObjective('The TX-CORE bay is empty. The terminal needs a replacement module \u2014 see the sticky note.');
+      return;
+    }
+    state.carryingModule = false;
+    module.visible = true;
+    bay.attach(module);
+    module.position.set(0, slotY, bd + 0.35);
+    module.rotation.set(0, -Math.PI / 2, 0);
+    bayAnim.active = true; bayAnim.t = 0;
+    sound.playSwitch();
+  };
+
+  const note = buildStickyNote3D();
+  note.position.copy(layout.note.position); note.rotation.set(0, layout.note.yaw, 0.06);
+  const noteHit = proxy(note, 0.16, 0.16, 0.06, 0, 0, 0.02);
+  noteHit.userData.interactable = true; noteHit.userData.reach = 2.6; noteHit.userData.label = 'Read sticky note';
+  noteHit.userData.onInteract = () => { sound.playInteract(); showStickyNote(); };
+  root.add(note);
+
+  // ====================================================================
+  // PER-FRAME ANIMATION
+  // ====================================================================
+  let doorAngle = 0;
+  const falling = [];
+  const crateAnim = { phase: 'idle', t: 0 };
+  const bayAnim = { active: false, t: 0 };
+  const lidFall = { from: new THREE.Vector3(), to: new THREE.Vector3(), q0: new THREE.Quaternion(), q1: new THREE.Quaternion() };
+
+  function update(delta) {
+    elapsed += delta;
+
+    if (state.padlockCut) {
+      doorAngle = THREE.MathUtils.damp(doorAngle, 1.95, 3.2, delta);
+      hinge.rotation.y = doorAngle;
+      if (doorAngle > 0.9 && !state.hasCrowbar && !crowbarMount.userData.interactable) crowbarMount.userData.interactable = true;
+    }
+
+    for (const f of falling) {
+      if (f.rest) continue;
+      f.vy -= 9.8 * delta;
+      f.obj.position.x += f.vx * delta; f.obj.position.z += f.vz * delta; f.obj.position.y += f.vy * delta;
+      f.obj.rotation.x = THREE.MathUtils.damp(f.obj.rotation.x, f.target.x, 6, delta);
+      f.obj.rotation.y = THREE.MathUtils.damp(f.obj.rotation.y, f.target.y, 6, delta);
+      f.obj.rotation.z = THREE.MathUtils.damp(f.obj.rotation.z, f.target.z, 6, delta);
+      if (f.obj.position.y <= f.floorY) {
+        f.obj.position.y = f.floorY; f.vx *= 0.4; f.vz *= 0.4;
+        if (++f.bounces >= 3 || Math.abs(f.vy) < 0.5) { f.rest = true; f.vy = 0; } else f.vy = -f.vy * 0.3;
+      }
+    }
+
+    if (crateAnim.phase === 'pry') {
+      crateAnim.t += delta;
+      lidHinge.rotation.x = ease(crateAnim.t / 0.9) * 0.6;
+      if (crateAnim.t > 0.9) {
+        crateAnim.phase = 'fall'; crateAnim.t = 0;
+        root.attach(lid);
+        lidFall.from.copy(lid.position); lidFall.q0.copy(lid.quaternion);
+        lidFall.to.copy(crate.localToWorld(new THREE.Vector3(1.05, -0.38, -0.2)));
+        lidFall.q1.setFromEuler(new THREE.Euler(0, CRATE.ry + 0.7, 0));
+        sound.playSwitch();
+      }
+    } else if (crateAnim.phase === 'fall') {
+      crateAnim.t += delta;
+      const k = Math.min(1, crateAnim.t / 0.65);
+      lid.position.x = THREE.MathUtils.lerp(lidFall.from.x, lidFall.to.x, ease(k));
+      lid.position.z = THREE.MathUtils.lerp(lidFall.from.z, lidFall.to.z, ease(k));
+      lid.position.y = THREE.MathUtils.lerp(lidFall.from.y, lidFall.to.y, k * k) + Math.sin(k * Math.PI) * 0.08 * (1 - k);
+      lid.quaternion.slerpQuaternions(lidFall.q0, lidFall.q1, ease(k));
+      if (k >= 1) {
+        crateAnim.phase = 'done';
+        wedge.position.copy(crate.localToWorld(new THREE.Vector3(-0.7, -0.38, -0.55)));
+        wedge.rotation.set(0, CRATE.ry + 1.1, 0); wedgeBar.rotation.set(0, 0, 0);
+        module.userData.interactable = true;
+        hud.setObjective('Lid off. Take the TX-CORE module from the foam.');
+      }
+    }
+
+    if (bayAnim.active) {
+      bayAnim.t += delta;
+      const k = Math.min(1, bayAnim.t / 0.9);
+      module.position.z = THREE.MathUtils.lerp(bd + 0.35, bd - 0.12, ease(k));
+      if (k >= 1) {
+        bayAnim.active = false;
+        state.moduleInstalled = true;
+        module.userData.setLeds(0x33ff66);
+        ledMat.color.setHex(0x33ff66);
+        sound.playAccessGranted();
+        hud.setObjective('TX-CORE module seated. The terminal is online \u2014 sit at the desk and use the retro computer.');
+      }
+    }
+    if (!state.moduleInstalled) ledMat.color.setHex(Math.sin(elapsed * 5) > 0 ? 0xff2a1a : 0x4a0d08);
+  }
+
+  function getTerminalLabel(laserSecurity) {
+    if (laserSecurity.isActive()) return 'Terminal locked - disable laser security';
+    if (!state.moduleInstalled) return state.carryingModule ? 'Terminal offline - seat the module in the bay above' : 'Terminal offline - see sticky note';
+    return 'Use grid terminal';
+  }
+
+  function handleTerminalUse(laserSecurity, terminalUI) {
+    if (laserSecurity.isActive()) {
+      hud.setObjective('AI security interlock active. Press the laser shutdown button midway along the right wall.');
+      return;
+    }
+    if (state.moduleInstalled) { terminalUI.show(); return; }
+    sound.playDetectionWarning(0.3);
+    showStickyNote();
+    if (state.carryingModule) hud.setObjective('Seat the TX-CORE module in the service bay on the wall above the terminal.');
+    else if (state.crateOpened) hud.setObjective('Terminal won\'t boot without the TX-CORE module. Take it from the TX PARTS crate.');
+    else if (state.hasCrowbar) hud.setObjective('Terminal won\'t boot without the TX-CORE module. Pry open the TX PARTS crate.');
+    else if (state.padlockCut) hud.setObjective('Terminal won\'t boot without the TX-CORE module. Take the crowbar from TX-03.');
+    else if (state.hasCutters) hud.setObjective(`Terminal won\'t boot without the TX-CORE module. Cut the padlock on ${STARRED_LOCKER} (\u2605 on the assignment board).`);
+    else hud.setObjective('Terminal offline \u2014 the sticky note mentions a TX-CORE module. Start by checking the assignment board.');
+  }
+
+  return {
+    state,
+    update,
+    handleTerminalUse,
+    getTerminalLabel,
+    dispose() {
+      root.removeFromParent();
+      disposeTree(root);
+      invisible.dispose();
+    },
+  };
+}
