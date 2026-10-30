@@ -108,7 +108,15 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   const firstAid = buildCoreFirstAid();
   scene.add(firstAid.group);
   colliders.push(firstAid.collider);
-  const displayTerminal = buildCoreDisplayTerminal();
+  let coreCircuitSolved = false;
+  const displayTerminal = buildCoreDisplayTerminal({
+    hud,
+    password: 'AETHON-904',
+    isCoreOverridden: () => coreCircuitSolved,
+    onSolved: () => {
+      if (!finished) beginIsolation();
+    }
+  });
   scene.add(displayTerminal.group);
   colliders.push(displayTerminal.collider);
   const deskBot = buildCoreBot();
@@ -233,7 +241,12 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
     hud.setObjective('Board assembled. Initializing the final circuit. Connect all three relays and finish at 5V to isolate the AI.');
   }, onCircuitReady: host => coreOverride.open({ host }) });
   const coreOverride = createCircuitPuzzle({ onSolved: () => {
-    if (assembly.solved && robotRepair.solved && !finished) beginIsolation();
+    if (assembly.solved && robotRepair.solved && !finished) {
+      coreCircuitSolved = true;
+      hologramScreen.setGuidance(true);
+      sound.playAccessGranted();
+      hud.setObjective('Core circuit overridden! But the self-hosted AI has gone rogue on the display terminal! Read the cue card password on its bezel and engage the emergency kill switch!');
+    }
   } });
   Object.assign(deskBot.group.userData, {
     interactable: true,
@@ -336,7 +349,7 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
     detailLod.update(camera);
     earthHologram.update(delta);
     invisibleInk.update(camera);
-    if (logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen) return;
+    if (logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen || displayTerminal.isOpen) return;
     t += delta;
     feeders.update(delta);
     shockwaves.update(delta, camera, feeders.count, finished || feeders.solved, invisibleInk.solved);
@@ -426,7 +439,7 @@ export function buildLevel3({ scene, aiState, hud, equipment, onEnding, onSurgeH
   return {
     ready,
     colliders,
-    get panelOpen() { return logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen; },
+    get panelOpen() { return logbook.isOpen || invisibleInk.isOpen || robotRepair.isOpen || assembly.isOpen || coreOverride.isOpen || displayTerminal.isOpen; },
     get assemblyComplete() { return assembly.solved; },
     get accessKeyword() { return invisibleInk.accessKeyword; },
     update,

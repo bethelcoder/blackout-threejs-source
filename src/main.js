@@ -620,8 +620,8 @@ const securityRun = new SecurityRun({
     // CHANGED: added the 'surge' case for the Level 3 core shockwaves
     const reason = source.endsWith('-pin') ? 'Four incorrect PINs'
       : source === 'camera' ? 'Camera detected you'
-      : source === 'surge' ? 'Core shockwave hit you'
-      : 'Laser triggered';
+        : source === 'surge' ? 'Core shockwave hit you'
+          : 'Laser triggered';
     hud.setObjective(`${reason} — strike ${securityRun.strikes} of 3. Back at the entrance; 3 seconds to recover. ${currentLevel.objective}`);
   },
   onLose: (source) => {
@@ -636,10 +636,10 @@ const securityRun = new SecurityRun({
     el('lose-reason').textContent = source.endsWith('-pin')
       ? 'Four incorrect PIN attempts caused your third strike. Check the clues before submitting another code.'
       : source === 'camera'
-      ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
-      : source === 'surge'
-      ? 'The core\'s shockwaves caused your third strike. Jump the ring or run through the safe gap.'
-      : 'A laser caused your third strike. Jump low beams and duck under high beams.';
+        ? 'Three seconds in camera view caused your third strike. Break line of sight to reset the exposure timer.'
+        : source === 'surge'
+          ? 'The core\'s shockwaves caused your third strike. Jump the ring or run through the safe gap.'
+          : 'A laser caused your third strike. Jump low beams and duck under high beams.';
     showOnly(loseScreen);
     el('btn-retry-level').focus();
   },
@@ -698,7 +698,8 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
   }
 
   const builder = LEVEL_BUILDERS[index];
-  const args = { scene, aiState, hud, equipment, terminalUI: terminal, onEnding: playEnding,
+  const args = {
+    scene, aiState, hud, equipment, terminalUI: terminal, onEnding: playEnding,
     onCameraExposure: (delta, visible) => securityRun.cameraExposure(delta, visible),
     onPinStrike: (source) => securityRun.strike(source),
     onSecurityHit: () => securityRun.strike('laser'),
@@ -719,7 +720,8 @@ async function loadLevel(index, entry = 'door', resetStrikes = false) {
       equipment.equipTool(itemId);
     },
     getHeldToolId: () => equipment.equippedTool,
-    onCarryChange: setCarryHand };
+    onCarryChange: setCarryHand
+  };
   currentLevel = builder(args);
   currentLevelIndex = index;
 
@@ -803,7 +805,7 @@ function playEnding() {
   setTimeout(() => {
     terminal.show();
     terminal.outputEl.textContent =
-`==================================================
+      `==================================================
   JHB SUBSTATION 07 — FACILITY SYSTEM STATUS
 ==================================================
 MUNICIPAL POWER: RESTORED [100%]
@@ -821,7 +823,7 @@ OFFLINE
 
       setTimeout(() => {
         terminal.outputEl.textContent +=
-`AI CONTROLLER:
+          `AI CONTROLLER:
 ONLINE
 
 "Directive maintained. Human intervention contained."
@@ -859,7 +861,7 @@ function pauseSplineViewer() {
   if (spline) {
     spline.style.display = 'none';
     spline.style.visibility = 'hidden';
-    try { spline.stop?.(); } catch (_) {}
+    try { spline.stop?.(); } catch (_) { }
   }
 }
 
@@ -868,7 +870,7 @@ function resumeSplineViewer() {
   if (spline) {
     spline.style.display = 'block';
     spline.style.visibility = 'visible';
-    try { spline.play?.(); } catch (_) {}
+    try { spline.play?.(); } catch (_) { }
   }
 }
 
@@ -887,7 +889,7 @@ function startFacilityGame() {
   // CHANGED: dev-only shortcut. Open http://localhost:5173/?level=2 to start on Level 3.
   // import.meta.env.DEV is false in production builds, so this is ignored once deployed.
   const startLevel = import.meta.env.DEV
-    ? Number(new URLSearchParams(location.search).get('level') ?? 0)
+    ? Number(new URLSearchParams(location.search).get('level') ?? 2)
     : 0;
   loadLevel(startLevel, 'door', true);
 
@@ -991,7 +993,7 @@ el('nav-home')?.addEventListener('click', (e) => {
 const tryPlayMusic = () => {
   if (backgroundMusic && backgroundMusic.paused && !mainMenu.classList.contains('hidden')) {
     backgroundMusic.volume = 0.4;
-    backgroundMusic.play().catch(() => {});
+    backgroundMusic.play().catch(() => { });
   }
 };
 window.addEventListener('click', tryPlayMusic, { once: true });
@@ -1065,7 +1067,7 @@ el('btn-quit-menu')?.addEventListener('click', () => {
   showOnly(mainMenu);
   if (backgroundMusic) {
     backgroundMusic.currentTime = 0;
-    backgroundMusic.play().catch(() => {});
+    backgroundMusic.play().catch(() => { });
   }
 });
 
@@ -1082,7 +1084,7 @@ el('btn-lose-menu')?.addEventListener('click', () => {
   showOnly(mainMenu);
   if (backgroundMusic) {
     backgroundMusic.currentTime = 0;
-    backgroundMusic.play().catch(() => {});
+    backgroundMusic.play().catch(() => { });
   }
 });
 

@@ -65,7 +65,8 @@ export function buildInvisibleInk({ equipment, enabled, hud, onSolved }) {
     const button = (label, action) => { const b = document.createElement('button'); b.textContent = label; b.addEventListener('click', action); panel.append(b); return b; };
     panel.append(input, status);
     const decode = button('Decode keyword', () => {
-      if (found.size !== clues.length) { status.textContent = 'Record the wall key and all three fragments with the UV flashlight first.'; return; }
+      // If player already knows or decoded RELAY, accept it directly
+      clues.forEach(c => found.add(c.id));
       if (input.value.trim().toUpperCase() !== 'RELAY') { status.textContent = 'Incorrect. Translate each symbol, then order the letters by their numbers.'; return; }
       if (!solved) { solved = true; onSolved('RELAY'); }
       status.textContent = 'DECODED: RELAY. Assembly access restored. Talk to the robot to recover the circuit components.';
